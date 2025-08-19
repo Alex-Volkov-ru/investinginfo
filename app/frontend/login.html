@@ -140,7 +140,9 @@
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
-  const BACKEND = 'http://127.0.0.1:8000';
+  const BACKEND = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:8000'
+    : `${location.protocol}//${location.hostname}:8000`;
 
   function toast(msg, type='ok'){
     const wrap = document.getElementById('toastWrap');
