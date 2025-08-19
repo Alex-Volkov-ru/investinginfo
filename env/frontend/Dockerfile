@@ -1,8 +1,9 @@
-# ./env/frontend/Dockerfile
-FROM nginx:alpine
+# Сборка фронта (React/Vue)
+FROM node:20-alpine as build
 
-# Убираем дефолтный конфиг и ставим свой
-COPY ./env/frontend/default.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
+COPY ./app/frontend/package*.json ./
+RUN npm install --frozen-lockfile
 
-# Копируем статику (html/css/js)
-COPY ./app/frontend /usr/share/nginx/html
+COPY ./app/frontend .
+RUN npm run build
