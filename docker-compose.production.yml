@@ -29,11 +29,29 @@ services:
       timeout: 5s
     restart: unless-stopped
     ports:
-      - "5434:5432"   # ⚠️ у тебя на сервере уже заняты 5432 и 5433
+      - "5434:5432"   # ⚠️ у тебя 5432 и 5433 уже заняты
+    networks: [portfolio-net]
+
+  cli-flyway:
+    profiles: ["cli-flyway"]
+    image: flyway/flyway:11-alpine
+    container_name: bigs-flyway
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_URL: jdbc:postgresql://db:${POSTGRES_PORT}/${POSTGRES_DB}
+      FLYWAY_USER: ${POSTGRES_USER}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./env/pgsql/migrations:/flyway/sql:ro
+    command: migrate
+    restart: "no"
     networks: [portfolio-net]
 
   backend:
-    image: ximikat01/bigs_backend:latest   # <-- тянем из Docker Hub
+    image: ximikat01/bigs_backend:latest
     container_name: bigs-backend
     env_file: .env
     depends_on:
@@ -46,16 +64,16 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
     ports:
-      - "8001:8000"   # ⚠️ 8000 у тебя тоже занят, возьмём 8001
+      - "8001:8000"   # ⚠️ порт 8000 занят, отдадим 8001
     restart: always
     networks: [portfolio-net]
 
   frontend:
-    image: ximikat01/bigs_frontend:latest   # <-- тянем из Docker Hub
+    image: ximikat01/bigs_frontend:latest
     container_name: bigs-frontend
     environment:
       TZ: ${TZ:-Europe/Moscow}
     ports:
-      - "8081:80"   # ⚠️ 8080 скорее всего занят, возьмём 8081
+      - "8081:80"
     restart: unless-stopped
     networks: [portfolio-net]
