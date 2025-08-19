@@ -15,8 +15,6 @@ jobs:
       # ====================== CHECKOUT ======================
       - name: 🔄 Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       # ====================== LOGIN TO DOCKER HUB ======================
       - name: 🔑 Login to Docker Hub
@@ -56,7 +54,20 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           set -e
+
+          # создаем папку если нет
+          mkdir -p ${{ secrets.PROJECT_DIR }}
           cd ${{ secrets.PROJECT_DIR }}
+
+          # если нет репозитория — клонируем, если есть — обновляем
+          if [ ! -d ".git" ]; then
+            git clone https://github.com/${{ github.repository }} .
+          else
+            git fetch --all
+            git reset --hard origin/master
+          fi
+
+          # перезапуск
           docker compose -f docker-compose.production.yml pull
           docker compose -f docker-compose.production.yml down
           docker compose -f docker-compose.production.yml up -d
