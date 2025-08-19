@@ -12,16 +12,18 @@ jobs:
       packages: write
 
     steps:
+      # ====================== CHECKOUT ======================
       - name: 🔄 Checkout code
         uses: actions/checkout@v4
 
+      # ====================== LOGIN TO DOCKER HUB ======================
       - name: 🔑 Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Только backend билдим в CI
+      # ====================== BUILD & PUSH BACKEND ======================
       - name: 🏗️ Build & Push Backend
         uses: docker/build-push-action@v4
         with:
@@ -30,6 +32,16 @@ jobs:
           push: true
           tags: ximikat01/bigs_backend:latest
 
+      # ====================== BUILD & PUSH FRONTEND ======================
+      - name: 🏗️ Build & Push Frontend
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./env/frontend/Dockerfile
+          push: true
+          tags: ximikat01/bigs_frontend:latest
+
+      # ====================== SSH SETUP ======================
       - name: 🔑 Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -37,12 +49,14 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${{ secrets.SSH_PORT }} -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
+      # ====================== COPY FILES & DEPLOY ======================
       - name: 🚀 Deploy on server
         run: |
+          # копируем compose и nginx.conf на сервер
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/docker-compose.production.yml
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/nginx.conf ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/frontend/nginx.conf
 
-
+          # рестарт сервисов
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           set -e
           cd ${{ secrets.PROJECT_DIR }}
@@ -51,11 +65,13 @@ jobs:
           docker compose -f docker-compose.production.yml up -d
           EOF
 
+      # ====================== VERIFY DEPLOY ======================
       - name: ✅ Verify deployment
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
 
+      # ====================== NOTIFICATION ======================
       - name: 📢 Notify Telegram
         if: always()
         uses: appleboy/telegram-action@master

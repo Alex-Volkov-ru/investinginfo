@@ -1,9 +1,8 @@
-# Сборка фронта (React/Vue)
-FROM node:20-alpine as build
+FROM nginx:alpine
 
-WORKDIR /app
-COPY ./app/frontend/package*.json ./
-RUN npm install --frozen-lockfile
+# убираем дефолтный конфиг
+RUN rm /etc/nginx/conf.d/default.conf
 
-COPY ./app/frontend .
-RUN npm run build
+# конфиг фронта не нужен, он будет у верхнего nginx
+# просто кладём статику
+COPY ./app/frontend /usr/share/nginx/html
