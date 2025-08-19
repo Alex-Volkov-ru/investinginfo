@@ -82,7 +82,7 @@ services:
     ports:
       - "8081:80"
     volumes:
-      - ./env/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./env/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - frontend_volume:/frontend-dist
     depends_on:
       - backend
