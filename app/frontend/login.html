@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Вход | Портфель</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
+
+<style>
+  :root[data-theme='light']{
+    --bg:#f5f7ff; --bg2:#ffffff; --card:#ffffff; --stroke:rgba(0,0,0,.10);
+    --text:#17202a; --muted:#6b7280; --brand:#4361ee; --brand2:#67e8f9;
+    --accent:#f72585; --ok:#06d6a0; --warn:#fbbf24;
+    --shadow:0 10px 30px rgba(17,24,39,.12); --shadow-lg:0 20px 60px rgba(17,24,39,.18);
+    --ring:0 0 0 3px rgba(67,97,238,.25);
+    --input-bg:#ffffff; --input-bg-hover:#f7f7fb;
+    --menu-bg:#ffffff; --menu-text:#17202a;
+  }
+  :root[data-theme='dark']{
+    --bg:#0f1224; --bg2:#0b0e1a; --card:#151935; --stroke:rgba(255,255,255,.10);
+    --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
+    --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166;
+    --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 20px 60px rgba(0,0,0,.45);
+    --ring:0 0 0 3px rgba(122,162,255,.28);
+    --input-bg:#1b2146; --input-bg-hover:#202759;
+    --menu-bg:#151935; --menu-text:#ecf0ff;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box}
+  html,body{scroll-behavior:smooth}
+  body{
+    margin:0; min-height:100vh;
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    color:var(--text);
+    background:
+      radial-gradient(1400px 700px at -20% -10%, rgba(67,97,238,.18), transparent),
+      radial-gradient(900px 600px at 120% 10%, rgba(247,37,133,.12), transparent),
+      linear-gradient(180deg, var(--bg), var(--bg2));
+    display:flex; align-items:center; justify-content:center; padding:24px;
+    transition: background .35s ease, color .2s ease;
+  }
+
+  .blob{position:fixed; filter:blur(60px); opacity:.45; z-index:-1; mix-blend-mode:plus-lighter; animation:float 18s ease-in-out infinite}
+  .blob.one{width:360px; height:360px; left:-120px; top:-80px; background:#7ff0ff22;}
+  .blob.two{width:380px; height:380px; right:-140px; top:-60px; background:#f86aa422; animation-delay:-6s}
+  @keyframes float{0%,100%{transform:translateY(0)} 50%{transform:translateY(20px)}}
+
+  .card{width:100%; max-width:460px; background:var(--card); border:1px solid var(--stroke); border-radius:18px; box-shadow:var(--shadow-lg); padding:18px}
+  .title{margin:0 0 8px; font-weight:800}
+  .tabs{display:flex; gap:8px; margin-bottom:12px}
+  .tab{flex:1; text-align:center; padding:10px; border-radius:12px; border:1px solid var(--stroke); background:var(--input-bg); cursor:pointer; font-weight:800; user-select:none}
+  .tab.active{background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#0c0f21; border:none}
+
+  label{font-size:12px; color:var(--muted); font-weight:700}
+  input{
+    width:100%; padding:12px; border-radius:12px; border:1px solid var(--stroke);
+    background:var(--input-bg); color:var(--text); font-weight:700;
+    transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  input:hover{background:var(--input-bg-hover)}
+  input:focus{outline:none; box-shadow:var(--ring); border-color:transparent}
+  .grid{display:grid; grid-template-columns:1fr; gap:12px}
+  .actions{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:12px}
+
+  .btn{
+    position:relative; overflow:hidden; padding:10px 14px; border-radius:14px; border:1px solid var(--stroke);
+    background:var(--card); color:var(--text); cursor:pointer; font-weight:800;
+    box-shadow:var(--shadow); transition:transform .18s ease, box-shadow .22s ease, background .2s ease
+  }
+  .btn:hover{transform:translateY(-1px); box-shadow:var(--shadow-lg)}
+  .btn:focus{outline:none; box-shadow:var(--shadow), var(--ring)}
+  .btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent}
+  .btn-ghost{background:transparent}
+  .btn::after{content:""; position:absolute; inset:0; background:radial-gradient(140px 140px at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.45), transparent 60%); opacity:0; transition:opacity .6s ease}
+  .btn.rippling::after{opacity:.8; transition:none}
+
+  .muted{color:var(--muted); font-weight:700}
+  .toast-wrap{position:fixed; bottom:16px; right:16px; display:flex; flex-direction:column; gap:10px; z-index:2000}
+  .toast{min-width:220px; max-width:320px; padding:12px 14px; border-radius:12px; background:var(--card); border:1px solid var(--stroke); box-shadow:var(--shadow); display:flex; gap:8px; align-items:flex-start; animation:slideIn .35s ease both}
+  .toast.ok{border-left:4px solid var(--ok)} .toast.err{border-left:4px solid var(--accent)}
+  @keyframes slideIn{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="blob one"></div>
+<div class="blob two"></div>
+
+<div class="card animate-in">
+  <h1 class="title">🔑 Добро пожаловать</h1>
+  <div class="tabs">
+    <div id="tabLogin" class="tab active">Вход</div>
+    <div id="tabRegister" class="tab">Регистрация</div>
+  </div>
+
+  <!-- LOGIN -->
+  <form id="loginForm" novalidate>
+    <div class="grid">
+      <div>
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" required placeholder="you@example.com" />
+      </div>
+      <div>
+        <label for="loginPassword">Пароль</label>
+        <input id="loginPassword" type="password" required placeholder="••••••••" />
+      </div>
+    </div>
+    <div class="actions">
+      <a href="index.html" class="btn btn-ghost" id="backBtn">← На главную</a>
+      <button type="submit" class="btn btn-primary">Войти</button>
+    </div>
+  </form>
+
+  <!-- REGISTER -->
+  <form id="registerForm" style="display:none" novalidate>
+    <div class="grid">
+      <div>
+        <label for="regEmail">Email</label>
+        <input id="regEmail" type="email" required placeholder="you@example.com" />
+      </div>
+      <div>
+        <label for="regPassword">Пароль</label>
+        <input id="regPassword" type="password" required placeholder="Минимум 6 символов" />
+      </div>
+      <div>
+        <label for="regPhone">Телефон (необязательно)</label>
+        <input id="regPhone" type="tel" placeholder="+79991234567" />
+      </div>
+    </div>
+    <div class="actions">
+      <a href="index.html" class="btn btn-ghost" id="cancelBtn">Отмена</a>
+      <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+    </div>
+  </form>
+
+  <div class="muted" style="margin-top:12px">После входа вы будете перенаправлены в личный кабинет.</div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+  const BACKEND = 'http://127.0.0.1:8000';
+
+  function toast(msg, type='ok'){
+    const wrap = document.getElementById('toastWrap');
+    const el = document.createElement('div');
+    el.className = 'toast ' + (type==='err'?'err':'ok');
+    el.innerHTML = `<div>${msg}</div>`;
+    wrap.appendChild(el);
+    setTimeout(()=>{ el.style.opacity=.0; el.style.transform='translateY(6px)'; }, 2400);
+    setTimeout(()=>{ el.remove(); }, 2800);
+  }
+  function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); }
+  function initTheme(){ const t = localStorage.getItem('pf_theme') || 'light'; setTheme(t); }
+  function ripple(e){
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--rx', ((e.clientX-r.left)/r.width*100).toFixed(2)+"%");
+    e.currentTarget.style.setProperty('--ry', ((e.clientY-r.top)/r.height*100).toFixed(2)+"%");
+    e.currentTarget.classList.remove('rippling'); requestAnimationFrame(()=> e.currentTarget.classList.add('rippling'));
+    setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250);
+  }
+
+  const api = axios.create({ baseURL: BACKEND, timeout: 20000 });
+
+  function switchTab(tab){
+    const tL = document.getElementById('tabLogin');
+    const tR = document.getElementById('tabRegister');
+    const fL = document.getElementById('loginForm');
+    const fR = document.getElementById('registerForm');
+    if(tab === 'login'){
+      tL.classList.add('active'); tR.classList.remove('active');
+      fL.style.display = '';      fR.style.display = 'none';
+    }else{
+      tL.classList.remove('active'); tR.classList.add('active');
+      fL.style.display = 'none';     fR.style.display = '';
+    }
+  }
+
+  // если уже авторизован — уходим в кабинет
+  (function autoRedirect(){
+    const tok = localStorage.getItem('pf_token');
+    if(tok){ window.location.replace('index.html'); }
+  })();
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    initTheme();
+    document.querySelectorAll('.btn').forEach(b=> b.addEventListener('click', ripple));
+    document.getElementById('tabLogin').addEventListener('click', ()=> switchTab('login'));
+    document.getElementById('tabRegister').addEventListener('click', ()=> switchTab('register'));
+
+    // логин
+    document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      try{
+        const { data } = await api.post('/auth/login', { email, password });
+        localStorage.setItem('pf_token', data.access_token || '');
+        localStorage.setItem('pf_user_id', String(data.user_id || ''));
+        localStorage.setItem('pf_email', data.email || email);
+        localStorage.removeItem('pf_portfolio_id');
+        toast('Вход выполнен');
+        window.location.replace('index.html'); // ВАЖНО: replace
+      }catch(err){
+        console.error(err);
+        const msg = err?.response?.data?.detail || 'Неверный email или пароль';
+        toast(msg, 'err');
+      }
+    });
+
+    // регистрация
+    document.getElementById('registerForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const phone = document.getElementById('regPhone').value.trim();
+      try{
+        await api.post('/users', { email, password, phone: phone || null });
+        toast('Регистрация успешна. Выполните вход.');
+        switchTab('login');
+        document.getElementById('loginEmail').value = email;
+        document.getElementById('loginPassword').value = '';
+      }catch(err){
+        console.error(err);
+        const msg = err?.response?.data?.detail || 'Ошибка регистрации';
+        toast(msg, 'err');
+      }
+    });
+  });
+</script>
+</body>
+</html>

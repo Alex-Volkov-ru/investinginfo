@@ -1,0 +1,88 @@
+version: "3.9"
+
+networks:
+  portfolio-net:
+    driver: bridge
+
+volumes:
+  pg_data:
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bigs-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "--lc-collate=C --lc-ctype=ru_RU.UTF-8 --lc-messages=en_US.UTF-8 --encoding=UTF-8"
+      TZ: ${TZ:-Europe/Moscow}
+    volumes:
+      - ./env/localtime:/etc/localtime:ro
+      - ./env/pgsql/override.conf:/etc/postgresql/postgresql.conf.d/10-override.conf:ro
+      - ./env/pgsql/initdb.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+    restart: unless-stopped
+    ports:
+      - "5432:5432"   # <--- проброс БД наружу (на dev/prod можно убрать)
+    networks: [portfolio-net]
+
+  cli-flyway:
+    profiles: ["cli-flyway"]
+    image: flyway/flyway:11-alpine
+    container_name: bigs-flyway
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_URL: jdbc:postgresql://db:${POSTGRES_PORT}/${POSTGRES_DB}
+      FLYWAY_USER: ${POSTGRES_USER}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./env/pgsql/migrations:/flyway/sql:ro
+    command: migrate
+    restart: "no"
+    networks: [portfolio-net]
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./env/backend/Dockerfile
+    image: bigs-backend
+    container_name: bigs-backend
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      TINKOFF_API_TOKEN: ${TINKOFF_TOKEN}
+      TINKOFF_TOKEN: ${TINKOFF_TOKEN}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      TZ: ${TZ:-Europe/Moscow}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    restart: always
+    networks: [portfolio-net]
+
+  frontend:
+    image: nginx:alpine
+    container_name: bigs-frontend
+    environment:
+      TZ: ${TZ:-Europe/Moscow}
+    volumes:
+      - ./app/frontend:/usr/share/nginx/html:ro
+      - ./env/localtime:/etc/localtime:ro
+    ports:
+      - "${APP_PORT:-8080}:80"
+    restart: unless-stopped
+    networks: [portfolio-net]

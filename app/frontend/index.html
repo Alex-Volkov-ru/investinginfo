@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title id="pageTitle">Мой инвестиционный портфель</title>
+
+<!-- ГАРД: если нет токена — на страницу входа -->
+<script>
+  if (!localStorage.getItem('pf_token')) {
+    window.location.replace('login.html');
+  }
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+
+<style>
+  :root[data-theme='light']{
+    --bg:#f5f7ff; --bg2:#ffffff; --card:#ffffff; --stroke:rgba(0,0,0,.10);
+    --text:#17202a; --muted:#6b7280; --brand:#4361ee; --brand2:#67e8f9;
+    --accent:#f72585; --ok:#06d6a0; --warn:#fbbf24;
+    --shadow:0 10px 30px rgba(17,24,39,.12); --shadow-lg:0 20px 60px rgba(17,24,39,.18);
+    --ring:0 0 0 3px rgba(67,97,238,.25);
+    --input-bg:#ffffff; --input-bg-hover:#f7f7fb;
+    --menu-bg:#ffffff; --menu-text:#17202a;
+  }
+  :root[data-theme='dark']{
+    --bg:#0f1224; --bg2:#0b0e1a; --card:#151935; --stroke:rgba(255,255,255,.10);
+    --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
+    --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166;
+    --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 20px 60px rgba(0,0,0,.45);
+    --ring:0 0 0 3px rgba(122,162,255,.28);
+    --input-bg:#1b2146; --input-bg-hover:#202759;
+    --menu-bg:#151935; --menu-text:#ecf0ff;
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box}
+  html,body{scroll-behavior:smooth}
+  body{
+    margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; color:var(--text);
+    background:
+      radial-gradient(1400px 700px at -20% -10%, rgba(67,97,238,.18), transparent),
+      radial-gradient(900px 600px at 120% 10%, rgba(247,37,133,.12), transparent),
+      linear-gradient(180deg, var(--bg), var(--bg2));
+    min-height:100vh; transition: background .35s ease, color .2s ease;
+  }
+  .container{max-width:1200px; margin:0 auto; padding:24px}
+
+  .blob{position:fixed; filter:blur(60px); opacity:.45; z-index:-1; mix-blend-mode:plus-lighter; animation:float 18s ease-in-out infinite}
+  .blob.one{width:360px; height:360px; left:-120px; top:-80px; background:#7ff0ff22;}
+  .blob.two{width:380px; height:380px; right:-140px; top:-60px; background:#f86aa422; animation-delay:-6s}
+  @keyframes float{0%,100%{transform:translateY(0)} 50%{transform:translateY(20px)}}
+
+  header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px}
+  .title-wrap{display:flex; gap:8px; align-items:center}
+  h1{margin:0; font-weight:800; letter-spacing:-.3px}
+  .title-edit{cursor:pointer; border:1px solid var(--stroke); background:var(--card); border-radius:10px; padding:6px 10px; font-weight:700}
+
+  .header-actions{display:flex; gap:10px; align-items:center}
+  .btn{
+    position:relative; overflow:hidden; padding:10px 14px; border-radius:14px; border:1px solid var(--stroke);
+    background:var(--card); color:var(--text); cursor:pointer; font-weight:800;
+    box-shadow:var(--shadow); transition:transform .18s ease, box-shadow .22s ease, background .2s ease
+  }
+  .btn:hover{transform:translateY(-1px); box-shadow:var(--shadow-lg)}
+  .btn:focus{outline:none; box-shadow:var(--shadow), var(--ring)}
+  .btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent}
+  .btn-danger{background:var(--accent); color:#fff; border:none}
+  .btn::after{content:""; position:absolute; inset:0; background:radial-gradient(140px 140px at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.45), transparent 60%); opacity:0; transition:opacity .6s ease}
+  .btn.rippling::after{opacity:.8; transition:none}
+
+  .portfolio-charts{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-bottom:18px}
+  .chart-card{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid var(--stroke); border-radius:16px; padding:14px; backdrop-filter: blur(6px); box-shadow:var(--shadow); transition:transform .25s ease, box-shadow .25s ease}
+  .chart-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg)}
+  .chart-card h3{margin:0 0 8px; color:var(--muted); font-size:13px; letter-spacing:.2px; text-transform:uppercase}
+
+  .portfolio-summary{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; margin-bottom:18px}
+  .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:16px; padding:16px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); box-shadow:var(--shadow)}
+  .summary-title{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.25px; margin-bottom:6px}
+  .summary-num{font-size:26px; font-weight:800}
+
+  .section{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid var(--stroke); border-radius:18px; padding:16px; box-shadow:var(--shadow); margin-bottom:16px}
+  .section-header{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px}
+
+  .assets-list{display:grid; grid-template-columns:1fr; gap:12px}
+  .asset-card{border:1px dashed var(--stroke); border-radius:14px; padding:12px; background:rgba(255,255,255,.06); transition:transform .3s ease, box-shadow .3s ease}
+  .asset-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg)}
+  .asset-header{display:flex; justify-content:space-between; align-items:center; gap:10px}
+  .asset-name{font-weight:800}
+  .asset-details{color:var(--muted); font-size:13px; margin-top:6px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .asset-actions{display:flex; gap:8px; flex-wrap:wrap}
+
+  select, input{
+    appearance:none; -webkit-appearance:none; -moz-appearance:none;
+    background:var(--input-bg);
+    border:1px solid var(--stroke); color:var(--text); border-radius:12px; padding:12px 40px 12px 12px; font-weight:700;
+    width:100%; transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  select:hover, input:hover{ background:var(--input-bg-hover); }
+  input{ padding-right:12px }
+  input::placeholder{ color:var(--muted); opacity:.9 }
+  .select-wrap{position:relative}
+  .select-wrap::after{
+    content:"▾"; position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--muted); font-weight:800;
+  }
+  select option, select optgroup{ background-color:var(--menu-bg); color:var(--menu-text); }
+  input:focus, select:focus{ outline:none; box-shadow:var(--ring); border-color:transparent }
+  select::-ms-expand { display:none; }
+  input:-webkit-autofill{
+    -webkit-text-fill-color:var(--text) !important;
+    box-shadow: 0 0 0px 1000px var(--input-bg) inset !important;
+    transition: background-color 9999s ease-in-out 0s;
+  }
+
+  .form-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px}
+  .form-group{display:flex; flex-direction:column; gap:6px}
+  label{font-size:12px; color:var(--muted); font-weight:700}
+  .form-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:14px}
+
+  .chart-container{
+    overflow:hidden; max-height:0; opacity:0; border:1px solid var(--stroke); border-radius:12px; padding:0 8px;
+    transition:max-height .35s ease, opacity .35s ease, padding .35s ease, margin .35s ease; margin-top:0;
+  }
+  .chart-container.open{ max-height:420px; opacity:1; padding:8px; margin-top:10px; }
+  .chart-tabs{display:flex; gap:6px; flex-wrap:wrap; margin:6px 0}
+  .chart-tab{padding:6px 10px; border-radius:999px; background:rgba(67,97,238,.1); font-weight:800; cursor:pointer; user-select:none}
+  .chart-tab.active{background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#0c0f21}
+
+  .pnl-big{font-size:18px; font-weight:900}
+
+  .flatpickr-calendar{font-family:Inter,system-ui; background:var(--card); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)}
+  .flatpickr-months, .flatpickr-weekdays{background:rgba(255,255,255,.04); color:var(--text)}
+  .flatpickr-day{border-radius:10px}
+  .flatpickr-day.today{border-color:var(--brand)}
+  .flatpickr-day.selected{background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#0c0f21; border-color:transparent}
+
+  @keyframes fadeUp{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
+  .animate-in{animation:fadeUp .6s cubic-bezier(.22,1,.36,1) both}
+
+  .skeleton{position:relative; overflow:hidden; background:linear-gradient(90deg, rgba(255,255,255,.08), rgba(255,255,255,.18), rgba(255,255,255,.08)); background-size:200% 100%; animation:shine 1.2s linear infinite}
+  @keyframes shine{0%{background-position:200% 0} 100%{background-position:-200% 0}}
+
+  .toast-wrap{position:fixed; bottom:16px; right:16px; display:flex; flex-direction:column; gap:10px; z-index:2000}
+  .toast{min-width:220px; max-width:320px; padding:12px 14px; border-radius:12px; background:var(--card); border:1px solid var(--stroke); box-shadow:var(--shadow); display:flex; gap:8px; align-items:flex-start; animation:slideIn .35s ease both}
+  .toast.ok{border-left:4px solid var(--ok)} .toast.err{border-left:4px solid var(--accent)}
+  @keyframes slideIn{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
+
+  .auth-status{font-weight:800; color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="blob one"></div>
+<div class="blob two"></div>
+
+<div class="container">
+  <header>
+    <div class="title-wrap">
+      <h1 id="portfolioTitle">✨ Мой портфель</h1>
+      <button id="editTitleBtn" class="title-edit" title="Изменить название">✏️</button>
+    </div>
+    <div class="header-actions">
+      <div id="authStatus" class="auth-status">Гость</div>
+      <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
+      <button id="refreshBtn" class="btn" title="Обновить котировки">🔄 Обновить</button>
+      <button id="themeToggle" class="btn" title="Сменить тему">🌓 Тема</button>
+    </div>
+  </header>
+
+  <div class="portfolio-charts">
+    <div class="chart-card animate-in skeleton" id="sk1"><h3>Аллокация по классам</h3><canvas id="chartByClass"></canvas></div>
+    <div class="chart-card animate-in skeleton" id="sk2"><h3>Аллокация по тикерам (стоимость)</h3><canvas id="chartByTickerValue"></canvas></div>
+    <div class="chart-card animate-in skeleton" id="sk3"><h3>Количество бумаг по тикерам</h3><canvas id="chartByTickerQty"></canvas></div>
+  </div>
+
+  <div class="portfolio-summary" id="portfolioSummary"></div>
+  <div id="portfolioSections"></div>
+
+  <div class="section animate-in">
+    <h2 style="margin-bottom:10px">Добавить актив</h2>
+    <form id="assetForm">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="assetType">Тип актива</label>
+          <div class="select-wrap">
+            <select id="assetType" required>
+              <option value="" disabled selected>Выберите тип</option>
+              <option value="stock">Акция</option>
+              <option value="bond">ОФЗ/Облигация</option>
+              <option value="fund">Фонд/ETF</option>
+              <option value="savings">Накопительный счёт</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" id="fieldName">
+          <label for="assetName">Тикер / Название</label>
+          <input type="text" id="assetName" placeholder="SBER, YNDX, TGLD" />
+        </div>
+        <div class="form-group" id="fieldQuantity">
+          <label for="assetQuantity">Количество</label>
+          <input type="number" id="assetQuantity" min="0" step="1" placeholder="Напр.: 10" />
+        </div>
+        <div class="form-group" id="fieldPrice">
+          <label for="assetAvgPrice">Цена покупки (₽)</label>
+          <input type="number" id="assetAvgPrice" step="0.0001" min="0" placeholder="Напр.: 4383" />
+        </div>
+
+        <div class="form-group" id="fieldSavingsAmount" style="display:none;">
+          <label for="savingsAmount">Сумма (₽)</label>
+          <input type="number" id="savingsAmount" min="0" step="0.01" placeholder="Напр.: 100000" />
+        </div>
+
+        <div class="form-group" id="fieldDate">
+          <label for="assetDate">Дата покупки/внесения</label>
+          <input type="text" id="assetDate" placeholder="дд.мм.гггг" />
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="reset" class="btn" id="resetBtn">Очистить</button>
+        <button type="submit" class="btn btn-primary" id="addBtn">Добавить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+  // ====== CONFIG ======
+  const BACKEND = 'http://127.0.0.1:8000';
+  Chart.defaults.font.family = 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+  Chart.defaults.responsive = true;
+
+  // ====== STATE ======
+  let auth = { token:null, userId:null, email:null, portfolioId:null };
+  let portfolio = { savings:[], stocks:[], bonds:[], funds:[], history:[] };
+  const charts = {};
+  let fp;
+  let quotesTimer = null;
+  let isAnyChartOpen = false;
+  let isRefreshing = false;
+
+  // ====== TOAST ======
+  function toast(msg, type='ok'){
+    const wrap = document.getElementById('toastWrap');
+    const el = document.createElement('div');
+    el.className = 'toast ' + (type==='err'?'err':'ok');
+    el.innerHTML = `<div>${msg}</div>`;
+    wrap.appendChild(el);
+    setTimeout(()=>{ el.style.opacity=.0; el.style.transform='translateY(6px)'; }, 2400);
+    setTimeout(()=>{ el.remove(); }, 2800);
+  }
+
+  // ====== PERSIST ======
+  function saveLocal(){ try{ localStorage.setItem('pf_data', JSON.stringify(portfolio)); }catch(_){} }
+  function loadLocal(){ try{ const j = localStorage.getItem('pf_data'); if(j) portfolio = JSON.parse(j); }catch(_){} }
+
+  function saveAuth(){
+    localStorage.setItem('pf_token', auth.token || '');
+    localStorage.setItem('pf_user_id', auth.userId || '');
+    localStorage.setItem('pf_email', auth.email || '');
+    localStorage.setItem('pf_portfolio_id', auth.portfolioId || '');
+    applyAuthUi();
+  }
+  function loadAuth(){
+    auth.token = localStorage.getItem('pf_token') || null;
+    auth.userId = Number(localStorage.getItem('pf_user_id') || '') || null;
+    auth.email = localStorage.getItem('pf_email') || null;
+    auth.portfolioId = Number(localStorage.getItem('pf_portfolio_id') || '') || null;
+    applyAuthUi();
+  }
+  function clearAuth(){
+    auth = { token:null, userId:null, email:null, portfolioId:null };
+    saveAuth();
+  }
+
+  // ====== UI ======
+  function applyTitle(t){
+    document.getElementById('portfolioTitle').textContent = t || '✨ Мой портфель';
+    document.getElementById('pageTitle').textContent = (t || 'Мой инвестиционный портфель');
+  }
+  function loadTitle(){
+    const t = localStorage.getItem('pf_title') || '✨ Мой портфель';
+    applyTitle(t);
+  }
+
+  function applyAuthUi(){
+    const st = document.getElementById('authStatus');
+    const btnOut = document.getElementById('logoutBtn');
+    if(auth.token && auth.email){
+      st.textContent = `Привет, ${auth.email}`;
+      btnOut.style.display = '';
+    }else{
+      st.textContent = 'Гость';
+      btnOut.style.display = 'none';
+    }
+  }
+
+  // ====== THEME ======
+  function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); renderCharts(); }
+  function initTheme(){ const t = localStorage.getItem('pf_theme') || 'light'; setTheme(t); }
+
+  // ====== DATEPICKER ======
+  function initDatePicker(){
+    if(fp) fp.destroy();
+    fp = flatpickr('#assetDate', {
+      locale: flatpickr.l10ns.ru,
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'd.m.Y',
+      allowInput: true,
+      defaultDate: new Date()
+    });
+  }
+
+  // ====== AXIOS ======
+  const api = axios.create({ baseURL: BACKEND, timeout: 20000 });
+  api.interceptors.request.use(cfg=>{
+    if(auth.token){
+      cfg.headers = cfg.headers || {};
+      cfg.headers['Authorization'] = `Bearer ${auth.token}`;
+    }
+    return cfg;
+  });
+
+  // --- Portfolio API ---
+  async function apiListPortfolios(){
+    const { data } = await api.get('/portfolio');
+    return data || [];
+  }
+  async function apiCreatePortfolio(){
+    const { data } = await api.post('/portfolio', { title:'Основной', type:'broker', currency:'RUB' });
+    return data;
+  }
+  async function apiListPositionsFull(pfId){
+    const { data } = await api.get(`/portfolio/${pfId}/positions/full`);
+    return data || [];
+  }
+  async function apiDeletePosition(positionId){
+    await api.delete(`/portfolio/positions/${positionId}`);
+  }
+  async function apiUpsertPositionByFigi({ portfolio_id, figi, ticker, class_hint, qty, avg, name, currency, nominal }){
+    const payload = {
+      portfolio_id,
+      figi,
+      ticker: (ticker || '').toUpperCase(),
+      class_hint: class_hint || null,
+      quantity: Number(qty) || 0,
+      avg_price: Number(avg) || 0,
+      name: name || null,
+      currency: currency || null,
+      nominal: nominal ?? null
+    };
+    const { data } = await api.post('/portfolio/positions', payload);
+    return data;
+  }
+
+  // ====== MARKET HELPERS ======
+  async function apiResolve(ticker, classHint=null){
+    const { data } = await api.get('/resolve', { params: { ticker } });
+    const hit = (data?.results && data.results[0]) ? data.results[0] : null;
+    if(!hit) throw new Error('Не найден FIGI для этого тикера');
+    return hit;
+  }
+  async function apiResolveQuoteByTicker(ticker, classHint=null){
+    const r = await apiResolve(ticker, classHint);
+    const { data: q } = await api.get(`/quote/${r.figi}`);
+    return { ...r, ...q };
+  }
+  async function apiBatchQuotes(tickers, classHint=null){
+    const payload = { tickers };
+    if(classHint) payload.class_hint = classHint;
+    const { data } = await api.post('/quotes_by_tickers', payload);
+    return data.results || [];
+  }
+  async function apiCandles(figi, interval='1d', fromISO=null, toISO=null){
+    try{
+      const params = { interval };
+      if(fromISO) params.from_ = fromISO;
+      if(toISO) params.to = toISO;
+      const { data } = await api.get(`/candles/${figi}`, { params });
+      return data;
+    }catch(err){
+      console.warn('candles error', err);
+      toast('Нет данных для выбранного периода', 'err');
+      return [];
+    }
+  }
+
+  // ====== LOAD FROM DB ======
+  async function loadFromDB(){
+    // 1) найти/создать портфель
+    let pfs = await apiListPortfolios();
+    if(!pfs.length){
+      const created = await apiCreatePortfolio();
+      pfs = [created];
+    }
+    const pf = pfs[0];
+    auth.portfolioId = pf.id; saveAuth();
+
+    // 2) получить позиции с join инструментов
+    const rows = await apiListPositionsFull(pf.id);
+
+    // 3) перезаписать локальную структуру (history сохраним)
+    const hist = portfolio.history || [];
+    portfolio = { savings:[], stocks:[], bonds:[], funds:[], history: hist };
+
+    // 4) маппинг позиций -> локальные элементы
+    for(const pos of rows){
+      const inst = pos.instrument || {};
+      const cls = inst.class || 'share';
+      const bucket = (cls==='share') ? 'stocks' : (cls==='bond' ? 'bonds' : (cls==='etf' ? 'funds' : 'stocks'));
+
+      const ticker = (inst.ticker || '').toUpperCase(); // ВАЖНО: name=тикер
+      const avg = Number(pos.avg_price)||0;
+      const qty = Number(pos.quantity)||0;
+
+      portfolio[bucket].push({
+        posId: pos.id,
+        figi: pos.figi,
+        name: ticker || pos.figi,          // нужно для /quotes_by_tickers
+        ticker,
+        class: cls,
+        currency: inst.currency || null,
+        nominal: inst.nominal ?? null,
+        displayName: (inst.name && ticker) ? `${inst.name} (${ticker})` : (inst.name || ticker || pos.figi),
+        quantity: qty,
+        avgPrice: avg,
+        currentPrice: null,
+        value: avg*qty,
+        pnlAbs: 0,
+        pnlPct: 0,
+        date: null
+      });
+    }
+  }
+
+  // ====== UTILS ======
+  const nf0 = new Intl.NumberFormat('ru-RU',{ maximumFractionDigits:0 });
+  const nf2 = new Intl.NumberFormat('ru-RU',{ maximumFractionDigits:2 });
+  const fmt = (n,d=2)=> isFinite(n) ? (d===0? nf0.format(n) : nf2.format(n)) : '0';
+  const cssId = s => (s||'').toString().replace(/[^a-z0-9]/gi,'_');
+  function totalValue(){ return ['savings','stocks','bonds','funds'].reduce((s,k)=> s + (portfolio[k]||[]).reduce((a,i)=>a+(i.value||0),0), 0); }
+  function pushHistory(){ portfolio.history.push({ t: Date.now(), total: totalValue() }); if(portfolio.history.length>600) portfolio.history.shift(); saveLocal(); }
+  function fmtISOtoRU(iso){ if(!iso) return '—'; const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); if(!m) return iso; return `${m[3]}.${m[2]}.${m[1]}`; }
+  function toISOFromAlt(inputVal){ const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(inputVal.trim()); if(!m) return null; return `${m[3]}-${m[2]}-${m[1]}`; }
+
+  function animateNumbers(){
+    document.querySelectorAll('[data-anim-num]')?.forEach(el=>{
+      const to = Number(el.getAttribute('data-anim-num')||0);
+      const start = 0; const dur = 700; const t0 = performance.now();
+      const step = (t)=>{ const p = Math.min(1, (t-t0)/dur); const v = start + (to-start)*p; el.textContent = `${fmt(v)} ₽`; if(p<1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
+  }
+  function totalPL(){
+    const cats = ['stocks','bonds','funds'];
+    let abs=0, base=0;
+    for(const c of cats){
+      for(const it of (portfolio[c]||[])){
+        const cp = it.currentPrice ?? it.avgPrice ?? 0;
+        const qty = it.quantity||0;
+        const avg = it.avgPrice||0;
+        const nowVal = cp*qty;
+        const cost = avg*qty;
+        abs += (avg>0 ? (nowVal - cost) : 0);
+        base += cost;
+      }
+    }
+    const pct = base>0 ? abs/base*100 : 0;
+    return {abs, pct};
+  }
+
+  // ====== RENDER: SUMMARY ======
+  function renderSummary(){
+    const blocks = [
+      { title:'Всего', val: totalValue() },
+      { title:'Накопит. счёт', val: (portfolio.savings||[]).reduce((s,i)=>s+i.value,0) },
+      { title:'Акции', val: (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0) },
+      { title:'ОФЗ', val: (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0) },
+      { title:'Фонды', val: (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0) },
+    ];
+    const wrap = document.getElementById('portfolioSummary');
+    wrap.innerHTML = blocks.map(b=>`
+      <div class="summary-card animate-in">
+        <div class="summary-title">${b.title}</div>
+        <div class="summary-num" data-anim-num="${b.val}">0 ₽</div>
+      </div>`).join('');
+    animateNumbers();
+  }
+
+  function displayLabel(it){
+    if (it.displayName) return it.displayName;
+    if (it.name && it.ticker) return `${it.name} (${it.ticker})`;
+    return it.name || it.ticker || '';
+  }
+
+  function destroyPerAssetCharts(){
+    Object.keys(charts).forEach(key=>{
+      if(key.startsWith('canvas-') && charts[key] && typeof charts[key].destroy==='function'){
+        charts[key].destroy();
+        delete charts[key];
+      }
+    });
+  }
+
+  // ====== RENDER: SECTIONS ======
+  function renderSections(){
+    const wrap = document.getElementById('portfolioSections');
+    destroyPerAssetCharts();
+    wrap.innerHTML = '';
+
+    const groups = [
+      ['stocks','Акции'],
+      ['bonds','ОФЗ/Облигации'],
+      ['funds','Фонды/ETF'],
+      ['savings','Накопительный счёт']
+    ];
+
+    for(const [cat,label] of groups){
+      if(!(portfolio[cat]||[]).length) continue;
+      const listHTML = (portfolio[cat]||[]).map((it,idx)=>{
+        if(cat==='savings'){
+          return `
+          <div class="asset-card animate-in">
+            <div class="asset-header">
+              <div class="asset-name">Пополнение</div>
+              <div class="asset-actions">
+                <button class="btn btn-danger" data-action="del" data-type="${cat}" data-index="${idx}">Удалить</button>
+              </div>
+            </div>
+            <div class="asset-details" style="grid-template-columns:repeat(2,1fr)">
+              <div>Сумма: <b>${fmt(it.value)} ₽</b></div>
+              <div>Дата: <b>${fmtISOtoRU(it.date)}</b></div>
+            </div>
+          </div>`;
+        }
+        const id = cssId(it.name);
+        const curPrice = it.currentPrice ?? it.avgPrice ?? 0;
+        const curVal = curPrice * (it.quantity||0);
+        const pnlAbs = it.avgPrice ? (curPrice - it.avgPrice) * it.quantity : 0;
+        const pnlPct = it.avgPrice ? ((curPrice - it.avgPrice)/it.avgPrice*100) : 0;
+        const pnlColor = pnlAbs >= 0 ? 'color:var(--ok)' : 'color:var(--accent)';
+        const title = displayLabel(it) || it.name;
+        return `
+        <div class="asset-card animate-in">
+          <div class="asset-header">
+            <div class="asset-name">${title} ${it.figi?`<small style="color:var(--muted)">(${it.figi})</small>`:''}</div>
+            <div class="asset-actions">
+              <button class="btn" data-action="show" data-name="${it.name}" title="Показать/скрыть график">📈 График</button>
+              <button class="btn" data-action="edit" data-type="${cat}" data-index="${idx}">✏️ Изменить</button>
+              <button class="btn btn-danger" data-action="del" data-type="${cat}" data-index="${idx}">Удалить</button>
+            </div>
+          </div>
+          <div class="asset-details">
+            <div>Кол-во: <b>${fmt(it.quantity,0)}</b></div>
+            <div>Цена ср.: <b>${fmt(it.avgPrice)} ₽</b></div>
+            <div>Тек. цена: <b>${fmt(curPrice)} ₽</b></div>
+            <div>Дата покупки: <b>${fmtISOtoRU(it.date)}</b></div>
+            <div>Стоимость: <b>${fmt(curVal)} ₽</b></div>
+            <div class="pnl-big" style="${pnlColor}">P/L: <b>${fmt(pnlAbs)} ₽</b> (${fmt(pnlPct)}%)</div>
+          </div>
+          <div class="chart-container" id="box-${id}">
+            <div class="chart-tabs">
+              <div class="chart-tab active" data-action="period" data-period="1D" data-for="${id}">День</div>
+              <div class="chart-tab" data-action="period" data-period="1W" data-for="${id}">Неделя</div>
+              <div class="chart-tab" data-action="period" data-period="1M" data-for="${id}">Месяц</div>
+              <div class="chart-tab" data-action="period" data-period="1Y" data-for="${id}">Год</div>
+            </div>
+            <canvas id="canvas-${id}" style="width:100%;height:280px"></canvas>
+          </div>
+        </div>`;
+      }).join('');
+
+      wrap.insertAdjacentHTML('beforeend', `
+        <section class="section">
+          <div class="section-header">
+            <h2>${label}</h2>
+            <div style="font-weight:800;color:var(--muted)">${fmt((portfolio[cat]||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0))} ₽</div>
+          </div>
+          <div class="assets-list">${listHTML}</div>
+        </section>`);
+    }
+  }
+
+  // ====== CHARTS ======
+  function grad(ctx, c1, c2){ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
+  function rebuild(id, cfg){ const el=document.getElementById(id); if(!el) return null; if(charts[id]) charts[id].destroy(); const ctx=el.getContext('2d'); charts[id]=new Chart(ctx,cfg); return charts[id]; }
+  function removeSkeleton(){ ['sk1','sk2','sk3'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('skeleton'); }); }
+
+  const donutCenter = (getTextFn) => ({
+    id: 'donutCenter',
+    beforeDraw(chart) {
+      const meta = chart.getDatasetMeta(0);
+      if (!meta || !meta.data || !meta.data.length) return;
+      const arc = meta.data[0];
+      const { x, y } = arc;
+      const innerR = arc.innerRadius;
+      const outerR = arc.outerRadius;
+      const ctx = chart.ctx;
+      const info = getTextFn(chart);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, (innerR + outerR) / 2 * 0.70, 0, Math.PI * 2);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--card') || '#fff';
+      ctx.fill();
+
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#666';
+      ctx.font = '700 12px Inter';
+      if (info.title) ctx.fillText(info.title, x, y - 18);
+
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text') || '#111';
+      ctx.font = '800 16px Inter';
+      if (info.line1) ctx.fillText(info.line1, x, y + 2);
+
+      if (info.line2) {
+        ctx.fillStyle = info.line2Color || (getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#666');
+        ctx.font = '800 12px Inter';
+        ctx.fillText(info.line2, x, y + 20);
+      }
+      ctx.restore();
+    }
+  });
+
+  function renderCharts(){
+    const theme = document.documentElement.getAttribute('data-theme') || 'light';
+    const isDark = theme === 'dark';
+    const axisGrid = isDark ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.08)';
+
+    // Doughnut
+    const classValues = [
+      (portfolio.savings||[]).reduce((s,i)=>s+i.value,0),
+      (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),
+      (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),
+      (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0)
+    ];
+    const total = classValues.reduce((a,b)=>a+b,0);
+    const classLabels = ['Накопит','Акции','ОФЗ','Фонды'];
+    const pl = totalPL();
+
+    const el1 = document.getElementById('chartByClass');
+    if (el1) {
+      const ctx1 = el1.getContext('2d');
+      if (charts.c1) charts.c1.destroy();
+      const bg = [
+        grad(ctx1,'rgba(67,97,238,.9)','rgba(67,97,238,.3)'),
+        grad(ctx1,'rgba(127,240,249,.9)','rgba(127,240,249,.35)'),
+        grad(ctx1,'rgba(247,37,133,.9)','rgba(247,37,133,.35)'),
+        grad(ctx1,'rgba(6,214,160,.9)','rgba(6,214,160,.35)')
+      ];
+      charts.c1 = new Chart(ctx1, {
+        type: 'doughnut',
+        data: { labels: classLabels, datasets: [{ data: classValues, borderWidth: 0, hoverOffset: 8, cutout: '62%', backgroundColor: bg }] },
+        options: {
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (c) => {
+              const val = c.raw || 0; const p = total > 0 ? (val / total * 100) : 0;
+              return `${c.label}: ${fmt(val)} ₽ (${fmt(p)}%)`;
+            }}}
+          },
+          onHover: (_, els) => { charts.c1.setActiveElements(els); charts.c1.update(); },
+          animation: { duration: 900, easing: 'easeOutQuart' }
+        },
+        plugins: [donutCenter((chart) => {
+          const active = chart.getActiveElements?.() || [];
+          if (active.length) {
+            const i = active[0].index; const val = classValues[i];
+            const p = total > 0 ? (val / total * 100) : 0;
+            return { title: classLabels[i], line1: `${fmt(val)} ₽`, line2: `${fmt(p)}%` };
+          } else {
+            const color = pl.abs >= 0
+              ? getComputedStyle(document.documentElement).getPropertyValue('--ok')
+              : getComputedStyle(document.documentElement).getPropertyValue('--accent');
+            return { title:'Всего', line1:`${fmt(total)} ₽`, line2:`P/L: ${fmt(pl.abs)} ₽ (${fmt(pl.pct)}%)`, line2Color: color };
+          }
+        })]
+      });
+      el1.addEventListener('mouseleave', () => { charts.c1.setActiveElements([]); charts.c1.update(); });
+    }
+
+    // Bars
+    const items = [...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])]
+      .filter(i => (i.quantity||0)>0);
+    const labelsTickers = items.map(i=> displayLabel(i) || i.name);
+    const values = items.map(i=>(i.currentPrice??i.avgPrice??0)*(i.quantity||0));
+    const qtys   = items.map(i=>i.quantity||0);
+
+    const trimLabel = s => (s||'').length>18 ? (s||'').slice(0,17)+'…' : (s||'');
+
+    const barOpts = {
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=> `${fmt(c.raw)} ${c.dataset.unit || ''}` } } },
+      scales:{
+        x:{ grid:{ display:false }, ticks:{ maxRotation: 45, minRotation: 0, autoSkip:true, callback:(v, i)=> trimLabel(labelsTickers[i]) } },
+        y:{ ticks:{ callback:(v)=> fmt(v) }, grid:{ color:axisGrid } }
+      },
+      animation:{duration:700}
+    };
+
+    if(document.getElementById('chartByTickerValue')) rebuild('chartByTickerValue', {
+      type:'bar',
+      data:{ labels: labelsTickers, datasets:[{ data:values, borderRadius:10, unit:'₽', backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(67,97,238,.9)','rgba(127,240,249,.4)')} }] },
+      options: barOpts
+    });
+
+    if(document.getElementById('chartByTickerQty')) rebuild('chartByTickerQty', {
+      type:'bar',
+      data:{ labels: labelsTickers, datasets:[{ data:qtys, borderRadius:10, unit:'шт.', backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(6,214,160,.9)','rgba(67,97,238,.4)')} }] },
+      options:{
+        ...barOpts,
+        scales:{
+          x:{ grid:{ display:false }, ticks:{ maxRotation: 45, minRotation: 0, autoSkip:true, callback:(v, i)=> trimLabel(labelsTickers[i]) } },
+          y:{ ticks:{ callback:(v)=> fmt(v,0) }, grid:{ color:axisGrid } }
+        }
+      }
+    });
+
+    removeSkeleton();
+  }
+
+  function makeLineChart(canvasId,label){
+    const el = document.getElementById(canvasId); if(!el) return null;
+    const ctx = el.getContext('2d');
+    const g = ctx.createLinearGradient(0,0,0,300);
+    g.addColorStop(0,'rgba(67,97,238,.35)'); g.addColorStop(1,'rgba(67,97,238,.02)');
+    charts[canvasId] = new Chart(ctx,{
+      type:'line',
+      data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.5, fill:true, backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#4361ee', pointRadius:0, tension:.25 }] },
+      options:{
+        responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=> `${fmt(c.parsed.y)} ₽` } } },
+        scales:{
+          x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true } },
+          y:{ grid:{ color:getComputedStyle(document.documentElement).getPropertyValue('--stroke')||'rgba(0,0,0,.1)' }, ticks:{ callback:(v)=> fmt(v) } }
+        },
+        animation:{duration:600}
+      }
+    });
+    return charts[canvasId];
+  }
+
+  function periodToBackend(period){
+    const to = new Date();
+    const from = new Date(to);
+    let interval = '1d';
+    if(period==='1D'){ interval='1min'; from.setDate(to.getDate()-1); }
+    else if(period==='1W'){ interval='15min'; from.setDate(to.getDate()-7); }
+    else if(period==='1M'){ interval='1h'; from.setDate(to.getDate()-30); }
+    else if(period==='1Y'){ interval='1d'; from.setFullYear(to.getFullYear()-1); }
+    return { interval, fromISO: from.toISOString(), toISO: to.toISOString() };
+  }
+  function formatXAxisLabel(period, isoString){
+    const d = new Date(isoString);
+    if(period==='1D'){ const hh = d.getHours().toString().padStart(2,'0'); const mm = d.getMinutes().toString().padStart(2,'0'); return `${hh}:${mm}`; }
+    if(period==='1W' || period==='1M'){ const dd = d.getDate().toString().padStart(2,'0'); const mm = (d.getMonth()+1).toString().padStart(2,'0'); return `${dd}.${mm}`; }
+    const mm = (d.getMonth()+1).toString().padStart(2,'0'); const yy = (d.getFullYear()%100).toString().padStart(2,'0'); return `${mm}.${yy}`;
+  }
+  async function updateAssetChartByFigi(canvasId, figi, label, period){
+    let {interval, fromISO, toISO} = periodToBackend(period);
+    let data = await apiCandles(figi, interval, fromISO, toISO);
+    if ((!data || data.length === 0) && (interval === '1min' || interval === '5min' || interval === '15min')) {
+      const fallback = interval === '15min' ? '1h' : (interval === '5min' ? '15min' : '5min');
+      data = await apiCandles(figi, fallback, fromISO, toISO);
+    }
+    const ch = charts[canvasId] || makeLineChart(canvasId, label);
+    ch.data.labels = (data||[]).map(x=> formatXAxisLabel(period, x.time));
+    ch.data.datasets[0].data = (data||[]).map(x=> x.close);
+    ch.update();
+  }
+
+  // ====== QUOTES ======
+  async function recalcQuotes(){
+    if(isRefreshing) return; isRefreshing = true;
+    const tickers = [
+      ...(portfolio.stocks||[]).map(i=>i.name),
+      ...(portfolio.bonds||[]).map(i=>i.name),
+      ...(portfolio.funds||[]).map(i=>i.name),
+    ];
+    if(!tickers.length){ isRefreshing=false; return; }
+    try{
+      const results = await apiBatchQuotes(tickers);
+      const map = {}; results.forEach(q => { map[(q.ticker||'').toUpperCase()] = q; });
+      for(const cat of ['stocks','bonds','funds']){
+        for(const it of (portfolio[cat]||[])){
+          const q = map[(it.name||'').toUpperCase()]; if(!q) continue;
+          it.figi = q.figi;
+          it.currency = q.currency;
+          it.ticker = q.ticker;
+          it.displayName = (q.name && q.ticker) ? `${q.name} (${q.ticker})` : (q.name || q.ticker || it.name);
+          it.currentPrice = q.price;
+          it.value = (it.currentPrice??it.avgPrice??0) * (it.quantity||0);
+          it.pnlAbs = it.avgPrice ? (it.currentPrice - it.avgPrice) * (it.quantity||0) : 0;
+          it.pnlPct = it.avgPrice ? ((it.currentPrice - it.avgPrice)/it.avgPrice*100) : 0;
+        }
+      }
+      pushHistory();
+      if(!isAnyChartOpen){ renderSummary(); renderSections(); renderCharts(); }
+      saveLocal();
+    }catch(err){
+      console.error(err);
+      toast('Ошибка обновления котировок','err');
+    }finally{
+      isRefreshing = false;
+    }
+  }
+
+  // ====== ADD / EDIT / DELETE ======
+  function ensureAuthGuard(){ if(!auth.token || !auth.userId){ toast('Войдите в аккаунт, чтобы сохранять в БД','err'); window.location.href='login.html'; return false; } return true; }
+
+  async function addAsset(e){
+    e.preventDefault();
+    const type = document.getElementById('assetType').value;
+    let dateVal = document.getElementById('assetDate').value || '';
+    if(dateVal && dateVal.indexOf('-')<0){
+      const iso = toISOFromAlt(dateVal);
+      if(iso) dateVal = iso;
+    }
+    const date = dateVal || new Date().toISOString().slice(0,10);
+
+    if(type==='savings'){
+      const amount = parseFloat(document.getElementById('savingsAmount').value)||0;
+      if(amount<=0){ toast('Введите сумму для накопительного счёта','err'); return; }
+      portfolio.savings.push({ value: amount, date });
+      toast('Пополнение сохранено (локально)');
+    } else {
+      if(!ensureAuthGuard()) return;
+
+      const name = (document.getElementById('assetName').value||'').trim().toUpperCase();
+      const qty  = parseFloat(document.getElementById('assetQuantity').value)||0;
+      const avg  = parseFloat(document.getElementById('assetAvgPrice').value)||0;
+      if(!name || qty<=0){ toast('Введите тикер и количество','err'); return; }
+
+      const mapClass = { stock:'share', bond:'bond', fund:'etf' };
+      const classHint = mapClass[type] || null;
+
+      try{
+        const r = await apiResolve(name, classHint);
+        const pfId = auth.portfolioId || (await apiCreatePortfolio()).id;
+
+        const saved = await apiUpsertPositionByFigi({
+          portfolio_id: pfId,
+          figi: r.figi,
+          ticker: name,
+          class_hint: classHint,
+          qty: qty,
+          avg: avg,
+          name: r.name,
+          currency: r.currency,
+          nominal: r.nominal || null
+        });
+
+        const q = await apiResolveQuoteByTicker(name, classHint);
+        const price = q.price || avg;
+        const bucket = type+'s';
+        const val = (price||0) * qty;
+        const pnlAbs = avg ? (price-avg)*qty : 0;
+        const pnlPct = avg ? ((price-avg)/avg*100) : 0;
+        const displayName = (q.name && q.ticker) ? `${q.name} (${q.ticker})` : (q.name || q.ticker || name);
+
+        portfolio[bucket].push({
+          posId: saved?.id || null,
+          name, quantity: qty, avgPrice: avg,
+          currentPrice: price, value: val, pnlAbs, pnlPct, date,
+          figi: q.figi, currency: q.currency, class: q.class,
+          ticker: q.ticker, displayName
+        });
+        toast('Актив сохранён в БД');
+      }catch(err){
+        console.error(err);
+        toast(err?.response?.data?.detail || err?.message || 'Ошибка добавления', 'err');
+        return;
+      }
+    }
+
+    renderSummary(); renderSections(); renderCharts();
+    pushHistory(); saveLocal();
+    e.target.reset(); if(fp) fp.setDate(new Date()); onTypeChange();
+
+    const btn = document.getElementById('addBtn');
+    btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
+  }
+
+  document.addEventListener('click', async (e)=>{
+    const act = e.target.closest('[data-action]'); if(!act) return;
+    const action = act.getAttribute('data-action');
+
+    if(action==='del'){
+      const type = act.getAttribute('data-type');
+      const idx = Number(act.getAttribute('data-index'));
+      const it = (portfolio[type]||[])[idx];
+      if(!it) return;
+
+      // если позиция из БД — удаляем в БД
+      if(it.posId){
+        try { await apiDeletePosition(it.posId); }
+        catch(err){ console.warn('delete failed', err); toast('Ошибка удаления в БД','err'); return; }
+      }
+
+      (portfolio[type]||[]).splice(idx,1);
+      renderSummary(); renderSections(); renderCharts(); saveLocal();
+      toast('Удалено');
+      return;
+    }
+
+    if(action==='edit'){
+      const type = act.getAttribute('data-type');
+      const idx = Number(act.getAttribute('data-index'));
+      const it = (portfolio[type]||[])[idx]; if(!it) return;
+
+      const q = prompt(`Новое количество для ${displayLabel(it)}:`, it.quantity);
+      if(q===null) return;
+      const a = prompt(`Новая средняя цена (₽ за 1 шт.) для ${displayLabel(it)}:`, it.avgPrice||0);
+      if(a===null) return;
+
+      it.quantity = parseFloat(q)||0;
+      it.avgPrice = parseFloat(a)||0;
+
+      if(it.figi){
+        try{
+          const saved = await apiUpsertPositionByFigi({
+            portfolio_id: auth.portfolioId,
+            figi: it.figi,
+            ticker: it.ticker || it.name,
+            class_hint: it.class || null,
+            qty: it.quantity,
+            avg: it.avgPrice,
+            name: it.displayName,
+            currency: it.currency,
+            nominal: it.nominal
+          });
+          if(saved?.id) it.posId = saved.id;
+        }catch(err){
+          console.warn('upsert failed', err);
+          toast('Ошибка сохранения в БД','err');
+        }
+      }
+
+      await recalcQuotes(); toast('Изменено'); return;
+    }
+
+    if(action==='show'){
+      const name = act.getAttribute('data-name');
+      const id = cssId(name);
+      const box = document.getElementById(`box-${id}`);
+      if(!box) return;
+
+      const isOpen = box.classList.contains('open');
+      document.querySelectorAll('.chart-container').forEach(el=> el.classList.remove('open'));
+      if(isOpen){ isAnyChartOpen = false; return; }
+      box.classList.add('open'); isAnyChartOpen = true;
+
+      const it = [...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])]
+        .find(x => x.name === name);
+      const figi = it?.figi;
+      const canvasId = `canvas-${id}`;
+      const el = document.getElementById(canvasId);
+
+      if(charts[canvasId] && charts[canvasId].canvas !== el){ try{ charts[canvasId].destroy(); }catch(_){ } delete charts[canvasId]; }
+      if(!charts[canvasId]){ makeLineChart(canvasId, displayLabel(it) || it?.name || name); }
+
+      if(figi){ await updateAssetChartByFigi(canvasId, figi, displayLabel(it) || it?.name || name, '1D'); }
+      else{ toast('Нет FIGI для графика — обнови котировки','err'); }
+
+      box.querySelectorAll('.chart-tab').forEach(t=> t.classList.remove('active'));
+      box.querySelector('[data-period="1D"]').classList.add('active');
+      setTimeout(()=>{ box.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
+      return;
+    }
+
+    if(action==='period'){
+      const id = act.getAttribute('data-for');
+      const box = document.getElementById(`box-${id}`); if(!box) return;
+      box.querySelectorAll('.chart-tab').forEach(t=> t.classList.remove('active'));
+      act.classList.add('active');
+      const period = act.getAttribute('data-period');
+      const card = act.closest('.asset-card');
+      const name = card?.querySelector('[data-action="show"]')?.getAttribute('data-name');
+      const it = [...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])]
+        .find(x => x.name === name);
+      if(it?.figi){ await updateAssetChartByFigi(`canvas-${id}`, it.figi, displayLabel(it) || it?.name || name, period); }
+      else{ toast('Нет FIGI для графика — обнови котировки','err'); }
+      return;
+    }
+  });
+
+  function onTypeChange(){
+    const t = document.getElementById('assetType').value;
+    const isSavings = t==='savings';
+    document.getElementById('fieldName').style.display = isSavings ? 'none' : '';
+    document.getElementById('fieldQuantity').style.display = isSavings ? 'none' : '';
+    document.getElementById('fieldPrice').style.display = isSavings ? 'none' : '';
+    document.getElementById('fieldSavingsAmount').style.display = isSavings ? '' : 'none';
+    document.getElementById('assetName').required = !isSavings;
+    document.getElementById('assetQuantity').required = !isSavings;
+    document.getElementById('assetAvgPrice').required = false;
+    document.getElementById('savingsAmount').required = isSavings;
+  }
+
+  // ====== INIT ======
+  const io = new IntersectionObserver((ents)=>{
+    ents.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('animate-in'); io.unobserve(e.target); } });
+  }, {threshold:.12});
+
+  async function hardRefresh(){ await recalcQuotes(); }
+
+  document.addEventListener('DOMContentLoaded', async ()=>{
+    initTheme();
+    document.getElementById('themeToggle').addEventListener('click', (e)=>{
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = ((e.clientX - rect.left)/rect.width*100).toFixed(2)+"%";
+      const y = ((e.clientY - rect.top)/rect.height*100).toFixed(2)+"%";
+      e.currentTarget.style.setProperty('--rx', x); e.currentTarget.style.setProperty('--ry', y);
+      e.currentTarget.classList.remove('rippling'); setTimeout(()=> e.currentTarget.classList.add('rippling'), 0); setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250);
+      const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark'; setTheme(cur);
+    });
+
+    initDatePicker();
+    loadTitle();
+    document.getElementById('editTitleBtn').addEventListener('click', ()=>{
+      const cur = document.getElementById('portfolioTitle').textContent.trim();
+      const v = prompt('Введите новое название портфеля', cur);
+      if(v!==null && v.trim()){
+        localStorage.setItem('pf_title', v.trim());
+        applyTitle(v.trim());
+        toast('Название обновлено');
+      }
+    });
+
+    loadAuth();
+    loadLocal();
+
+    document.getElementById('logoutBtn').addEventListener('click', ()=>{
+      clearAuth(); toast('Вы вышли'); window.location.href='login.html';
+    });
+
+    document.getElementById('assetForm').addEventListener('submit', addAsset);
+    document.getElementById('assetType').addEventListener('change', onTypeChange);
+    onTypeChange();
+
+    // === ГЛАВНОЕ: грузим портфель/позиции из БД ===
+    try{
+      await loadFromDB();
+    }catch(e){
+      console.warn('loadFromDB failed', e);
+      toast('Не удалось загрузить портфель из БД','err');
+    }
+
+    renderSummary(); renderSections(); renderCharts();
+    document.querySelectorAll('.chart-card, .summary-card, .section').forEach(el=> io.observe(el));
+
+    document.getElementById('refreshBtn').addEventListener('click', hardRefresh);
+    await hardRefresh();
+    if(quotesTimer) clearInterval(quotesTimer);
+    quotesTimer = setInterval(hardRefresh, 30 * 1000);
+  });
+</script>
+</body>
+</html>
