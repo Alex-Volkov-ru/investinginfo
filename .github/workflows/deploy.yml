@@ -54,6 +54,7 @@ jobs:
         run: |
           # копируем docker-compose.yml и .env на сервер
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/docker-compose.production.yml
+          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/nginx.conf
 
           # подключаемся и запускаем контейнеры
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'

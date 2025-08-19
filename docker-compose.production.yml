@@ -1,12 +1,5 @@
 version: "3.9"
 
-networks:
-  portfolio-net:
-    driver: bridge
-
-volumes:
-  pg_data:
-
 services:
   db:
     image: postgres:16-alpine
@@ -15,22 +8,17 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_INITDB_ARGS: "--lc-collate=C --lc-ctype=ru_RU.UTF-8 --lc-messages=en_US.UTF-8 --encoding=UTF-8"
-      TZ: ${TZ:-Europe/Moscow}
     volumes:
-      - ./env/localtime:/etc/localtime:ro
-      - ./env/pgsql/override.conf:/etc/postgresql/postgresql.conf.d/10-override.conf:ro
-      - ./env/pgsql/initdb.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
       - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - portfolio-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       retries: 5
       timeout: 5s
-    restart: unless-stopped
-    ports:
-      - "5434:5432"   # ⚠️ у тебя 5432 и 5433 уже заняты
-    networks: [portfolio-net]
 
   cli-flyway:
     profiles: ["cli-flyway"]
@@ -41,14 +29,15 @@ services:
         condition: service_healthy
     environment:
       FLYWAY_LOCATIONS: filesystem:/flyway/sql
-      FLYWAY_URL: jdbc:postgresql://db:${POSTGRES_PORT}/${POSTGRES_DB}
+      FLYWAY_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
       FLYWAY_USER: ${POSTGRES_USER}
       FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./env/pgsql/migrations:/flyway/sql:ro
     command: migrate
     restart: "no"
-    networks: [portfolio-net]
+    networks:
+      - portfolio-net
 
   backend:
     image: ximikat01/bigs_backend:latest
@@ -63,17 +52,38 @@ services:
       ALGORITHM: ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
-    ports:
-      - "8001:8000"   # ⚠️ порт 8000 занят, отдадим 8001
-    restart: always
-    networks: [portfolio-net]
+    networks:
+      - portfolio-net
 
   frontend:
     image: ximikat01/bigs_frontend:latest
     container_name: bigs-frontend
-    environment:
-      TZ: ${TZ:-Europe/Moscow}
+    command: sh -c "cp -r /usr/share/nginx/html/. /frontend-dist && tail -f /dev/null"
+    volumes:
+      - frontend_volume:/frontend-dist
+    networks:
+      - portfolio-net
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: bigs-nginx
     ports:
-      - "8081:80"
-    restart: unless-stopped
-    networks: [portfolio-net]
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./env/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - frontend_volume:/frontend-dist
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - portfolio-net
+
+volumes:
+  pg_data:
+  frontend_volume:
+
+networks:
+  portfolio-net:
+    driver: bridge
