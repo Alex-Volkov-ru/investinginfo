@@ -38,7 +38,8 @@ jobs:
       - name: 🏗️ Build & Push Frontend
         uses: docker/build-push-action@v4
         with:
-          context: ./app/frontend
+          context: .
+          file: ./env/frontend/Dockerfile
           push: true
           tags: ximikat01/bigs_frontend:latest
 
