@@ -235,9 +235,10 @@
 
 <script>
   // ====== CONFIG ======
-  const BACKEND = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-    ? 'http://127.0.0.1:8000'
-    : `${location.protocol}//${location.hostname}:8000`;
+  const BACKEND =
+    (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://127.0.0.1:8000'  // локально без nginx
+      : '/api';  
 
   Chart.defaults.font.family = 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
   Chart.defaults.responsive = true;

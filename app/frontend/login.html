@@ -140,9 +140,11 @@
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
-  const BACKEND = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-    ? 'http://127.0.0.1:8000'
-    : `${location.protocol}//${location.hostname}:8000`;
+  // БЕЗ костылей: фронт всегда бьёт через nginx
+  const BACKEND =
+    (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://127.0.0.1:8000'  // локально без nginx
+      : '/api';
 
   function toast(msg, type='ok'){
     const wrap = document.getElementById('toastWrap');
