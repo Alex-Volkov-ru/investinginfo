@@ -68,13 +68,11 @@ services:
     networks: [portfolio-net]
 
   frontend:
-    build:
-      context: .
-      dockerfile: ./env/frontend/Dockerfile
+    image: ximikat01/bigs_frontend:latest
     container_name: bigs-frontend
     volumes:
       - frontend_volume:/frontend-dist
-    command: sh -c "cp -r /app/dist/. /frontend-dist && tail -f /dev/null"
+    command: sh -c "cp -r /usr/share/nginx/html/. /frontend-dist && tail -f /dev/null"
     networks:
       - portfolio-net
 
