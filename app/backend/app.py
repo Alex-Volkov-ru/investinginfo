@@ -17,14 +17,12 @@ log = logging.getLogger("startup")
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     Жизненный цикл приложения.
-    1) Создаём таблицы (если их нет).
-    2) Проверяем подключение и текущую схему.
+    В проде — только проверяем подключение.
     """
-    Base.metadata.create_all(bind=engine)
-
     with engine.connect() as conn:
         schema = conn.execute(text("SHOW search_path")).scalar()
         log.info(f"DB connected. search_path = {schema}")
+
     yield
     log.info("Server shutdown")
 
