@@ -1,5 +1,8 @@
-# env/frontend/Dockerfile
+# ./env/frontend/Dockerfile
 FROM nginx:alpine
-COPY app/frontend/ /usr/share/nginx/html/
-# аккуратный конфиг nginx (кеш/ gzip/ статика)
-COPY env/frontend/default.conf /etc/nginx/conf.d/default.conf
+
+# Убираем дефолтный конфиг и ставим свой
+COPY ./env/frontend/default.conf /etc/nginx/conf.d/default.conf
+
+# Копируем статику (html/css/js)
+COPY ./app/frontend /usr/share/nginx/html
