@@ -51,8 +51,36 @@
       radial-gradient(1400px 700px at -20% -10%, rgba(67,97,238,.18), transparent),
       radial-gradient(900px 600px at 120% 10%, rgba(247,37,133,.12), transparent),
       linear-gradient(180deg, var(--bg), var(--bg2));
+    background-size: 200% 200%, 180% 180%, auto;
+    animation: bg-pan 24s ease-in-out infinite;
     min-height:100vh; transition: background .35s ease, color .2s ease;
   }
+  @keyframes bg-pan{
+    0%{ background-position: 0% 0%, 100% 0%, 0 0; }
+    50%{ background-position: 100% 50%, 0% 50%, 0 0; }
+    100%{ background-position: 0% 0%, 100% 0%, 0 0; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    body{ animation:none }
+  }
+
+  /* Aurora overlay */
+  .aurora{
+    position:fixed; inset:-20% -10% -10% -10%; pointer-events:none; z-index:-2;
+    filter: blur(60px) saturate(130%);
+    opacity:.4;
+    background:
+      radial-gradient(35% 35% at 20% 20%, rgba(122,162,255,.25), transparent 60%),
+      radial-gradient(35% 35% at 80% 30%, rgba(255,163,236,.22), transparent 60%),
+      radial-gradient(30% 30% at 50% 80%, rgba(127,240,249,.25), transparent 60%);
+    animation: auroraMove 26s ease-in-out infinite alternate;
+  }
+  @keyframes auroraMove{
+    0%{ transform:translate3d(0,0,0) rotate(0deg); opacity:.35; }
+    50%{ transform:translate3d(0,-2%,0) rotate(7deg); opacity:.5; }
+    100%{ transform:translate3d(-2%,1%,0) rotate(-4deg); opacity:.4; }
+  }
+
   .container{max-width:1200px; margin:0 auto; padding: clamp(12px, 2.2vw, 24px)}
 
   .blob{position:fixed; filter:blur(60px); opacity:.45; z-index:-1; mix-blend-mode:plus-lighter; animation:float 18s ease-in-out infinite}
@@ -70,7 +98,7 @@
   h1{margin:0; font-weight:800; letter-spacing:-.3px; font-size: clamp(18px, 2.5vw, 28px)}
   .title-edit{cursor:pointer; border:1px solid var(--stroke); background:var(--card); border-radius:10px; padding:6px 10px; font-weight:700}
 
-  .header-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .header-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
   .auth-status{font-weight:800; color:var(--muted); font-size: clamp(12px, 1.6vw, 14px)}
 
   .btn{
@@ -82,8 +110,12 @@
   .btn:focus{outline:none; box-shadow:var(--shadow), var(--ring)}
   .btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent}
   .btn-danger{background:var(--accent); color:#fff; border:none}
+  .btn-ghost{background:transparent}
   .btn::after{content:""; position:absolute; inset:0; background:radial-gradient(140px 140px at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.45), transparent 60%); opacity:0; transition:opacity .6s ease}
   .btn.rippling::after{opacity:.8; transition:none}
+
+  .search-wrap{min-width:200px; flex:1 1 260px; max-width:360px}
+  .search-wrap input{ width:100%; }
 
   .portfolio-charts{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:var(--gap); margin: 0 0 var(--gap)}
   .chart-card{
@@ -95,32 +127,30 @@
 
   .portfolio-summary{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:var(--gap); margin-bottom:var(--gap)}
   .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:var(--radius); padding:14px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); box-shadow:var(--shadow)}
-  .summary-card[data-key]{cursor:help}
+  .summary-card[data-hint]:hover::after{
+    content: attr(data-hint);
+    position:absolute; left:12px; right:12px; bottom:12px; transform:translateY(6px);
+    white-space:pre-wrap; font-size:12px; font-weight:700; color:var(--menu-text);
+    background:var(--menu-bg); border:1px solid var(--stroke); border-radius:10px; padding:8px 10px; box-shadow:var(--shadow);
+    z-index:5;
+  }
   .summary-title{font-size: clamp(11px,1.6vw,12px); color:var(--muted); text-transform:uppercase; letter-spacing:.25px; margin-bottom:6px}
   .summary-num{font-size: clamp(20px,3vw,26px); font-weight:800}
 
   .section{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid var(--stroke); border-radius:calc(var(--radius) + 2px); padding:14px; box-shadow:var(--shadow); margin-bottom:var(--gap)}
-  .section-header{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px}
-  .section h2{margin:0; font-size: clamp(16px, 2.4vw, 22px)}
+  .section-header{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .section-toggle{
+    display:flex; align-items:center; gap:8px; cursor:pointer; background:transparent; border:none; padding:6px 8px; border-radius:10px;
+    font-size: clamp(16px, 2.4vw, 22px); font-weight:800; color:var(--text);
+  }
+  .section-toggle:hover{ background:rgba(255,255,255,.05) }
+  .chev{ display:inline-block; transition: transform .25s ease }
+  .section.open .chev{ transform: rotate(90deg) }
+  .section-meta{font-weight:800;color:var(--muted); display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .meta-badge{border:1px solid var(--stroke); border-radius:999px; padding:4px 8px; font-size:12px; background:rgba(255,255,255,.04)}
 
-  /* === Аккордеоны для секций === */
-  .section.collapsible{padding-bottom:10px}
-  .acc-head{
-    display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;
-    padding:6px 10px; border-radius:12px; border:1px solid var(--stroke);
-    background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
-  }
-  .acc-title{font-weight:800; font-size: clamp(14px, 2.2vw, 18px)}
-  .acc-sum{font-weight:800; color:var(--muted)}
-  .chev{transition:transform .25s ease}
-  .section.open .chev{transform:rotate(180deg)}
-  .section-content{
-    overflow:hidden; max-height:0; opacity:0; transition:max-height .35s ease, opacity .25s ease, margin .25s ease, padding .25s ease;
-    margin-top:0; padding-top:0;
-  }
-  .section.open .section-content{
-    max-height:2000px; opacity:1; margin-top:8px; padding-top:4px;
-  }
+  .section-body{ overflow:hidden; max-height:0; opacity:0; transition:max-height .35s ease, opacity .25s ease, margin .25s ease; margin-top:0 }
+  .section.open .section-body{ max-height:3000px; opacity:1; margin-top:8px }
 
   .assets-list{display:grid; grid-template-columns:1fr; gap:12px}
   .asset-card{border:1px dashed var(--stroke); border-radius:14px; padding:12px; background:rgba(255,255,255,.06); transition:transform .3s ease, box-shadow .3s ease}
@@ -174,6 +204,8 @@
   .flatpickr-day.today{border-color:var(--brand)}
   .flatpickr-day.selected{background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#0c0f21; border-color:transparent}
 
+  mark{ background:rgba(127,240,249,.6); color:#0c0f21; border-radius:4px; padding:0 .15em }
+
   @keyframes fadeUp{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
   .animate-in{animation:fadeUp .6s cubic-bezier(.22,1,.36,1) both}
 
@@ -186,20 +218,10 @@
   @keyframes slideIn{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
 
   canvas{width:100% !important; height:var(--chart-h) !important;}
-
-  /* === Hovercard для сводных плашек === */
-  .hovercard{
-    position:fixed; z-index:3000; pointer-events:none;
-    min-width:220px; max-width:320px; padding:12px; border-radius:12px;
-    border:1px solid var(--stroke); background:var(--card); box-shadow:var(--shadow-lg);
-    font-size:13px; line-height:1.35
-  }
-  .hovercard h4{margin:0 0 6px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.2px}
-  .hovercard .row{display:flex; justify-content:space-between; gap:8px; padding:2px 0}
-  .hovercard .muted{color:var(--muted)}
 </style>
 </head>
 <body>
+<div class="aurora"></div>
 <div class="blob one"></div>
 <div class="blob two"></div>
 
@@ -210,6 +232,11 @@
       <button id="editTitleBtn" class="title-edit" title="Изменить название">✏️</button>
     </div>
     <div class="header-actions">
+      <div class="search-wrap">
+        <input id="searchInput" type="text" placeholder="Поиск по тикерам/названию…" />
+      </div>
+      <button class="btn btn-ghost" id="collapseAllBtn" title="Свернуть все">⤵️ Все</button>
+      <button class="btn btn-ghost" id="expandAllBtn" title="Развернуть все">⤴️ Все</button>
       <div id="authStatus" class="auth-status">Гость</div>
       <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
       <button id="refreshBtn" class="btn" title="Обновить котировки">🔄 Обновить</button>
@@ -292,6 +319,8 @@
   let auth = { token:null, userId:null, email:null, portfolioId:null };
   let portfolio = { savings:[], stocks:[], bonds:[], funds:[], history:[] };
   const charts = {};
+  let collapsedMap = { stocks:true, bonds:true, funds:true, savings:true };
+  let searchQuery = '';
   let fp;
   let quotesTimer = null;
   let isAnyChartOpen = false;
@@ -330,6 +359,11 @@
     auth = { token:null, userId:null, email:null, portfolioId:null };
     saveAuth();
   }
+
+  function saveCollapsed(){ try{ localStorage.setItem('pf_collapsed', JSON.stringify(collapsedMap)); }catch(_){} }
+  function loadCollapsed(){ try{ const j = localStorage.getItem('pf_collapsed'); if(j){ collapsedMap = JSON.parse(j); } }catch(_){} }
+  function saveSearch(){ try{ localStorage.setItem('pf_search', searchQuery); }catch(_){} }
+  function loadSearch(){ try{ const s = localStorage.getItem('pf_search') || ''; searchQuery = s; const si = document.getElementById('searchInput'); if(si) si.value = s; }catch(_){} }
 
   // ====== UI ======
   function applyTitle(t){
@@ -482,75 +516,47 @@
     const pct = base>0 ? abs/base*100 : 0;
     return {abs, pct};
   }
-
-  // ====== HOVER CARD ======
-  let hoverEl=null, hoverHideT=null;
-  function ensureHover(){ if(hoverEl) return hoverEl; const el=document.createElement('div'); el.className='hovercard'; el.style.display='none'; document.body.appendChild(el); hoverEl=el; return el; }
-  function showHover(html,x,y){
-    const el=ensureHover(); el.innerHTML=html; el.style.display='block';
-    let left=x+16, top=y+16; const r=el.getBoundingClientRect();
-    if(left+r.width>innerWidth) left=x-r.width-16;
-    if(top+r.height>innerHeight) top=y-r.height-16;
-    el.style.left=left+'px'; el.style.top=top+'px';
+  function escHtml(s=''){ return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function highlightMatch(text, q){
+    if(!q) return escHtml(text||'');
+    const re = new RegExp('('+escapeRegExp(q)+')','ig');
+    return escHtml(text||'').replace(re,'<mark>$1</mark>');
   }
-  function hideHoverSoon(ms=120){ clearTimeout(hoverHideT); hoverHideT=setTimeout(()=>{ if(hoverEl) hoverEl.style.display='none'; }, ms); }
 
-  // ====== RENDER: SUMMARY (с hover-составом) ======
-  function renderSummary(){
-    const sumSavings = (portfolio.savings||[]).reduce((s,i)=>s+i.value,0);
-    const sumStocks  = (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
-    const sumBonds   = (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
-    const sumFunds   = (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
-    const total      = sumSavings + sumStocks + sumBonds + sumFunds;
-
+  // ====== RENDER: SUMMARY ======
+  function buildClassBreakdownHint(){
     const blocks = [
-      { key:'total',   title:'Всего',          val: total },
-      { key:'savings', title:'Накопит. счёт',  val: sumSavings },
-      { key:'stocks',  title:'Акции',          val: sumStocks },
-      { key:'bonds',   title:'ОФЗ',            val: sumBonds },
-      { key:'funds',   title:'Фонды',          val: sumFunds },
+      ['Накопит', (portfolio.savings||[]).reduce((s,i)=>s+i.value,0)],
+      ['Акции', (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0)],
+      ['ОФЗ', (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0)],
+      ['Фонды', (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0)]
+    ];
+    const total = blocks.reduce((a,b)=>a+b[1],0) || 1;
+    return blocks.map(([label,val])=> `${label}: ${fmt(val)} ₽  (${fmt(val/total*100)}%)`).join('\n');
+  }
+  function topInsideHint(arr){
+    const rows = (arr||[]).map(i=>({ name: (i.displayName||i.name||i.ticker||'').toString(), v: ((i.currentPrice??i.avgPrice??0)*(i.quantity||0)) }))
+      .sort((a,b)=>b.v-a.v).slice(0,6);
+    if(!rows.length) return 'Нет позиций';
+    return rows.map(r=> `${r.name}: ${fmt(r.v)} ₽`).join('\n');
+  }
+
+  function renderSummary(){
+    const blocks = [
+      { key:'total', title:'Всего', val: totalValue(), hint: buildClassBreakdownHint() },
+      { key:'savings', title:'Накопит. счёт', val: (portfolio.savings||[]).reduce((s,i)=>s+i.value,0), hint: topInsideHint(portfolio.savings) },
+      { key:'stocks', title:'Акции', val: (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0), hint: topInsideHint(portfolio.stocks) },
+      { key:'bonds', title:'ОФЗ', val: (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0), hint: topInsideHint(portfolio.bonds) },
+      { key:'funds', title:'Фонды', val: (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0), hint: topInsideHint(portfolio.funds) },
     ];
     const wrap = document.getElementById('portfolioSummary');
     wrap.innerHTML = blocks.map(b=>`
-      <div class="summary-card animate-in" data-key="${b.key}" tabindex="0">
+      <div class="summary-card animate-in" data-hint="${escHtml(b.hint)}">
         <div class="summary-title">${b.title}</div>
         <div class="summary-num" data-anim-num="${b.val}">0 ₽</div>
       </div>`).join('');
     animateNumbers();
-
-    const buildHtml = (key)=>{
-      if(key==='total'){
-        const row = (name,val)=>`<div class="row"><span class="muted">${name}</span><b>${fmt(val)} ₽</b></div>`;
-        return `<h4>Состав портфеля</h4>
-          ${row('Накопит. счёт', sumSavings)}
-          ${row('Акции',         sumStocks)}
-          ${row('ОФЗ',           sumBonds)}
-          ${row('Фонды',         sumFunds)}`;
-      }
-      const map = {
-        savings: (portfolio.savings||[]).map(x=>({ n: 'Пополнение', v: x.value })),
-        stocks:  (portfolio.stocks ||[]).map(x=>({ n: (x.displayName||x.name), v: (x.currentPrice??x.avgPrice??0)*(x.quantity||0) })),
-        bonds:   (portfolio.bonds  ||[]).map(x=>({ n: (x.displayName||x.name), v: (x.currentPrice??x.avgPrice??0)*(x.quantity||0) })),
-        funds:   (portfolio.funds  ||[]).map(x=>({ n: (x.displayName||x.name), v: (x.currentPrice??x.avgPrice??0)*(x.quantity||0) })),
-      };
-      const list = (map[key]||[]).sort((a,b)=>b.v-a.v).slice(0,10);
-      const title = key==='savings'?'Накопит. счёт':(key==='stocks'?'Акции':(key==='bonds'?'ОФЗ':'Фонды'));
-      return `<h4>${title}</h4>` + (list.length? list.map(r=>`<div class="row"><span class="muted">${r.n}</span><b>${fmt(r.v)} ₽</b></div>`).join('') : `<div class="row muted">Пусто</div>`);
-    };
-
-    wrap.querySelectorAll('.summary-card[data-key]').forEach(card=>{
-      const key=card.getAttribute('data-key');
-      const onMove=(e)=> showHover(buildHtml(key), e.clientX, e.clientY);
-      card.addEventListener('mouseenter', onMove);
-      card.addEventListener('mousemove', onMove);
-      card.addEventListener('mouseleave', ()=> hideHoverSoon());
-      // На мобильных — по тапу
-      card.addEventListener('click', (e)=> {
-        const r = card.getBoundingClientRect();
-        showHover(buildHtml(key), r.right, r.top);
-        hideHoverSoon(1500);
-      });
-    });
   }
 
   function displayLabel(it){
@@ -568,12 +574,7 @@
     });
   }
 
-  // ====== helpers: аккордеоны ======
-  const accKey = (cat)=> `pf_collapsed_${cat}`;
-  const isCollapsed = (cat)=> localStorage.getItem(accKey(cat)) === '1';
-  const setCollapsed = (cat, v)=> localStorage.setItem(accKey(cat), v ? '1' : '0');
-
-  // ====== RENDER: SECTIONS (с аккордеонами) ======
+  // ====== RENDER: SECTIONS ======
   function renderSections(){
     const wrap = document.getElementById('portfolioSections');
     destroyPerAssetCharts();
@@ -586,15 +587,27 @@
       ['savings','Накопительный счёт']
     ];
 
-    for(const [cat,label] of groups){
-      if(!(portfolio[cat]||[]).length) continue;
+    const query = (searchQuery||'').trim().toLowerCase();
 
-      const listHTML = (portfolio[cat]||[]).map((it,idx)=>{
+    for(const [cat,label] of groups){
+      const allItems = portfolio[cat]||[];
+      const items = query
+        ? allItems.filter(it => {
+            const t = (displayLabel(it)||'').toLowerCase();
+            const tick = (it.ticker||'').toLowerCase();
+            return t.includes(query) || tick.includes(query);
+          })
+        : allItems;
+
+      if(!allItems.length) continue;
+      const open = query ? true : !collapsedMap[cat]; // при поиске показываем секцию
+
+      const listHTML = items.length ? items.map((it,idx)=>{
         if(cat==='savings'){
           return `
           <div class="asset-card animate-in">
             <div class="asset-header">
-              <div class="asset-name">Пополнение</div>
+              <div class="asset-name">${highlightMatch('Пополнение', query)}</div>
               <div class="asset-actions">
                 <button class="btn btn-danger" data-action="del" data-type="${cat}" data-index="${idx}">Удалить</button>
               </div>
@@ -611,7 +624,7 @@
         const pnlAbs = it.avgPrice ? (curPrice - it.avgPrice) * it.quantity : 0;
         const pnlPct = it.avgPrice ? ((curPrice - it.avgPrice)/it.avgPrice*100) : 0;
         const pnlColor = pnlAbs >= 0 ? 'color:var(--ok)' : 'color:var(--accent)';
-        const title = displayLabel(it) || it.name;
+        const title = highlightMatch(displayLabel(it) || it.name, query);
         return `
         <div class="asset-card animate-in">
           <div class="asset-header">
@@ -640,35 +653,29 @@
             <canvas id="canvas-${id}"></canvas>
           </div>
         </div>`;
-      }).join('');
+      }).join('')
+      : `<div class="asset-card" style="text-align:center;color:var(--muted)">Нет совпадений по запросу «${escHtml(searchQuery)}»</div>`;
 
-      const sumCat = (portfolio[cat]||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
-      const collapsed = isCollapsed(cat); // true => секция закрыта
+      const totalVal = (allItems||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
+      const matchBadge = query ? `<span class="meta-badge">Совпадений: ${items.length}/${allItems.length}</span>` : '';
+      const hint = topInsideHint(allItems);
+
       wrap.insertAdjacentHTML('beforeend', `
-        <section class="section collapsible ${collapsed ? '' : 'open'}" data-acc="${cat}">
-          <div class="section-header">
-            <div class="acc-head" data-acc-toggle="${cat}">
-              <span class="chev">▾</span>
-              <span class="acc-title">${label}</span>
+        <section class="section ${open?'open':''}" data-section="${cat}">
+          <div class="section-header" title="${escHtml(hint)}">
+            <button class="section-toggle" data-action="toggle-section" data-section="${cat}" aria-expanded="${open}">
+              <span class="chev">▸</span> ${label}
+            </button>
+            <div class="section-meta">
+              <span>${fmt(totalVal)} ₽</span>
+              ${matchBadge}
             </div>
-            <div class="acc-sum">${fmt(sumCat)} ₽</div>
           </div>
-          <div class="section-content">
+          <div class="section-body">
             <div class="assets-list">${listHTML}</div>
           </div>
         </section>`);
     }
-
-    // Навешиваем обработчики раскрытия
-    wrap.querySelectorAll('[data-acc-toggle]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const cat = btn.getAttribute('data-acc-toggle');
-        const sec = btn.closest('.section');
-        const willOpen = !sec.classList.contains('open');
-        sec.classList.toggle('open', willOpen);
-        setCollapsed(cat, !willOpen);
-      });
-    });
   }
 
   // ====== CHARTS ======
@@ -744,7 +751,8 @@
             tooltip: { callbacks: { label: (c) => {
               const val = c.raw || 0; const p = total > 0 ? (val / total * 100) : 0;
               return `${c.label}: ${fmt(val)} ₽ (${fmt(p)}%)`;
-            }}}
+            }}},
+            title:{ display:false }
           },
           onHover: (_, els) => { charts.c1.setActiveElements(els); charts.c1.update(); },
           animation: { duration: 900, easing: 'easeOutQuart' }
@@ -812,16 +820,15 @@
     g.addColorStop(0,'rgba(67,97,238,.35)'); g.addColorStop(1,'rgba(67,97,238,.02)');
     charts[canvasId] = new Chart(ctx,{
       type:'line',
-      data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.5, fill:true, backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#4361ee', pointRadius:0, pointHoverRadius:4, tension:.25 }] },
+      data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.5, fill:true, backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#4361ee', pointRadius:0, tension:.25 }] },
       options:{
-        responsive:true, maintainAspectRatio:false,
-        interaction:{ mode:'index', intersect:false, axis:'x' },
-        plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=> `${fmt(c.parsed.y)} ₽` } } },
+        responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ mode:'index', intersect:false, callbacks:{ label:(c)=> `${fmt(c.parsed.y)} ₽` } } },
         scales:{
           x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true } },
           y:{ grid:{ color:getComputedStyle(document.documentElement).getPropertyValue('--stroke')||'rgba(0,0,0,.1)' }, ticks:{ callback:(v)=> fmt(v) } }
         },
-        animation:{duration:600}
+        animation:{duration:600},
+        interaction:{ intersect:false, mode:'nearest' }
       }
     });
     return charts[canvasId];
@@ -958,10 +965,8 @@
     btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
   }
 
-  // обработчик кнопок (график/редакт/удалить) и табов периода
   document.addEventListener('click', async (e)=>{
-    const act = e.target.closest('[data-action]');
-    if(!act) return;
+    const act = e.target.closest('[data-action]'); if(!act) return;
     const action = act.getAttribute('data-action');
 
     if(action==='del'){
@@ -1030,12 +1035,8 @@
       if(charts[canvasId] && charts[canvasId].canvas !== el){ try{ charts[canvasId].destroy(); }catch(_){ } delete charts[canvasId]; }
       if(!charts[canvasId]){ makeLineChart(canvasId, displayLabel(it) || it?.name || name); }
 
-      if(figi){
-        await updateAssetChartByFigi(canvasId, figi, displayLabel(it) || it?.name || name, '1D');
-        setTimeout(()=>{ try{ charts[canvasId]?.resize(); }catch(_){} }, 30); // форс ресайз после анимации раскрытия
-      }else{
-        toast('Нет FIGI для графика — обнови котировки','err');
-      }
+      if(figi){ await updateAssetChartByFigi(canvasId, figi, displayLabel(it) || it?.name || name, '1D'); }
+      else{ toast('Нет FIGI для графика — обнови котировки','err'); }
 
       box.querySelectorAll('.chart-tab').forEach(t=> t.classList.remove('active'));
       box.querySelector('[data-period="1D"]').classList.add('active');
@@ -1053,12 +1054,22 @@
       const name = card?.querySelector('[data-action="show"]')?.getAttribute('data-name');
       const it = [...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])]
         .find(x => x.name === name);
-      if(it?.figi){
-        await updateAssetChartByFigi(`canvas-${id}`, it.figi, displayLabel(it) || it?.name || name, period);
-        setTimeout(()=>{ try{ charts[`canvas-${id}`]?.resize(); }catch(_){} }, 10);
-      }else{ toast('Нет FIGI для графика — обнови котировки','err'); }
+      if(it?.figi){ await updateAssetChartByFigi(`canvas-${id}`, it.figi, displayLabel(it) || it?.name || name, period); }
+      else{ toast('Нет FIGI для графика — обнови котировки','err'); }
       return;
     }
+
+    if(action==='toggle-section'){
+      const sec = act.getAttribute('data-section');
+      collapsedMap[sec] = !collapsedMap[sec];
+      saveCollapsed();
+      const el = document.querySelector(`.section[data-section="${sec}"]`);
+      if(el){ el.classList.toggle('open', !collapsedMap[sec]); const btn = el.querySelector('.section-toggle'); if(btn) btn.setAttribute('aria-expanded', String(!collapsedMap[sec])); }
+      return;
+    }
+
+    if(action==='collapse-all'){ ['stocks','bonds','funds','savings'].forEach(k=> collapsedMap[k]=true); saveCollapsed(); document.querySelectorAll('.section').forEach(s=> s.classList.remove('open')); return; }
+    if(action==='expand-all'){ ['stocks','bonds','funds','savings'].forEach(k=> collapsedMap[k]=false); saveCollapsed(); document.querySelectorAll('.section').forEach(s=> s.classList.add('open')); return; }
   });
 
   function onTypeChange(){
@@ -1072,6 +1083,27 @@
     document.getElementById('assetQuantity').required = !isSavings;
     document.getElementById('assetAvgPrice').required = false;
     document.getElementById('savingsAmount').required = isSavings;
+  }
+
+  function hookHeaderButtons(){
+    document.getElementById('collapseAllBtn').addEventListener('click', ()=>{
+      const btn = document.getElementById('collapseAllBtn');
+      btn.style.setProperty('--rx', '50%'); btn.style.setProperty('--ry', '50%');
+      btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
+      ['stocks','bonds','funds','savings'].forEach(k=> collapsedMap[k]=true);
+      saveCollapsed();
+      document.querySelectorAll('.section').forEach(s=> s.classList.remove('open'));
+    });
+    document.getElementById('expandAllBtn').addEventListener('click', ()=>{
+      const btn = document.getElementById('expandAllBtn');
+      btn.style.setProperty('--rx', '50%'); btn.style.setProperty('--ry', '50%');
+      btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
+      ['stocks','bonds','funds','savings'].forEach(k=> collapsedMap[k]=false);
+      saveCollapsed();
+      document.querySelectorAll('.section').forEach(s=> s.classList.add('open'));
+    });
+    const si = document.getElementById('searchInput');
+    si.addEventListener('input', ()=>{ searchQuery = si.value || ''; saveSearch(); renderSections(); });
   }
 
   // ====== INIT ======
@@ -1092,16 +1124,6 @@
       const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark'; setTheme(cur);
     });
 
-    // клик вне hovercard — закрыть (на мобильных)
-    document.addEventListener('click', (ev)=> {
-      if(hoverEl && hoverEl.style.display!=='none'){
-        const r = hoverEl.getBoundingClientRect();
-        if(!(ev.clientX>=r.left && ev.clientX<=r.right && ev.clientY>=r.top && ev.clientY<=r.bottom)){
-          hideHoverSoon(80);
-        }
-      }
-    });
-
     initDatePicker();
     loadTitle();
     document.getElementById('editTitleBtn').addEventListener('click', ()=>{
@@ -1116,6 +1138,9 @@
 
     loadAuth();
     loadLocal();
+    loadCollapsed();
+    loadSearch();
+    hookHeaderButtons();
 
     document.getElementById('logoutBtn').addEventListener('click', ()=>{
       clearAuth(); toast('Вы вышли'); window.location.href='login.html';
