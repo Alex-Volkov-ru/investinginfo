@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from typing import Optional, List
+
+from fastapi import APIRouter, Depends, HTTPException, Path
+from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session, joinedload
 
 from app.backend.core.auth import get_current_user
 from app.backend.db.session import get_db
@@ -12,163 +16,147 @@ from app.backend.models.instrument import Instrument
 
 router = APIRouter()
 
-# ====== Schemas ======
 
+# ===== Schemas =====
 class PortfolioCreateIn(BaseModel):
-    title: str
+    title: str = "Основной"
     type: str = "broker"
     currency: str = "RUB"
-    # примем user_id для совместимости, но игнорируем
-    user_id: int | None = None
 
-class PortfolioOut(BaseModel):
-    id: int
-    user_id: int
-    title: str
-    type: str
-    currency: str
-    class Config:
-        from_attributes = True
-
-class InstrumentShort(BaseModel):
-    ticker: str | None = None
-    name: str | None = None
-    class_: str | None = Field(None, alias="class")
-    currency: str | None = None
-    nominal: float | None = None
-    class Config:
-        populate_by_name = True
-        from_attributes = True
 
 class PositionUpsertIn(BaseModel):
     portfolio_id: int
-    ticker: str = Field(..., description="Например, SBER")
-    class_hint: str | None = Field(None, description="share|bond|etf (опционально)")
-    figi: str | None = Field(None, description="Если известен FIGI — можно указать")
-    quantity: float = 0
-    avg_price: float = 0
-    name: str | None = None
-    currency: str | None = None
-    nominal: float | None = None  # для bond
-
-class PositionOut(BaseModel):
-    id: int
-    portfolio_id: int
     figi: str
+    ticker: Optional[str] = None
+    class_hint: Optional[str] = None
     quantity: float
     avg_price: float
-    class Config:
-        from_attributes = True
+    name: Optional[str] = None
+    currency: Optional[str] = None
+    nominal: Optional[float] = None
 
-class PositionFullOut(PositionOut):
-    instrument: InstrumentShort
 
-# ====== Helpers ======
-
+# ===== Helpers =====
 def _ensure_portfolio_of_user(db: Session, portfolio_id: int, user_id: int) -> Portfolio:
-    pf = db.query(Portfolio).filter(Portfolio.id == portfolio_id, Portfolio.user_id == user_id).first()
-    if not pf:
-        raise HTTPException(403, "Нет доступа к этому портфелю")
+    pf = db.get(Portfolio, portfolio_id)
+    if not pf or pf.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Портфель не найден")
     return pf
 
-# ====== Endpoints ======
 
-@router.get("", response_model=list[PortfolioOut])
-def list_portfolios(user=Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(Portfolio).filter(Portfolio.user_id == user.id).all()
+# ===== Endpoints =====
+@router.get("/portfolio")
+def list_portfolios(user=Depends(get_current_user), db: Session = Depends(get_db)) -> List[Portfolio]:
+    return db.execute(
+        select(Portfolio).where(Portfolio.user_id == user.id).order_by(Portfolio.id.asc())
+    ).scalars().all()
 
-@router.post("", response_model=PortfolioOut)
+
+@router.post("/portfolio")
 def create_portfolio(payload: PortfolioCreateIn, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    p = Portfolio(
-        user_id=user.id,
-        title=payload.title,
-        type=payload.type,
-        currency=payload.currency,
-        created_at=datetime.utcnow(),
-    )
-    db.add(p); db.commit(); db.refresh(p)
-    return p
+    pf = Portfolio(title=payload.title, type=payload.type, currency=payload.currency, user_id=user.id)
+    db.add(pf)
+    db.commit()
+    db.refresh(pf)
+    return pf
 
-@router.get("/{portfolio_id}/positions", response_model=list[PositionOut])
-def list_positions(portfolio_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    _ensure_portfolio_of_user(db, portfolio_id, user.id)
-    return db.query(Position).filter(Position.portfolio_id == portfolio_id).all()
 
-@router.get("/{portfolio_id}/positions/full", response_model=list[PositionFullOut])
-def list_positions_full(portfolio_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+@router.get("/portfolio/{portfolio_id}/positions/full")
+def list_positions_full(
+    portfolio_id: int = Path(..., ge=1),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     _ensure_portfolio_of_user(db, portfolio_id, user.id)
-    rows = (
-        db.query(Position, Instrument)
-        .join(Instrument, Instrument.figi == Position.figi, isouter=True)
-        .filter(Position.portfolio_id == portfolio_id)
-        .all()
-    )
-    out: list[PositionFullOut] = []
-    for pos, inst in rows:
-        instrument = None
-        if inst:
-            instrument = InstrumentShort(
-                ticker=inst.ticker, name=inst.name, class_=inst.class_,
-                currency=inst.currency, nominal=float(inst.nominal) if inst.nominal is not None else None
-            )
-        out.append(PositionFullOut(
-            id=pos.id,
-            portfolio_id=pos.portfolio_id,
-            figi=pos.figi,
-            quantity=float(pos.quantity),
-            avg_price=float(pos.avg_price),
-            instrument=instrument or InstrumentShort()
-        ))
+
+    # positions + instrument (для фронта удобнее одной структурой)
+    rows = db.execute(
+        select(Position).options(joinedload(Position.instrument))
+        .where(Position.portfolio_id == portfolio_id)
+        .order_by(Position.id.asc())
+    ).scalars().all()
+
+    # приводим к удобному json
+    out = []
+    for p in rows:
+        inst = p.instrument
+        out.append({
+            "id": p.id,
+            "portfolio_id": p.portfolio_id,
+            "figi": p.figi,
+            "quantity": float(p.quantity or 0),
+            "avg_price": float(p.avg_price or 0),
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+            "instrument": {
+                "figi": inst.figi if inst else p.figi,
+                "ticker": (inst.ticker if inst else None) or None,
+                "name": inst.name if inst else None,
+                "class": getattr(inst, "class_", None) or getattr(inst, "class", None) or "other",
+                "currency": inst.currency if inst else None,
+                "nominal": inst.nominal if inst else None,
+            },
+        })
     return out
 
-@router.post("/positions", response_model=PositionOut)
-def upsert_position(payload: PositionUpsertIn, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    _ensure_portfolio_of_user(db, payload.portfolio_id, user.id)
 
-    figi = (payload.figi or "").strip()
-    if not figi:
-        raise HTTPException(400, "Требуется figi (разрешай тикер через /resolve)")
-
-    # гарантируем, что инструмент существует в каталоге
-    inst = db.get(Instrument, figi)
-    if not inst:
-        inst = Instrument(
-            figi=figi,
-            ticker=(payload.ticker or "").upper() or None,
-            name=payload.name,
-            currency=payload.currency,
-            nominal=payload.nominal,
-            class_=payload.class_hint or "other",
-        )
-        db.add(inst)
-
-    pos = (
-        db.query(Position)
-        .filter(Position.portfolio_id == payload.portfolio_id, Position.figi == figi)
-        .first()
-    )
-    if not pos:
-        pos = Position(
-            portfolio_id=payload.portfolio_id,
-            figi=figi,
-            quantity=payload.quantity,
-            avg_price=payload.avg_price,
-            updated_at=datetime.utcnow(),
-        )
-        db.add(pos)
-    else:
-        pos.quantity = payload.quantity
-        pos.avg_price = payload.avg_price
-        pos.updated_at = datetime.utcnow()
-
-    db.commit(); db.refresh(pos)
-    return pos
-
-@router.delete("/positions/{position_id}", status_code=204)
-def delete_position(position_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+@router.delete("/portfolio/positions/{position_id}")
+def delete_position(
+    position_id: int,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     pos = db.get(Position, position_id)
     if not pos:
         raise HTTPException(404, "Позиция не найдена")
     _ensure_portfolio_of_user(db, pos.portfolio_id, user.id)
-    db.delete(pos); db.commit()
-    return
+    db.delete(pos)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/portfolio/positions")
+def upsert_position(payload: PositionUpsertIn, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    # валидация права пользователя на портфель
+    _ensure_portfolio_of_user(db, payload.portfolio_id, user.id)
+
+    # гарантируем наличие инструмента
+    inst = db.get(Instrument, payload.figi)
+    if not inst:
+        inst = Instrument(
+            figi=payload.figi,
+            ticker=(payload.ticker or "").upper() or None,
+            class_=payload.class_hint or "other",
+            name=payload.name,
+            currency=payload.currency,
+            nominal=payload.nominal,
+        )
+        db.add(inst)
+        db.flush()
+
+    # аддитивный UPSERT по (portfolio_id, figi)
+    stmt = insert(Position).values(
+        portfolio_id=payload.portfolio_id,
+        figi=payload.figi,
+        quantity=payload.quantity,
+        avg_price=payload.avg_price,
+        updated_at=datetime.utcnow(),
+    )
+
+    q_sum = Position.quantity + stmt.excluded.quantity
+    weighted_avg = (
+        (Position.avg_price * Position.quantity + stmt.excluded.avg_price * stmt.excluded.quantity)
+        / func.nullif(q_sum, 0)
+    )
+
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[Position.portfolio_id, Position.figi],
+        set_={
+            "quantity": q_sum,
+            "avg_price": func.coalesce(weighted_avg, stmt.excluded.avg_price),
+            "updated_at": datetime.utcnow(),
+        },
+    ).returning(Position)
+
+    pos = db.execute(stmt).scalar_one()
+    db.commit()
+    return pos
