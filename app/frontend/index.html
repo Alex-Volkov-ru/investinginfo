@@ -219,6 +219,74 @@
   @keyframes slideIn{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
 
   canvas{width:100% !important; height:var(--chart-h) !important;}
+
+  /* ====== ADDITIONS: visual separation & header behavior ====== */
+
+  /* ярлыки для зон */
+  .zone-title{
+    margin: 6px 0 8px;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: .24px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* Итоги - статические карточки без hover-подпрыгивания */
+  .summary-card{
+    background: var(--card);
+    border: 1px solid var(--stroke);
+    box-shadow: var(--shadow);
+  }
+  .summary-card:hover{ transform:none; box-shadow:var(--shadow); }
+
+  /* Секции визуально как аккордеоны */
+  .section{
+    background: linear-gradient(180deg, rgba(127,240,249,.08), rgba(67,97,238,.05));
+    border-radius: calc(var(--radius) + 2px);
+  }
+  .section-header{
+    background: rgba(255,255,255,.04);
+    border: 1px dashed var(--stroke);
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+  .section.open .section-header{ border-style: solid; }
+  .section-header .chev{ transform-origin:center; width:1em; height:1em; font-weight:900; }
+
+  .portfolio-summary{ margin-bottom: calc(var(--gap) + 6px); }
+  .section + .section{ margin-top: calc(var(--gap) - 6px); }
+
+  /* компактный header при скролле + корректный top */
+  header{ top: env(safe-area-inset-top, 0); }
+  .header--compact{
+    padding: 6px 10px !important;
+    border-radius: 0;
+    margin-bottom: 6px;
+    background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.04));
+    box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  }
+  .header--compact h1{ font-size: 16px; }
+  .header--compact .search-wrap{ display: none; }
+  .header--compact #toggleAllBtn{ display: none; }
+  .header--compact .auth-status{ display: none; }
+  .header--compact .btn{ padding: 6px 8px; }
+
+  /* мобильные: убираем липкость, разгружаем шапку */
+  @media (max-width: 560px){
+    header{ position: static; border-radius: 0; margin: 0 0 var(--gap); }
+    .header-actions{ gap: 6px; }
+    .auth-status{ display: none; }            /* «Привет, …» прячем */
+    .search-wrap{ flex: 1 1 100%; order: 4; } /* поиск уходит на вторую строку */
+  }
+
+  /* более внятные заголовки секций и бейджи */
+  .section-toggle{ padding: 8px 10px; border-radius: 12px; }
+  .section-toggle:hover{ background: rgba(255,255,255,.07); }
+  .section-meta .meta-badge{
+    background: var(--card);
+    border: 1px solid var(--stroke);
+  }
 </style>
 </head>
 <body>
@@ -251,7 +319,12 @@
     <div class="chart-card animate-in skeleton" id="sk3"><h3>Количество бумаг по тикерам</h3><canvas id="chartByTickerQty"></canvas></div>
   </div>
 
+  <!-- Ярлык: Итоги -->
+  <h2 class="zone-title">Итоги</h2>
   <div class="portfolio-summary" id="portfolioSummary"></div>
+
+  <!-- Ярлык: Позиции -->
+  <h2 class="zone-title">Позиции</h2>
   <div id="portfolioSections"></div>
 
   <div class="section animate-in">
@@ -517,7 +590,7 @@
     const pct = base>0 ? abs/base*100 : 0;
     return {abs, pct};
   }
-  function escHtml(s=''){ return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escHtml(s=''){ return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt').replace(/>/g,'&gt;'); }
   function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
   function highlightMatch(text, q){
     if(!q) return escHtml(text||'');
@@ -1156,6 +1229,13 @@
 
   document.addEventListener('DOMContentLoaded', async ()=>{
     initTheme();
+
+    /* компактный хедер при скролле */
+    const headerEl = document.querySelector('header');
+    const applyCompact = () => headerEl.classList.toggle('header--compact', window.scrollY > 8);
+    window.addEventListener('scroll', applyCompact, { passive: true });
+    applyCompact();
+
     document.getElementById('themeToggle').addEventListener('click', (e)=>{
       const rect = e.currentTarget.getBoundingClientRect();
       const x = ((e.clientX - rect.left)/rect.width*100).toFixed(2)+"%";
