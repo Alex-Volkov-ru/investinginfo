@@ -33,17 +33,18 @@ services:
     networks: [portfolio-net]
 
   cli-flyway:
-    profiles: ["cli-flyway"]
     image: flyway/flyway:11-alpine
     container_name: bigs-flyway
     depends_on:
       db:
         condition: service_healthy
     environment:
+      FLYWAY_SCHEMAS: pf
       FLYWAY_LOCATIONS: filesystem:/flyway/sql
-      FLYWAY_URL: jdbc:postgresql://db:${POSTGRES_PORT}/${POSTGRES_DB}
+      FLYWAY_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
       FLYWAY_USER: ${POSTGRES_USER}
       FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
     volumes:
       - ./env/pgsql/migrations:/flyway/sql:ro
     command: migrate
