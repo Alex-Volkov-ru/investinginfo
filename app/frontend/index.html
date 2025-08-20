@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title id="pageTitle">Мой инвестиционный портфель</title>
 
-<!-- ГАРД: если нет токена — на страницу входа -->
+<!-- Гард: если нет токена — отправляем на логин -->
 <script>
   if (!localStorage.getItem('pf_token')) {
     window.location.replace('login.html');
@@ -65,17 +65,20 @@
   .btn{
     position:relative; overflow:hidden; padding:8px 12px; border-radius:12px; border:1px solid var(--stroke);
     background:var(--card); color:var(--text); cursor:pointer; font-weight:800; font-size:13px;
-    box-shadow:var(--shadow); transition:transform .18s ease, box-shadow .22s ease, background .2s ease
+    box-shadow:var(--shadow); transition:transform .18s ease, box-shadow .22s ease, background .2s ease;
+    display:inline-flex; align-items:center; gap:6px; line-height:1;  /* фиксы кнопок */
+    user-select:none;
   }
   .btn:hover{transform:translateY(-1px); box-shadow:var(--shadow-lg)}
   .btn:focus{outline:none; box-shadow:var(--shadow), var(--ring)}
   .btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent}
   .btn-danger{background:var(--accent); color:#fff; border:none}
-  .btn-ghost{background:transparent; border:1px solid var(--stroke);} /* добавлено */
-  .btn::after{content:""; position:absolute; inset:0; background:radial-gradient(140px 140px at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.45), transparent 60%); opacity:0; transition:opacity .6s ease}
+  .btn-ghost{background:transparent; border:1px solid var(--stroke)}
+  .btn::after{content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(140px 140px at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.45), transparent 60%); opacity:0; transition:opacity .6s ease}
   .btn.rippling::after{opacity:.8; transition:none}
 
-  /* --- Карты/графики --- */
+  /* --- Карточки/графики --- */
   .cards{display:grid; grid-template-columns:repeat(12,1fr); gap:10px}
   .card{background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)); border:1px solid var(--stroke); border-radius:14px; padding:12px; box-shadow:var(--shadow)}
   .card h3{margin:0 0 8px; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.2px}
@@ -83,11 +86,15 @@
   .span-4{grid-column:span 4}
   .span-12{grid-column:span 12}
 
-  /* --- Сводные карточки (компакт) --- */
+  /* --- Сводные блоки --- */
   .summary{display:grid; grid-template-columns:repeat(12,1fr); gap:10px; margin:10px 0 14px}
-  .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:14px; padding:12px; background:var(--card); box-shadow:var(--shadow); cursor:default}
+  .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:14px; padding:12px; background:var(--card); box-shadow:var(--shadow)}
   .summary-card .k{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px}
-  .summary-card .v{font-size:18px; font-weight:900; line-height:1.1; margin-top:4px}
+  .summary-card .v{
+    font-size:18px; font-weight:900; line-height:1.1; margin-top:4px;
+    font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1, 'lnum' 1;
+    white-space: nowrap;  /* не переносим «5 999 ₽» */
+  }
   .summary-card.hoverable{cursor:pointer}
   .summary-card[data-kind="total"]{grid-column:span 6}
   .summary-card:not([data-kind="total"]){grid-column:span 2}
@@ -97,7 +104,10 @@
   .collapsible{border:1px solid var(--stroke); border-radius:14px; background:var(--card); overflow:hidden}
   .collapsible-header{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 14px; cursor:pointer; user-select:none}
   .collapsible-title{display:flex; align-items:center; gap:8px; font-weight:800}
-  .collapsible-badge{font-weight:900; color:var(--muted)}
+  .collapsible-badge{
+    font-weight:900; color:var(--muted);
+    font-variant-numeric: tabular-nums; font-feature-settings:'tnum' 1, 'lnum' 1; white-space:nowrap;
+  }
   .chev{transition:transform .25s ease; opacity:.85}
   .collapsible[aria-expanded="true"] .chev{transform:rotate(180deg)}
   .collapse-content{max-height:0; opacity:.0; padding:0 12px; transition:max-height .30s ease, opacity .25s ease, padding .20s ease}
@@ -106,7 +116,7 @@
   /* --- Элементы активов --- */
   .assets-list{display:grid; grid-template-columns:1fr; gap:10px; margin-top:10px}
   .asset{border:1px dashed var(--stroke); border-radius:12px; padding:10px; background:rgba(255,255,255,.04)}
-  .asset-h{display:flex; justify-content:space-between; align-items:center; gap:8px}
+  .asset-h{display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap}
   .asset-name{font-weight:800}
   .asset-d{color:var(--muted); font-size:12px; margin-top:6px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
   .asset-actions{display:flex; gap:6px; flex-wrap:wrap}
@@ -115,7 +125,11 @@
   .form-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px}
   .form-group{display:flex; flex-direction:column; gap:6px}
   label{font-size:11px; color:var(--muted); font-weight:700}
-  select,input{appearance:none; background:var(--input-bg); border:1px solid var(--stroke); color:var(--text); border-radius:12px; padding:10px 12px; font-weight:700; width:100%}
+  select,input{
+    appearance:none; background:var(--input-bg); border:1px solid var(--stroke); color:var(--text);
+    border-radius:12px; padding:10px 12px; font-weight:700; width:100%;
+    font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1, 'lnum' 1;
+  }
   select:hover,input:hover{background:var(--input-bg-hover)}
   .form-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:10px}
 
@@ -172,9 +186,9 @@
 
   <!-- Графики -->
   <div class="cards">
-    <div class="card span-4" id="sk1"><h3>Аллокация по классам</h3><canvas id="chartByClass" style="width:100%; height:280px"></canvas></div>
-    <div class="card span-4" id="sk2"><h3>Аллокация по тикерам (стоимость)</h3><canvas id="chartByTickerValue" style="width:100%; height:280px"></canvas></div>
-    <div class="card span-4" id="sk3"><h3>Количество бумаг по тикерам</h3><canvas id="chartByTickerQty" style="width:100%; height:280px"></canvas></div>
+    <div class="card span-4 skeleton" id="sk1"><h3>Аллокация по классам</h3><canvas id="chartByClass" style="width:100%; height:280px"></canvas></div>
+    <div class="card span-4 skeleton" id="sk2"><h3>Аллокация по тикерам (стоимость)</h3><canvas id="chartByTickerValue" style="width:100%; height:280px"></canvas></div>
+    <div class="card span-4 skeleton" id="sk3"><h3>Количество бумаг по тикерам</h3><canvas id="chartByTickerQty" style="width:100%; height:280px"></canvas></div>
   </div>
 
   <!-- Сводные -->
@@ -516,12 +530,12 @@
                   </div>
                   <div class="card-sm" id="box-${id}" style="display:none; margin-top:8px">
                     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">
-                      <button type="button" class="btn btn-ghost chart-tab" data-action="period" data-period="1D" data-for="${id}">День</button>
-                      <button type="button" class="btn btn-ghost chart-tab" data-action="period" data-period="1W" data-for="${id}">Неделя</button>
-                      <button type="button" class="btn btn-ghost chart-tab" data-action="period" data-period="1M" data-for="${id}">Месяц</button>
-                      <button type="button" class="btn btn-ghost chart-tab" data-action="period" data-period="1Y" data-for="${id}">Год</button>
+                      <button class="btn btn-ghost chart-tab" data-action="period" data-period="1D" data-for="${id}" type="button">День</button>
+                      <button class="btn btn-ghost chart-tab" data-action="period" data-period="1W" data-for="${id}" type="button">Неделя</button>
+                      <button class="btn btn-ghost chart-tab" data-action="period" data-period="1M" data-for="${id}" type="button">Месяц</button>
+                      <button class="btn btn-ghost chart-tab" data-action="period" data-period="1Y" data-for="${id}" type="button">Год</button>
                     </div>
-                    <canvas id="canvas-${id}"></canvas>
+                    <canvas id="canvas-${id}" style="width:100%;height:260px"></canvas>
                   </div>
                 </div>`;
               }).join('')}
@@ -531,24 +545,26 @@
       wrap.insertAdjacentHTML('beforeend', header);
     };
 
-    // обработчики открытия
+    // навесить обработчики открытия
     qSA('.collapsible-header').forEach(h=>{
       h.addEventListener('click', ()=> toggleCollapsible(h.dataset.toggle, true));
     });
 
-    // на десктопе открыть первую непустую
+    // по умолчанию: на мобиле всё закрыто, на десктопе откроем первую непустую секцию
     const isMobile = matchMedia('(max-width: 900px)').matches;
     if(!isMobile){
       const firstNonEmpty = ['#sec-stocks','#sec-bonds','#sec-funds','#sec-savings'].find(sel=>{
-        const cat = sel.replace('#sec-','');
-        return (portfolio[cat]||[]).length>0;
+        const cat = sel.replace('#sec-',''); const arr = portfolio[cat]||[];
+        return arr.length>0;
       });
       if(firstNonEmpty) toggleCollapsible(firstNonEmpty, false, true);
     }
   }
+
   function toggleCollapsible(selector, scrollInto=false, forceOpen=false){
     const el = qS(selector); if(!el) return;
     const wantOpen = forceOpen || el.getAttribute('aria-expanded')!=='true';
+    // аккордеон — закрыть остальные
     qSA('.collapsible').forEach(x=>{ if(x!==el){ x.setAttribute('aria-expanded','false'); } });
     el.setAttribute('aria-expanded', wantOpen ? 'true' : 'false');
     if(scrollInto && wantOpen){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
@@ -572,7 +588,7 @@
       if (info.title) ctx.fillText(info.title, x, y - 18);
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text') || '#111'; ctx.font='800 16px Inter';
       if (info.line1) ctx.fillText(info.line1, x, y + 2);
-      if (info.line2) { ctx.fillStyle = info.line2Color || (getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#666'); ctx.font='800 11px Inter'; ctx.fillText(info.line2, x, y + 20); }
+      if (info.line2) { ctx.fillStyle = info.line2Color || (getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#666'); ctx.font='800 11px Inter'; ctx.fillText(info.line2, x, y + 20);}
       ctx.restore();
     }
   });
@@ -604,7 +620,11 @@
       charts.c1 = new Chart(ctx1, {
         type: 'doughnut',
         data: { labels: classLabels, datasets: [{ data: classValues, borderWidth: 0, hoverOffset: 8, cutout: '62%', backgroundColor: bg }] },
-        options: { plugins: { legend: { display: false }, tooltip: { enabled:false } }, onHover: (_, els) => { charts.c1.setActiveElements(els); charts.c1.update(); }, animation: { duration: 900, easing: 'easeOutQuart' } },
+        options: {
+          plugins: { legend: { display: false }, tooltip: { enabled:false } },
+          onHover: (_, els) => { charts.c1.setActiveElements(els); charts.c1.update(); },
+          animation: { duration: 900, easing: 'easeOutQuart' }
+        },
         plugins: [donutCenter((chart) => {
           const active = chart.getActiveElements?.() || [];
           if (active.length) {
@@ -618,7 +638,7 @@
         })]
       });
 
-      // Клик по сектору → открыть секцию
+      // Клик по сектору → открыть нужную секцию
       el1.addEventListener('click', (evt)=>{
         const points = charts.c1.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, false);
         if(points.length){
@@ -638,18 +658,34 @@
     const qtys   = items.map(i=>i.quantity||0);
     const trimLabel = s => (s||'').length>18 ? (s||'').slice(0,17)+'…' : (s||'');
 
-    const barOpts = { plugins:{ legend:{ display:false } }, scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation: 45, minRotation: 0, autoSkip:true, callback:(v,i)=> trimLabel(labelsTickers[i]) } }, y:{ ticks:{ callback:(v)=> fmt(v) }, grid:{ color:axisGrid } } }, animation:{duration:700} };
+    const barOpts = {
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ grid:{ display:false }, ticks:{ maxRotation:45, minRotation:0, autoSkip:true, callback:(v,i)=> trimLabel(labelsTickers[i]) } },
+        y:{ ticks:{ callback:(v)=> fmt(v) }, grid:{ color:axisGrid } }
+      },
+      animation:{duration:700}
+    };
 
-    const el2=qS('#chartByTickerValue');
-    if(el2){ const ctx=el2.getContext('2d'); if(charts.v) charts.v.destroy(); charts.v=new Chart(ctx,{ type:'bar', data:{ labels: labelsTickers, datasets:[{ data:values, borderRadius:10, backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(67,97,238,.9)','rgba(127,240,249,.4)')} }] }, options:barOpts }); }
+    const el2 = qS('#chartByTickerValue');
+    if (el2) {
+      const ctx = el2.getContext('2d');
+      if (charts.v) charts.v.destroy();
+      charts.v = new Chart(ctx, {
+        type:'bar',
+        data:{ labels: labelsTickers, datasets:[{ data:values, borderRadius:10, backgroundColor:(c)=>{ const cx=c.chart.ctx; return grad(cx,'rgba(67,97,238,.9)','rgba(127,240,249,.4)'); } }] },
+        options:barOpts
+      });
+    }
+
     const el3 = qS('#chartByTickerQty');
     if (el3) {
       const ctx = el3.getContext('2d');
       if (charts.q) charts.q.destroy();
       charts.q = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: labelsTickers, datasets: [{ data: qtys, borderRadius: 10, backgroundColor: (c) => { const ctx = c.chart.ctx; return grad(ctx, 'rgba(6,214,160,.9)', 'rgba(67,97,238,.4)'); } }] },
-        options: { ...barOpts, scales: { x: { grid:{display:false}, ticks:{ maxRotation:45, minRotation:0, autoSkip:true, callback:(v,i)=> trimLabel(labelsTickers[i]) } }, y:{ ticks:{ callback:(v)=> fmt(v,0) }, grid:{ color:axisGrid } } } }
+        type:'bar',
+        data:{ labels: labelsTickers, datasets:[{ data:qtys, borderRadius:10, backgroundColor:(c)=>{ const cx=c.chart.ctx; return grad(cx,'rgba(6,214,160,.9)','rgba(67,97,238,.4)'); } }] },
+        options:{ ...barOpts, scales:{ x:{ grid:{display:false}, ticks:{ maxRotation:45, minRotation:0, autoSkip:true, callback:(v,i)=> trimLabel(labelsTickers[i]) } }, y:{ ticks:{ callback:(v)=> fmt(v,0) }, grid:{ color:axisGrid } } } }
       });
     }
 
@@ -659,14 +695,7 @@
   function makeLineChart(canvasId,label){
     const el = qS('#'+canvasId); if(!el) return null;
     const ctx = el.getContext('2d'); const g = ctx.createLinearGradient(0,0,0,300); g.addColorStop(0,'rgba(67,97,238,.35)'); g.addColorStop(1,'rgba(67,97,238,.02)');
-    charts[canvasId] = new Chart(ctx,{
-      type:'line',
-      data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.2, fill:true, spanGaps:false, pointRadius:0, tension:.25,
-        backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#4361ee' }] },
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
-        scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true } }, y:{ grid:{ color:getComputedStyle(document.documentElement).getPropertyValue('--stroke')||'rgba(0,0,0,.1)' }, ticks:{ callback:(v)=> fmt(v) } } },
-        animation:{duration:600} }
-    });
+    charts[canvasId] = new Chart(ctx,{ type:'line', data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.2, fill:true, backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#4361ee', pointRadius:0, tension:.25 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true } }, y:{ grid:{ color:getComputedStyle(document.documentElement).getPropertyValue('--stroke')||'rgba(0,0,0,.1)' }, ticks:{ callback:(v)=> fmt(v) } } }, animation:{duration:600} }});
     return charts[canvasId];
   }
 
@@ -687,31 +716,13 @@
   async function updateAssetChartByFigi(canvasId, figi, label, period){
     let {interval, fromISO, toISO}=periodToBackend(period);
     let data=await apiCandles(figi, interval, fromISO, toISO);
-
     if((!data||data.length===0)&& (interval==='1min'||interval==='5min'||interval==='15min')){
       const fallback = interval==='15min'?'1h':(interval==='5min'?'15min':'5min');
       data = await apiCandles(figi, fallback, fromISO, toISO);
     }
     const ch=charts[canvasId]||makeLineChart(canvasId, label);
-
-    const labels = (data||[]).map(x=> formatXAxisLabel(period, x.time));
-    const values = (data||[]).map(x=> x.close);
-    ch.data.labels=labels;
-    ch.data.datasets[0].data=values;
-
-    // нормализация оси Y, даже если данные почти плоские
-    if(values.length){
-      const min = Math.min(...values);
-      const max = Math.max(...values);
-      const pad = (max - min) || (min * 0.005) || 0.01;
-      ch.options.scales.y.min = min - pad * 0.6;
-      ch.options.scales.y.max = max + pad * 0.6;
-    } else {
-      ch.options.scales.y.min = undefined;
-      ch.options.scales.y.max = undefined;
-    }
-
-    ch.update();
+    ch.data.labels=(data||[]).map(x=> formatXAxisLabel(period, x.time));
+    ch.data.datasets[0].data=(data||[]).map(x=> x.close); ch.update();
   }
 
   /* ====== QUOTES ====== */
@@ -802,14 +813,10 @@
       qSA('[id^="box-"]').forEach(b=> b.style.display='none'); // один график на экране
       if(visible){ box.style.display='none'; isAnyChartOpen=false; return; }
       box.style.display='block'; isAnyChartOpen=true;
-
-      // создаём/обновляем уже после того как блок стал видимым
-      requestAnimationFrame(async ()=>{
-        if(charts[canvasId] && charts[canvasId].canvas !== qS('#'+canvasId)){ try{ charts[canvasId].destroy(); }catch(_){ } delete charts[canvasId]; }
-        if(!charts[canvasId]){ makeLineChart(canvasId, displayLabel(it) || it?.name || name); }
-        if(figi){ await updateAssetChartByFigi(canvasId, figi, displayLabel(it) || it?.name || name, '1D'); } else { toast('Нет FIGI для графика — обнови котировки','err'); }
-        setTimeout(()=>{ box.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
-      });
+      if(charts[canvasId] && charts[canvasId].canvas !== qS('#'+canvasId)){ try{ charts[canvasId].destroy(); }catch(_){ } delete charts[canvasId]; }
+      if(!charts[canvasId]){ makeLineChart(canvasId, displayLabel(it) || it?.name || name); }
+      if(figi){ await updateAssetChartByFigi(canvasId, figi, displayLabel(it) || it?.name || name, '1D'); } else { toast('Нет FIGI для графика — обнови котировки','err'); }
+      setTimeout(()=>{ box.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
       return;
     }
 
@@ -824,8 +831,7 @@
 
   function onTypeChange(){
     const t=qS('#assetType').value; const isSavings=t==='savings';
-    qS('#fieldName').style.display=isSavings?'none':''; qS('#fieldQuantity').style.display=isSavings?'none':''; qS('#fieldPrice').style.display=isSavings?'none':'';
-    qS('#fieldSavingsAmount').style.display=isSavings?'':'none';
+    qS('#fieldName').style.display=isSavings?'none':''; qS('#fieldQuantity').style.display=isSavings?'none':''; qS('#fieldPrice').style.display=isSavings?'none':''; qS('#fieldSavingsAmount').style.display=isSavings?'':'none';
     qS('#assetName').required = !isSavings; qS('#assetQuantity').required=!isSavings; qS('#assetAvgPrice').required=false; qS('#savingsAmount').required=isSavings;
   }
 
@@ -835,15 +841,10 @@
   document.addEventListener('DOMContentLoaded', async ()=>{
     initTheme();
     qS('#themeToggle').addEventListener('click', (e)=>{
-      e.preventDefault(); e.stopPropagation();
-      const rect=e.currentTarget.getBoundingClientRect();
-      const x=((e.clientX-rect.left)/rect.width*100).toFixed(2)+"%";
-      const y=((e.clientY-rect.top)/rect.height*100).toFixed(2)+"%";
+      const rect=e.currentTarget.getBoundingClientRect(); const x=((e.clientX-rect.left)/rect.width*100).toFixed(2)+"%"; const y=((e.clientY-rect.top)/rect.height*100).toFixed(2)+"%";
       e.currentTarget.style.setProperty('--rx',x); e.currentTarget.style.setProperty('--ry',y);
-      e.currentTarget.classList.remove('rippling'); setTimeout(()=> e.currentTarget.classList.add('rippling'), 0);
-      setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250);
-      const cur=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
-      setTheme(cur);
+      e.currentTarget.classList.remove('rippling'); setTimeout(()=> e.currentTarget.classList.add('rippling'), 0); setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250);
+      const cur=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'; setTheme(cur);
     });
 
     initDatePicker(); loadTitle();
