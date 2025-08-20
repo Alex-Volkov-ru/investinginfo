@@ -123,13 +123,20 @@ def list_positions_full(portfolio_id: int, user=Depends(get_current_user), db: S
 
 @router.post("/positions", response_model=PositionOut)
 def upsert_position(payload: PositionUpsertIn, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Аддитивное обновление позиции:
+      - если позиции нет -> создаём;
+      - если есть:
+          * quantity > 0 (покупка): складываем количество, avg_price -> взвешенная средняя;
+          * quantity < 0 (продажа): уменьшаем количество, avg_price не меняем; если стало 0 -> avg_price = 0.
+    """
     _ensure_portfolio_of_user(db, payload.portfolio_id, user.id)
 
     figi = (payload.figi or "").strip()
     if not figi:
         raise HTTPException(400, "Требуется figi (разрешай тикер через /resolve)")
 
-    # гарантируем, что инструмент существует в каталоге
+    # гарантируем наличие инструмента в каталоге
     inst = db.get(Instrument, figi)
     if not inst:
         inst = Instrument(
@@ -138,30 +145,58 @@ def upsert_position(payload: PositionUpsertIn, user=Depends(get_current_user), d
             name=payload.name,
             currency=payload.currency,
             nominal=payload.nominal,
-            class_=payload.class_hint or "other",
+            class_=payload.class_hint or "other",  # в модели column='class'
         )
         db.add(inst)
 
+    # Находим текущую позицию (и лочим строку, чтобы избежать гонок)
     pos = (
         db.query(Position)
         .filter(Position.portfolio_id == payload.portfolio_id, Position.figi == figi)
+        .with_for_update()
         .first()
     )
+
+    delta_qty = float(payload.quantity or 0)
+    delta_price = float(payload.avg_price or 0)
+
     if not pos:
+        # новая позиция
+        qty = max(0.0, delta_qty)
+        avg = float(delta_price) if qty > 0 else 0.0
         pos = Position(
             portfolio_id=payload.portfolio_id,
             figi=figi,
-            quantity=payload.quantity,
-            avg_price=payload.avg_price,
+            quantity=qty,
+            avg_price=avg,
             updated_at=datetime.utcnow(),
         )
         db.add(pos)
     else:
-        pos.quantity = payload.quantity
-        pos.avg_price = payload.avg_price
+        cur_qty = float(pos.quantity or 0)
+        cur_avg = float(pos.avg_price or 0)
+
+        if delta_qty > 0:
+            # Покупка: взвешенная средняя
+            new_qty = cur_qty + delta_qty
+            new_avg = ((cur_avg * cur_qty) + (delta_price * delta_qty)) / new_qty if new_qty else 0.0
+            pos.quantity = new_qty
+            pos.avg_price = new_avg
+        elif delta_qty < 0:
+            # Продажа: средняя не меняется
+            new_qty = cur_qty + delta_qty
+            if new_qty <= 0:
+                pos.quantity = 0.0
+                pos.avg_price = 0.0
+            else:
+                pos.quantity = new_qty
+                # avg_price оставляем прежним
+        # delta_qty == 0 -> ничего не меняем
+
         pos.updated_at = datetime.utcnow()
 
-    db.commit(); db.refresh(pos)
+    db.commit()
+    db.refresh(pos)
     return pos
 
 @router.delete("/positions/{position_id}", status_code=204)

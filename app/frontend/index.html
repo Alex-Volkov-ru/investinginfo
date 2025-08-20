@@ -436,11 +436,6 @@
     if(!hit) throw new Error('Не найден FIGI для этого тикера');
     return hit;
   }
-  async function apiResolveQuoteByTicker(ticker, classHint=null){
-    const r = await apiResolve(ticker, classHint);
-    const { data: q } = await api.get(`/quote/${r.figi}`);
-    return { ...r, ...q };
-  }
   async function apiBatchQuotes(tickers, classHint=null){
     const payload = { tickers }; if(classHint) payload.class_hint = classHint;
     const { data } = await api.post('/quotes_by_tickers', payload);
@@ -601,7 +596,7 @@
         : allItems;
 
       if(!allItems.length) continue;
-      const open = query ? true : !collapsedMap[cat]; // при поиске показываем секцию
+      const open = query ? true : !collapsedMap[cat];
 
       const listHTML = items.length ? items.map((it,idx)=>{
         if(cat==='savings'){
@@ -678,7 +673,7 @@
         </section>`);
     }
 
-    updateToggleAllBtn(); // обновляем состояние кнопки в шапке
+    updateToggleAllBtn();
   }
 
   // ====== CHARTS ======
@@ -935,24 +930,15 @@
         const r = await apiResolve(name, classHint);
         const pfId = auth.portfolioId || (await apiCreatePortfolio()).id;
 
-        const saved = await apiUpsertPositionByFigi({
+        await apiUpsertPositionByFigi({
           portfolio_id: pfId, figi: r.figi, ticker: name, class_hint: classHint,
           qty: qty, avg: avg, name: r.name, currency: r.currency, nominal: r.nominal || null
         });
 
-        const q = await apiResolveQuoteByTicker(name, classHint);
-        const price = q.price || avg;
-        const bucket = type+'s';
-        const val = (price||0) * qty;
-        const pnlAbs = avg ? (price-avg)*qty : 0;
-        const pnlPct = avg ? ((price-avg)/avg*100) : 0;
-        const displayName = (q.name && q.ticker) ? `${q.name} (${q.ticker})` : (q.name || q.ticker || name);
-
-        portfolio[bucket].push({
-          posId: saved?.id || null, name, quantity: qty, avgPrice: avg, currentPrice: price, value: val, pnlAbs, pnlPct, date,
-          figi: q.figi, currency: q.currency, class: q.class, ticker: q.ticker, displayName
-        });
-        toast('Актив сохранён в БД');
+        // Без локального push — перечитываем портфель, тогда позиция уже будет агрегирована
+        toast('Сделка сохранена в БД');
+        await loadFromDB();
+        await recalcQuotes();
       }catch(err){
         console.error(err);
         toast(err?.response?.data?.detail || err?.message || 'Ошибка добавления', 'err');
@@ -993,29 +979,55 @@
       const idx = Number(act.getAttribute('data-index'));
       const it = (portfolio[type]||[])[idx]; if(!it) return;
 
-      const q = prompt(`Новое количество для ${displayLabel(it)}:`, it.quantity);
-      if(q===null) return;
-      const a = prompt(`Новая средняя цена (₽ за 1 шт.) для ${displayLabel(it)}:`, it.avgPrice||0);
-      if(a===null) return;
+      // ДЕЛЬТА по количеству: покупка +N, продажа -N
+      const dqStr = prompt(
+        `Сделка для ${displayLabel(it)}:\nУкажи Δкол-во (покупка = +, продажа = -).\nСейчас: ${fmt(it.quantity,0)} шт.`,
+        '1'
+      );
+      if (dqStr === null) return;
+      const dq = parseFloat(dqStr) || 0;
+      if (dq === 0){ toast('Ничего не изменилось'); return; }
 
-      it.quantity = parseFloat(q)||0;
-      it.avgPrice = parseFloat(a)||0;
+      const priceStr = prompt('Цена сделки за 1 шт. (₽):', it.currentPrice ?? it.avgPrice ?? 0);
+      if (priceStr === null) return;
+      const price = parseFloat(priceStr) || 0;
+      if (price <= 0){ toast('Нужна цена сделки','err'); return; }
 
-      if(it.figi){
-        try{
-          const saved = await apiUpsertPositionByFigi({
-            portfolio_id: auth.portfolioId, figi: it.figi, ticker: it.ticker || it.name,
-            class_hint: it.class || null, qty: it.quantity, avg: it.avgPrice, name: it.displayName,
-            currency: it.currency, nominal: it.nominal
-          });
-          if(saved?.id) it.posId = saved.id;
-        }catch(err){
-          console.warn('upsert failed', err);
-          toast('Ошибка сохранения в БД','err');
-        }
+      const curQty = it.quantity || 0;
+      const curAvg = it.avgPrice || 0;
+      const newQty = curQty + dq;
+      if (newQty < 0){ toast('Нельзя продать больше, чем есть','err'); return; }
+
+      let newAvg = curAvg;
+      if (dq > 0) {
+        newAvg = ((curAvg * curQty) + (price * dq)) / (curQty + dq);
+      } else if (dq < 0) {
+        if (newQty === 0) newAvg = 0;
       }
 
-      await recalcQuotes(); toast('Изменено'); return;
+      try{
+        await apiUpsertPositionByFigi({
+          portfolio_id: auth.portfolioId,
+          figi: it.figi,
+          ticker: it.ticker || it.name,
+          class_hint: it.class || null,
+          qty: dq,
+          avg: price,
+          name: it.displayName,
+          currency: it.currency,
+          nominal: it.nominal
+        });
+
+        it.quantity = newQty;
+        it.avgPrice = newAvg;
+        await loadFromDB();      // чтобы точно синхронизироваться с БД
+        await recalcQuotes();
+        toast('Сделка записана');
+      }catch(err){
+        console.warn('upsert failed', err);
+        toast('Ошибка сохранения в БД','err');
+      }
+      return;
     }
 
     if(action==='show'){
@@ -1090,9 +1102,8 @@
     const btn = document.getElementById('toggleAllBtn');
     if(!btn) return;
     const q = (searchQuery||'').trim();
-    btn.disabled = !!q; // при активном поиске — отключаем
+    btn.disabled = !!q;
     const anyOpen = document.querySelectorAll('.section.open').length > 0;
-    // если что-то открыто — показываем "Свернуть"
     if(anyOpen){
       btn.textContent = '⤵️ Все';
       btn.title = q ? 'Недоступно во время поиска' : 'Свернуть все секции';
@@ -1107,7 +1118,6 @@
   function hookHeaderButtons(){
     const toggle = document.getElementById('toggleAllBtn');
     toggle.addEventListener('click', ()=>{
-      // Риппл
       toggle.style.setProperty('--rx', '50%'); toggle.style.setProperty('--ry', '50%');
       toggle.classList.remove('rippling'); setTimeout(()=> toggle.classList.add('rippling'), 0); setTimeout(()=> toggle.classList.remove('rippling'), 250);
 
@@ -1128,7 +1138,7 @@
     si.addEventListener('input', ()=>{
       searchQuery = si.value || '';
       saveSearch();
-      renderSections(); // внутри вызовется updateToggleAllBtn
+      renderSections();
     });
   }
 
