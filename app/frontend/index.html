@@ -2,10 +2,9 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title id="pageTitle">Мой инвестиционный портфель</title>
 
-<!-- ГАРД: если нет токена — на страницу входа -->
 <script>
   if (!localStorage.getItem('pf_token')) {
     window.location.replace('login.html');
@@ -15,29 +14,32 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
 
 <style>
+  :root{
+    --gap: 16px;
+    --radius: 16px;
+    --shadow: 0 10px 30px rgba(17,24,39,.12);
+    --shadow-lg: 0 20px 60px rgba(17,24,39,.18);
+    --chart-h: 280px;
+  }
+  @media (max-width: 900px){ :root{ --gap:14px; --chart-h: 240px; } }
+  @media (max-width: 560px){ :root{ --gap:12px; --chart-h: 200px; } }
+
   :root[data-theme='light']{
     --bg:#f5f7ff; --bg2:#ffffff; --card:#ffffff; --stroke:rgba(0,0,0,.10);
     --text:#17202a; --muted:#6b7280; --brand:#4361ee; --brand2:#67e8f9;
-    --accent:#f72585; --ok:#06d6a0; --warn:#fbbf24;
-    --shadow:0 10px 30px rgba(17,24,39,.12); --shadow-lg:0 20px 60px rgba(17,24,39,.18);
-    --ring:0 0 0 3px rgba(67,97,238,.25);
-    --input-bg:#ffffff; --input-bg-hover:#f7f7fb;
-    --menu-bg:#ffffff; --menu-text:#17202a;
+    --accent:#f72585; --ok:#06d6a0; --warn:#fbbf24; --ring:0 0 0 3px rgba(67,97,238,.25);
+    --input-bg:#ffffff; --input-bg-hover:#f7f7fb; --menu-bg:#ffffff; --menu-text:#17202a;
   }
   :root[data-theme='dark']{
     --bg:#0f1224; --bg2:#0b0e1a; --card:#151935; --stroke:rgba(255,255,255,.10);
     --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
-    --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166;
-    --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 20px 60px rgba(0,0,0,.45);
-    --ring:0 0 0 3px rgba(122,162,255,.28);
-    --input-bg:#1b2146; --input-bg-hover:#202759;
-    --menu-bg:#151935; --menu-text:#ecf0ff;
+    --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166; --ring:0 0 0 3px rgba(122,162,255,.28);
+    --input-bg:#1b2146; --input-bg-hover:#202759; --menu-bg:#151935; --menu-text:#ecf0ff;
     color-scheme: dark;
   }
 
@@ -51,22 +53,29 @@
       linear-gradient(180deg, var(--bg), var(--bg2));
     min-height:100vh; transition: background .35s ease, color .2s ease;
   }
-  .container{max-width:1200px; margin:0 auto; padding:24px}
+  .container{max-width:1200px; margin:0 auto; padding: clamp(12px, 2.2vw, 24px)}
 
   .blob{position:fixed; filter:blur(60px); opacity:.45; z-index:-1; mix-blend-mode:plus-lighter; animation:float 18s ease-in-out infinite}
   .blob.one{width:360px; height:360px; left:-120px; top:-80px; background:#7ff0ff22;}
   .blob.two{width:380px; height:380px; right:-140px; top:-60px; background:#f86aa422; animation-delay:-6s}
   @keyframes float{0%,100%{transform:translateY(0)} 50%{transform:translateY(20px)}}
 
-  header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px}
+  header{
+    position:sticky; top:0; backdrop-filter:saturate(1.2) blur(6px);
+    background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    border:1px solid var(--stroke); border-radius: clamp(10px,1.8vw,14px);
+    display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px clamp(10px,1.6vw,14px); margin-bottom:var(--gap); z-index:10;
+  }
   .title-wrap{display:flex; gap:8px; align-items:center}
-  h1{margin:0; font-weight:800; letter-spacing:-.3px}
+  h1{margin:0; font-weight:800; letter-spacing:-.3px; font-size: clamp(18px, 2.5vw, 28px)}
   .title-edit{cursor:pointer; border:1px solid var(--stroke); background:var(--card); border-radius:10px; padding:6px 10px; font-weight:700}
 
-  .header-actions{display:flex; gap:10px; align-items:center}
+  .header-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .auth-status{font-weight:800; color:var(--muted); font-size: clamp(12px, 1.6vw, 14px)}
+
   .btn{
-    position:relative; overflow:hidden; padding:10px 14px; border-radius:14px; border:1px solid var(--stroke);
-    background:var(--card); color:var(--text); cursor:pointer; font-weight:800;
+    position:relative; overflow:hidden; padding:8px 12px; border-radius:12px; border:1px solid var(--stroke);
+    background:var(--card); color:var(--text); cursor:pointer; font-weight:800; font-size: clamp(12px, 1.7vw, 14px);
     box-shadow:var(--shadow); transition:transform .18s ease, box-shadow .22s ease, background .2s ease
   }
   .btn:hover{transform:translateY(-1px); box-shadow:var(--shadow-lg)}
@@ -76,64 +85,68 @@
   .btn::after{content:""; position:absolute; inset:0; background:radial-gradient(140px 140px at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.45), transparent 60%); opacity:0; transition:opacity .6s ease}
   .btn.rippling::after{opacity:.8; transition:none}
 
-  .portfolio-charts{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-bottom:18px}
-  .chart-card{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid var(--stroke); border-radius:16px; padding:14px; backdrop-filter: blur(6px); box-shadow:var(--shadow); transition:transform .25s ease, box-shadow .25s ease}
+  .portfolio-charts{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:var(--gap); margin: 0 0 var(--gap)}
+  .chart-card{
+    background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    border:1px solid var(--stroke); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow); transition:transform .25s ease, box-shadow .25s ease
+  }
   .chart-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg)}
-  .chart-card h3{margin:0 0 8px; color:var(--muted); font-size:13px; letter-spacing:.2px; text-transform:uppercase}
+  .chart-card h3{margin:0 0 6px; color:var(--muted); font-size: clamp(11px,1.6vw,13px); letter-spacing:.2px; text-transform:uppercase}
 
-  .portfolio-summary{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; margin-bottom:18px}
-  .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:16px; padding:16px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); box-shadow:var(--shadow)}
-  .summary-title{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.25px; margin-bottom:6px}
-  .summary-num{font-size:26px; font-weight:800}
+  .portfolio-summary{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:var(--gap); margin-bottom:var(--gap)}
+  .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:var(--radius); padding:14px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); box-shadow:var(--shadow)}
+  .summary-title{font-size: clamp(11px,1.6vw,12px); color:var(--muted); text-transform:uppercase; letter-spacing:.25px; margin-bottom:6px}
+  .summary-num{font-size: clamp(20px,3vw,26px); font-weight:800}
 
-  .section{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid var(--stroke); border-radius:18px; padding:16px; box-shadow:var(--shadow); margin-bottom:16px}
-  .section-header{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px}
+  .section{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid var(--stroke); border-radius:calc(var(--radius) + 2px); padding:14px; box-shadow:var(--shadow); margin-bottom:var(--gap)}
+  .section-header{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px}
+  .section h2{margin:0; font-size: clamp(16px, 2.4vw, 22px)}
 
   .assets-list{display:grid; grid-template-columns:1fr; gap:12px}
   .asset-card{border:1px dashed var(--stroke); border-radius:14px; padding:12px; background:rgba(255,255,255,.06); transition:transform .3s ease, box-shadow .3s ease}
   .asset-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg)}
-  .asset-header{display:flex; justify-content:space-between; align-items:center; gap:10px}
-  .asset-name{font-weight:800}
-  .asset-details{color:var(--muted); font-size:13px; margin-top:6px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .asset-header{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap}
+  .asset-name{font-weight:800; font-size: clamp(14px, 2vw, 16px)}
   .asset-actions{display:flex; gap:8px; flex-wrap:wrap}
+  .asset-actions .btn{padding:6px 10px; border-radius:10px}
+
+  .asset-details{
+    color:var(--muted); font-size: clamp(12px,1.7vw,13px); margin-top:6px;
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px
+  }
+  @media (max-width: 900px){ .asset-details{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width: 560px){ .asset-details{ grid-template-columns:1fr; } }
 
   select, input{
     appearance:none; -webkit-appearance:none; -moz-appearance:none;
     background:var(--input-bg);
     border:1px solid var(--stroke); color:var(--text); border-radius:12px; padding:12px 40px 12px 12px; font-weight:700;
-    width:100%; transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    width:100%; transition:border-color .15s ease, box-shadow .15s ease, background .15s ease; font-size: clamp(14px,2.2vw,16px)
   }
   select:hover, input:hover{ background:var(--input-bg-hover); }
   input{ padding-right:12px }
   input::placeholder{ color:var(--muted); opacity:.9 }
   .select-wrap{position:relative}
-  .select-wrap::after{
-    content:"▾"; position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--muted); font-weight:800;
-  }
+  .select-wrap::after{ content:"▾"; position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--muted); font-weight:800; }
   select option, select optgroup{ background-color:var(--menu-bg); color:var(--menu-text); }
   input:focus, select:focus{ outline:none; box-shadow:var(--ring); border-color:transparent }
   select::-ms-expand { display:none; }
-  input:-webkit-autofill{
-    -webkit-text-fill-color:var(--text) !important;
-    box-shadow: 0 0 0px 1000px var(--input-bg) inset !important;
-    transition: background-color 9999s ease-in-out 0s;
-  }
 
-  .form-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px}
+  .form-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px}
   .form-group{display:flex; flex-direction:column; gap:6px}
-  label{font-size:12px; color:var(--muted); font-weight:700}
-  .form-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:14px}
+  label{font-size: clamp(11px,1.6vw,12px); color:var(--muted); font-weight:700}
+  .form-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:12px; flex-wrap:wrap}
 
   .chart-container{
     overflow:hidden; max-height:0; opacity:0; border:1px solid var(--stroke); border-radius:12px; padding:0 8px;
     transition:max-height .35s ease, opacity .35s ease, padding .35s ease, margin .35s ease; margin-top:0;
   }
-  .chart-container.open{ max-height:420px; opacity:1; padding:8px; margin-top:10px; }
+  .chart-container.open{ max-height:calc(var(--chart-h) + 80px); opacity:1; padding:8px; margin-top:10px; }
   .chart-tabs{display:flex; gap:6px; flex-wrap:wrap; margin:6px 0}
-  .chart-tab{padding:6px 10px; border-radius:999px; background:rgba(67,97,238,.1); font-weight:800; cursor:pointer; user-select:none}
+  .chart-tab{padding:6px 10px; border-radius:999px; background:rgba(67,97,238,.1); font-weight:800; cursor:pointer; user-select:none; font-size: clamp(12px,1.7vw,13px)}
   .chart-tab.active{background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#0c0f21}
 
-  .pnl-big{font-size:18px; font-weight:900}
+  .pnl-big{font-size: clamp(15px,2.2vw,18px); font-weight:900}
 
   .flatpickr-calendar{font-family:Inter,system-ui; background:var(--card); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)}
   .flatpickr-months, .flatpickr-weekdays{background:rgba(255,255,255,.04); color:var(--text)}
@@ -147,12 +160,12 @@
   .skeleton{position:relative; overflow:hidden; background:linear-gradient(90deg, rgba(255,255,255,.08), rgba(255,255,255,.18), rgba(255,255,255,.08)); background-size:200% 100%; animation:shine 1.2s linear infinite}
   @keyframes shine{0%{background-position:200% 0} 100%{background-position:-200% 0}}
 
-  .toast-wrap{position:fixed; bottom:16px; right:16px; display:flex; flex-direction:column; gap:10px; z-index:2000}
+  .toast-wrap{position:fixed; bottom:12px; right:12px; display:flex; flex-direction:column; gap:10px; z-index:2000}
   .toast{min-width:220px; max-width:320px; padding:12px 14px; border-radius:12px; background:var(--card); border:1px solid var(--stroke); box-shadow:var(--shadow); display:flex; gap:8px; align-items:flex-start; animation:slideIn .35s ease both}
   .toast.ok{border-left:4px solid var(--ok)} .toast.err{border-left:4px solid var(--accent)}
   @keyframes slideIn{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
 
-  .auth-status{font-weight:800; color:var(--muted)}
+  canvas{width:100% !important; height:var(--chart-h) !important;}
 </style>
 </head>
 <body>
@@ -237,11 +250,12 @@
   // ====== CONFIG ======
   const BACKEND =
     (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-      ? 'http://127.0.0.1:8000'  // локально без nginx
-      : '/api';  
+      ? 'http://127.0.0.1:8000'
+      : '/api';
 
   Chart.defaults.font.family = 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
   Chart.defaults.responsive = true;
+  Chart.defaults.maintainAspectRatio = false;
 
   // ====== STATE ======
   let auth = { token:null, userId:null, email:null, portfolioId:null };
@@ -336,32 +350,14 @@
   });
 
   // --- Portfolio API ---
-  async function apiListPortfolios(){
-    const { data } = await api.get('/portfolio');
-    return data || [];
-  }
-  async function apiCreatePortfolio(){
-    const { data } = await api.post('/portfolio', { title:'Основной', type:'broker', currency:'RUB' });
-    return data;
-  }
-  async function apiListPositionsFull(pfId){
-    const { data } = await api.get(`/portfolio/${pfId}/positions/full`);
-    return data || [];
-  }
-  async function apiDeletePosition(positionId){
-    await api.delete(`/portfolio/positions/${positionId}`);
-  }
+  async function apiListPortfolios(){ const { data } = await api.get('/portfolio'); return data || []; }
+  async function apiCreatePortfolio(){ const { data } = await api.post('/portfolio', { title:'Основной', type:'broker', currency:'RUB' }); return data; }
+  async function apiListPositionsFull(pfId){ const { data } = await api.get(`/portfolio/${pfId}/positions/full`); return data || []; }
+  async function apiDeletePosition(positionId){ await api.delete(`/portfolio/positions/${positionId}`); }
   async function apiUpsertPositionByFigi({ portfolio_id, figi, ticker, class_hint, qty, avg, name, currency, nominal }){
     const payload = {
-      portfolio_id,
-      figi,
-      ticker: (ticker || '').toUpperCase(),
-      class_hint: class_hint || null,
-      quantity: Number(qty) || 0,
-      avg_price: Number(avg) || 0,
-      name: name || null,
-      currency: currency || null,
-      nominal: nominal ?? null
+      portfolio_id, figi, ticker: (ticker || '').toUpperCase(), class_hint: class_hint || null,
+      quantity: Number(qty) || 0, avg_price: Number(avg) || 0, name: name || null, currency: currency || null, nominal: nominal ?? null
     };
     const { data } = await api.post('/portfolio/positions', payload);
     return data;
@@ -380,8 +376,7 @@
     return { ...r, ...q };
   }
   async function apiBatchQuotes(tickers, classHint=null){
-    const payload = { tickers };
-    if(classHint) payload.class_hint = classHint;
+    const payload = { tickers }; if(classHint) payload.class_hint = classHint;
     const { data } = await api.post('/quotes_by_tickers', payload);
     return data.results || [];
   }
@@ -393,56 +388,31 @@
       const { data } = await api.get(`/candles/${figi}`, { params });
       return data;
     }catch(err){
-      console.warn('candles error', err);
-      toast('Нет данных для выбранного периода', 'err');
-      return [];
+      console.warn('candles error', err); toast('Нет данных для выбранного периода', 'err'); return [];
     }
   }
 
   // ====== LOAD FROM DB ======
   async function loadFromDB(){
-    // 1) найти/создать портфель
     let pfs = await apiListPortfolios();
-    if(!pfs.length){
-      const created = await apiCreatePortfolio();
-      pfs = [created];
-    }
+    if(!pfs.length){ const created = await apiCreatePortfolio(); pfs = [created]; }
     const pf = pfs[0];
     auth.portfolioId = pf.id; saveAuth();
-
-    // 2) получить позиции с join инструментов
     const rows = await apiListPositionsFull(pf.id);
-
-    // 3) перезаписать локальную структуру (history сохраним)
     const hist = portfolio.history || [];
     portfolio = { savings:[], stocks:[], bonds:[], funds:[], history: hist };
-
-    // 4) маппинг позиций -> локальные элементы
     for(const pos of rows){
       const inst = pos.instrument || {};
       const cls = inst.class || 'share';
       const bucket = (cls==='share') ? 'stocks' : (cls==='bond' ? 'bonds' : (cls==='etf' ? 'funds' : 'stocks'));
-
-      const ticker = (inst.ticker || '').toUpperCase(); // ВАЖНО: name=тикер
+      const ticker = (inst.ticker || '').toUpperCase();
       const avg = Number(pos.avg_price)||0;
       const qty = Number(pos.quantity)||0;
-
       portfolio[bucket].push({
-        posId: pos.id,
-        figi: pos.figi,
-        name: ticker || pos.figi,          // нужно для /quotes_by_tickers
-        ticker,
-        class: cls,
-        currency: inst.currency || null,
+        posId: pos.id, figi: pos.figi, name: ticker || pos.figi, ticker, class: cls, currency: inst.currency || null,
         nominal: inst.nominal ?? null,
         displayName: (inst.name && ticker) ? `${inst.name} (${ticker})` : (inst.name || ticker || pos.figi),
-        quantity: qty,
-        avgPrice: avg,
-        currentPrice: null,
-        value: avg*qty,
-        pnlAbs: 0,
-        pnlPct: 0,
-        date: null
+        quantity: qty, avgPrice: avg, currentPrice: null, value: avg*qty, pnlAbs: 0, pnlPct: 0, date: null
       });
     }
   }
@@ -456,12 +426,11 @@
   function pushHistory(){ portfolio.history.push({ t: Date.now(), total: totalValue() }); if(portfolio.history.length>600) portfolio.history.shift(); saveLocal(); }
   function fmtISOtoRU(iso){ if(!iso) return '—'; const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); if(!m) return iso; return `${m[3]}.${m[2]}.${m[1]}`; }
   function toISOFromAlt(inputVal){ const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(inputVal.trim()); if(!m) return null; return `${m[3]}-${m[2]}-${m[1]}`; }
-
   function animateNumbers(){
     document.querySelectorAll('[data-anim-num]')?.forEach(el=>{
       const to = Number(el.getAttribute('data-anim-num')||0);
-      const start = 0; const dur = 700; const t0 = performance.now();
-      const step = (t)=>{ const p = Math.min(1, (t-t0)/dur); const v = start + (to-start)*p; el.textContent = `${fmt(v)} ₽`; if(p<1) requestAnimationFrame(step); };
+      const dur = 700; const t0 = performance.now();
+      const step = (t)=>{ const p = Math.min(1, (t-t0)/dur); const v = to*p; el.textContent = `${fmt(v)} ₽`; if(p<1) requestAnimationFrame(step); };
       requestAnimationFrame(step);
     });
   }
@@ -579,7 +548,7 @@
               <div class="chart-tab" data-action="period" data-period="1M" data-for="${id}">Месяц</div>
               <div class="chart-tab" data-action="period" data-period="1Y" data-for="${id}">Год</div>
             </div>
-            <canvas id="canvas-${id}" style="width:100%;height:280px"></canvas>
+            <canvas id="canvas-${id}"></canvas>
           </div>
         </div>`;
       }).join('');
@@ -617,17 +586,13 @@
       ctx.arc(x, y, (innerR + outerR) / 2 * 0.70, 0, Math.PI * 2);
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--card') || '#fff';
       ctx.fill();
-
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#666';
       ctx.font = '700 12px Inter';
       if (info.title) ctx.fillText(info.title, x, y - 18);
-
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text') || '#111';
       ctx.font = '800 16px Inter';
       if (info.line1) ctx.fillText(info.line1, x, y + 2);
-
       if (info.line2) {
         ctx.fillStyle = info.line2Color || (getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#666');
         ctx.font = '800 12px Inter';
@@ -852,15 +817,8 @@
         const pfId = auth.portfolioId || (await apiCreatePortfolio()).id;
 
         const saved = await apiUpsertPositionByFigi({
-          portfolio_id: pfId,
-          figi: r.figi,
-          ticker: name,
-          class_hint: classHint,
-          qty: qty,
-          avg: avg,
-          name: r.name,
-          currency: r.currency,
-          nominal: r.nominal || null
+          portfolio_id: pfId, figi: r.figi, ticker: name, class_hint: classHint,
+          qty: qty, avg: avg, name: r.name, currency: r.currency, nominal: r.nominal || null
         });
 
         const q = await apiResolveQuoteByTicker(name, classHint);
@@ -872,11 +830,8 @@
         const displayName = (q.name && q.ticker) ? `${q.name} (${q.ticker})` : (q.name || q.ticker || name);
 
         portfolio[bucket].push({
-          posId: saved?.id || null,
-          name, quantity: qty, avgPrice: avg,
-          currentPrice: price, value: val, pnlAbs, pnlPct, date,
-          figi: q.figi, currency: q.currency, class: q.class,
-          ticker: q.ticker, displayName
+          posId: saved?.id || null, name, quantity: qty, avgPrice: avg, currentPrice: price, value: val, pnlAbs, pnlPct, date,
+          figi: q.figi, currency: q.currency, class: q.class, ticker: q.ticker, displayName
         });
         toast('Актив сохранён в БД');
       }catch(err){
@@ -904,7 +859,6 @@
       const it = (portfolio[type]||[])[idx];
       if(!it) return;
 
-      // если позиция из БД — удаляем в БД
       if(it.posId){
         try { await apiDeletePosition(it.posId); }
         catch(err){ console.warn('delete failed', err); toast('Ошибка удаления в БД','err'); return; }
@@ -912,8 +866,7 @@
 
       (portfolio[type]||[]).splice(idx,1);
       renderSummary(); renderSections(); renderCharts(); saveLocal();
-      toast('Удалено');
-      return;
+      toast('Удалено'); return;
     }
 
     if(action==='edit'){
@@ -932,15 +885,9 @@
       if(it.figi){
         try{
           const saved = await apiUpsertPositionByFigi({
-            portfolio_id: auth.portfolioId,
-            figi: it.figi,
-            ticker: it.ticker || it.name,
-            class_hint: it.class || null,
-            qty: it.quantity,
-            avg: it.avgPrice,
-            name: it.displayName,
-            currency: it.currency,
-            nominal: it.nominal
+            portfolio_id: auth.portfolioId, figi: it.figi, ticker: it.ticker || it.name,
+            class_hint: it.class || null, qty: it.quantity, avg: it.avgPrice, name: it.displayName,
+            currency: it.currency, nominal: it.nominal
           });
           if(saved?.id) it.posId = saved.id;
         }catch(err){
@@ -1051,13 +998,7 @@
     document.getElementById('assetType').addEventListener('change', onTypeChange);
     onTypeChange();
 
-    // === ГЛАВНОЕ: грузим портфель/позиции из БД ===
-    try{
-      await loadFromDB();
-    }catch(e){
-      console.warn('loadFromDB failed', e);
-      toast('Не удалось загрузить портфель из БД','err');
-    }
+    try{ await loadFromDB(); }catch(e){ console.warn('loadFromDB failed', e); toast('Не удалось загрузить портфель из БД','err'); }
 
     renderSummary(); renderSections(); renderCharts();
     document.querySelectorAll('.chart-card, .summary-card, .section').forEach(el=> io.observe(el));

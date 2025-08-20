@@ -2,44 +2,37 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Вход | Портфель</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
 
 <style>
+  :root{ --gap:14px; --radius:18px; --shadow:0 20px 60px rgba(0,0,0,.45) }
   :root[data-theme='light']{
     --bg:#f5f7ff; --bg2:#ffffff; --card:#ffffff; --stroke:rgba(0,0,0,.10);
     --text:#17202a; --muted:#6b7280; --brand:#4361ee; --brand2:#67e8f9;
-    --accent:#f72585; --ok:#06d6a0; --warn:#fbbf24;
-    --shadow:0 10px 30px rgba(17,24,39,.12); --shadow-lg:0 20px 60px rgba(17,24,39,.18);
-    --ring:0 0 0 3px rgba(67,97,238,.25);
-    --input-bg:#ffffff; --input-bg-hover:#f7f7fb;
-    --menu-bg:#ffffff; --menu-text:#17202a;
+    --accent:#f72585; --ok:#06d6a0; --warn:#fbbf24; --ring:0 0 0 3px rgba(67,97,238,.25);
+    --input-bg:#ffffff; --input-bg-hover:#f7f7fb; --menu-bg:#ffffff; --menu-text:#17202a;
   }
   :root[data-theme='dark']{
     --bg:#0f1224; --bg2:#0b0e1a; --card:#151935; --stroke:rgba(255,255,255,.10);
     --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
-    --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166;
-    --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 20px 60px rgba(0,0,0,.45);
-    --ring:0 0 0 3px rgba(122,162,255,.28);
-    --input-bg:#1b2146; --input-bg-hover:#202759;
-    --menu-bg:#151935; --menu-text:#ecf0ff;
+    --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166; --ring:0 0 0 3px rgba(122,162,255,.28);
+    --input-bg:#1b2146; --input-bg-hover:#202759; --menu-bg:#151935; --menu-text:#ecf0ff;
     color-scheme: dark;
   }
+
   *{box-sizing:border-box}
   html,body{scroll-behavior:smooth}
   body{
-    margin:0; min-height:100vh;
-    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-    color:var(--text);
+    margin:0; min-height:100vh; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; color:var(--text);
     background:
       radial-gradient(1400px 700px at -20% -10%, rgba(67,97,238,.18), transparent),
       radial-gradient(900px 600px at 120% 10%, rgba(247,37,133,.12), transparent),
       linear-gradient(180deg, var(--bg), var(--bg2));
-    display:flex; align-items:center; justify-content:center; padding:24px;
-    transition: background .35s ease, color .2s ease;
+    display:flex; align-items:center; justify-content:center; padding: clamp(16px,3vw,24px); transition: background .35s ease, color .2s ease;
   }
 
   .blob{position:fixed; filter:blur(60px); opacity:.45; z-index:-1; mix-blend-mode:plus-lighter; animation:float 18s ease-in-out infinite}
@@ -47,40 +40,44 @@
   .blob.two{width:380px; height:380px; right:-140px; top:-60px; background:#f86aa422; animation-delay:-6s}
   @keyframes float{0%,100%{transform:translateY(0)} 50%{transform:translateY(20px)}}
 
-  .card{width:100%; max-width:460px; background:var(--card); border:1px solid var(--stroke); border-radius:18px; box-shadow:var(--shadow-lg); padding:18px}
-  .title{margin:0 0 8px; font-weight:800}
+  .card{width:100%; max-width:480px; background:var(--card); border:1px solid var(--stroke); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px}
+  .title{margin:0 0 8px; font-weight:800; font-size: clamp(18px,3.4vw,22px)}
   .tabs{display:flex; gap:8px; margin-bottom:12px}
-  .tab{flex:1; text-align:center; padding:10px; border-radius:12px; border:1px solid var(--stroke); background:var(--input-bg); cursor:pointer; font-weight:800; user-select:none}
+  .tab{flex:1; text-align:center; padding:10px; border-radius:12px; border:1px solid var(--stroke); background:var(--input-bg); cursor:pointer; font-weight:800; user-select:none; font-size: clamp(13px,2.6vw,14px)}
   .tab.active{background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#0c0f21; border:none}
 
   label{font-size:12px; color:var(--muted); font-weight:700}
   input{
     width:100%; padding:12px; border-radius:12px; border:1px solid var(--stroke);
     background:var(--input-bg); color:var(--text); font-weight:700;
-    transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    transition:border-color .15s ease, box-shadow .15s ease, background .15s ease; font-size:16px
   }
   input:hover{background:var(--input-bg-hover)}
   input:focus{outline:none; box-shadow:var(--ring); border-color:transparent}
   .grid{display:grid; grid-template-columns:1fr; gap:12px}
-  .actions{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:12px}
+  .actions{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap}
 
   .btn{
     position:relative; overflow:hidden; padding:10px 14px; border-radius:14px; border:1px solid var(--stroke);
     background:var(--card); color:var(--text); cursor:pointer; font-weight:800;
-    box-shadow:var(--shadow); transition:transform .18s ease, box-shadow .22s ease, background .2s ease
+    box-shadow:0 10px 30px rgba(17,24,39,.12); transition:transform .18s ease, box-shadow .22s ease, background .2s ease
   }
-  .btn:hover{transform:translateY(-1px); box-shadow:var(--shadow-lg)}
-  .btn:focus{outline:none; box-shadow:var(--shadow), var(--ring)}
+  .btn:hover{transform:translateY(-1px); box-shadow:0 20px 60px rgba(17,24,39,.18)}
+  .btn:focus{outline:none; box-shadow:var(--ring)}
   .btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent}
   .btn-ghost{background:transparent}
   .btn::after{content:""; position:absolute; inset:0; background:radial-gradient(140px 140px at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.45), transparent 60%); opacity:0; transition:opacity .6s ease}
   .btn.rippling::after{opacity:.8; transition:none}
 
-  .muted{color:var(--muted); font-weight:700}
+  .muted{color:var(--muted); font-weight:700; font-size: clamp(12px,2.6vw,13px)}
   .toast-wrap{position:fixed; bottom:16px; right:16px; display:flex; flex-direction:column; gap:10px; z-index:2000}
-  .toast{min-width:220px; max-width:320px; padding:12px 14px; border-radius:12px; background:var(--card); border:1px solid var(--stroke); box-shadow:var(--shadow); display:flex; gap:8px; align-items:flex-start; animation:slideIn .35s ease both}
+  .toast{min-width:220px; max-width:320px; padding:12px 14px; border-radius:12px; background:var(--card); border:1px solid var(--stroke); box-shadow:0 10px 30px rgba(17,24,39,.12); display:flex; gap:8px; align-items:flex-start; animation:slideIn .35s ease both}
   .toast.ok{border-left:4px solid var(--ok)} .toast.err{border-left:4px solid var(--accent)}
-  @keyframes slideIn{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
+  @keyframes slideIn{from{opacity:0; transform:translateY(8px)} to {
+    opacity: 1;
+    transform: translateY(0);
+  } /* <- Здесь была ошибка: лишняя скобка */
+}
 </style>
 </head>
 <body>
@@ -140,10 +137,9 @@
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
-  // БЕЗ костылей: фронт всегда бьёт через nginx
   const BACKEND =
     (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-      ? 'http://127.0.0.1:8000'  // локально без nginx
+      ? 'http://127.0.0.1:8000'
       : '/api';
 
   function toast(msg, type='ok'){
@@ -181,7 +177,6 @@
     }
   }
 
-  // если уже авторизован — уходим в кабинет
   (function autoRedirect(){
     const tok = localStorage.getItem('pf_token');
     if(tok){ window.location.replace('index.html'); }
@@ -193,7 +188,6 @@
     document.getElementById('tabLogin').addEventListener('click', ()=> switchTab('login'));
     document.getElementById('tabRegister').addEventListener('click', ()=> switchTab('register'));
 
-    // логин
     document.getElementById('loginForm').addEventListener('submit', async (e)=>{
       e.preventDefault();
       const email = document.getElementById('loginEmail').value.trim();
@@ -205,7 +199,7 @@
         localStorage.setItem('pf_email', data.email || email);
         localStorage.removeItem('pf_portfolio_id');
         toast('Вход выполнен');
-        window.location.replace('index.html'); // ВАЖНО: replace
+        window.location.replace('index.html');
       }catch(err){
         console.error(err);
         const msg = err?.response?.data?.detail || 'Неверный email или пароль';
@@ -213,7 +207,6 @@
       }
     });
 
-    // регистрация
     document.getElementById('registerForm').addEventListener('submit', async (e)=>{
       e.preventDefault();
       const email = document.getElementById('regEmail').value.trim();
