@@ -95,12 +95,32 @@
 
   .portfolio-summary{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:var(--gap); margin-bottom:var(--gap)}
   .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:var(--radius); padding:14px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); box-shadow:var(--shadow)}
+  .summary-card[data-key]{cursor:help}
   .summary-title{font-size: clamp(11px,1.6vw,12px); color:var(--muted); text-transform:uppercase; letter-spacing:.25px; margin-bottom:6px}
   .summary-num{font-size: clamp(20px,3vw,26px); font-weight:800}
 
   .section{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid var(--stroke); border-radius:calc(var(--radius) + 2px); padding:14px; box-shadow:var(--shadow); margin-bottom:var(--gap)}
   .section-header{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px}
   .section h2{margin:0; font-size: clamp(16px, 2.4vw, 22px)}
+
+  /* === Аккордеоны для секций === */
+  .section.collapsible{padding-bottom:10px}
+  .acc-head{
+    display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;
+    padding:6px 10px; border-radius:12px; border:1px solid var(--stroke);
+    background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+  }
+  .acc-title{font-weight:800; font-size: clamp(14px, 2.2vw, 18px)}
+  .acc-sum{font-weight:800; color:var(--muted)}
+  .chev{transition:transform .25s ease}
+  .section.open .chev{transform:rotate(180deg)}
+  .section-content{
+    overflow:hidden; max-height:0; opacity:0; transition:max-height .35s ease, opacity .25s ease, margin .25s ease, padding .25s ease;
+    margin-top:0; padding-top:0;
+  }
+  .section.open .section-content{
+    max-height:2000px; opacity:1; margin-top:8px; padding-top:4px;
+  }
 
   .assets-list{display:grid; grid-template-columns:1fr; gap:12px}
   .asset-card{border:1px dashed var(--stroke); border-radius:14px; padding:12px; background:rgba(255,255,255,.06); transition:transform .3s ease, box-shadow .3s ease}
@@ -166,6 +186,17 @@
   @keyframes slideIn{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
 
   canvas{width:100% !important; height:var(--chart-h) !important;}
+
+  /* === Hovercard для сводных плашек === */
+  .hovercard{
+    position:fixed; z-index:3000; pointer-events:none;
+    min-width:220px; max-width:320px; padding:12px; border-radius:12px;
+    border:1px solid var(--stroke); background:var(--card); box-shadow:var(--shadow-lg);
+    font-size:13px; line-height:1.35
+  }
+  .hovercard h4{margin:0 0 6px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.2px}
+  .hovercard .row{display:flex; justify-content:space-between; gap:8px; padding:2px 0}
+  .hovercard .muted{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -452,22 +483,74 @@
     return {abs, pct};
   }
 
-  // ====== RENDER: SUMMARY ======
+  // ====== HOVER CARD ======
+  let hoverEl=null, hoverHideT=null;
+  function ensureHover(){ if(hoverEl) return hoverEl; const el=document.createElement('div'); el.className='hovercard'; el.style.display='none'; document.body.appendChild(el); hoverEl=el; return el; }
+  function showHover(html,x,y){
+    const el=ensureHover(); el.innerHTML=html; el.style.display='block';
+    let left=x+16, top=y+16; const r=el.getBoundingClientRect();
+    if(left+r.width>innerWidth) left=x-r.width-16;
+    if(top+r.height>innerHeight) top=y-r.height-16;
+    el.style.left=left+'px'; el.style.top=top+'px';
+  }
+  function hideHoverSoon(ms=120){ clearTimeout(hoverHideT); hoverHideT=setTimeout(()=>{ if(hoverEl) hoverEl.style.display='none'; }, ms); }
+
+  // ====== RENDER: SUMMARY (с hover-составом) ======
   function renderSummary(){
+    const sumSavings = (portfolio.savings||[]).reduce((s,i)=>s+i.value,0);
+    const sumStocks  = (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
+    const sumBonds   = (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
+    const sumFunds   = (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
+    const total      = sumSavings + sumStocks + sumBonds + sumFunds;
+
     const blocks = [
-      { title:'Всего', val: totalValue() },
-      { title:'Накопит. счёт', val: (portfolio.savings||[]).reduce((s,i)=>s+i.value,0) },
-      { title:'Акции', val: (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0) },
-      { title:'ОФЗ', val: (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0) },
-      { title:'Фонды', val: (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0) },
+      { key:'total',   title:'Всего',          val: total },
+      { key:'savings', title:'Накопит. счёт',  val: sumSavings },
+      { key:'stocks',  title:'Акции',          val: sumStocks },
+      { key:'bonds',   title:'ОФЗ',            val: sumBonds },
+      { key:'funds',   title:'Фонды',          val: sumFunds },
     ];
     const wrap = document.getElementById('portfolioSummary');
     wrap.innerHTML = blocks.map(b=>`
-      <div class="summary-card animate-in">
+      <div class="summary-card animate-in" data-key="${b.key}" tabindex="0">
         <div class="summary-title">${b.title}</div>
         <div class="summary-num" data-anim-num="${b.val}">0 ₽</div>
       </div>`).join('');
     animateNumbers();
+
+    const buildHtml = (key)=>{
+      if(key==='total'){
+        const row = (name,val)=>`<div class="row"><span class="muted">${name}</span><b>${fmt(val)} ₽</b></div>`;
+        return `<h4>Состав портфеля</h4>
+          ${row('Накопит. счёт', sumSavings)}
+          ${row('Акции',         sumStocks)}
+          ${row('ОФЗ',           sumBonds)}
+          ${row('Фонды',         sumFunds)}`;
+      }
+      const map = {
+        savings: (portfolio.savings||[]).map(x=>({ n: 'Пополнение', v: x.value })),
+        stocks:  (portfolio.stocks ||[]).map(x=>({ n: (x.displayName||x.name), v: (x.currentPrice??x.avgPrice??0)*(x.quantity||0) })),
+        bonds:   (portfolio.bonds  ||[]).map(x=>({ n: (x.displayName||x.name), v: (x.currentPrice??x.avgPrice??0)*(x.quantity||0) })),
+        funds:   (portfolio.funds  ||[]).map(x=>({ n: (x.displayName||x.name), v: (x.currentPrice??x.avgPrice??0)*(x.quantity||0) })),
+      };
+      const list = (map[key]||[]).sort((a,b)=>b.v-a.v).slice(0,10);
+      const title = key==='savings'?'Накопит. счёт':(key==='stocks'?'Акции':(key==='bonds'?'ОФЗ':'Фонды'));
+      return `<h4>${title}</h4>` + (list.length? list.map(r=>`<div class="row"><span class="muted">${r.n}</span><b>${fmt(r.v)} ₽</b></div>`).join('') : `<div class="row muted">Пусто</div>`);
+    };
+
+    wrap.querySelectorAll('.summary-card[data-key]').forEach(card=>{
+      const key=card.getAttribute('data-key');
+      const onMove=(e)=> showHover(buildHtml(key), e.clientX, e.clientY);
+      card.addEventListener('mouseenter', onMove);
+      card.addEventListener('mousemove', onMove);
+      card.addEventListener('mouseleave', ()=> hideHoverSoon());
+      // На мобильных — по тапу
+      card.addEventListener('click', (e)=> {
+        const r = card.getBoundingClientRect();
+        showHover(buildHtml(key), r.right, r.top);
+        hideHoverSoon(1500);
+      });
+    });
   }
 
   function displayLabel(it){
@@ -485,7 +568,12 @@
     });
   }
 
-  // ====== RENDER: SECTIONS ======
+  // ====== helpers: аккордеоны ======
+  const accKey = (cat)=> `pf_collapsed_${cat}`;
+  const isCollapsed = (cat)=> localStorage.getItem(accKey(cat)) === '1';
+  const setCollapsed = (cat, v)=> localStorage.setItem(accKey(cat), v ? '1' : '0');
+
+  // ====== RENDER: SECTIONS (с аккордеонами) ======
   function renderSections(){
     const wrap = document.getElementById('portfolioSections');
     destroyPerAssetCharts();
@@ -500,6 +588,7 @@
 
     for(const [cat,label] of groups){
       if(!(portfolio[cat]||[]).length) continue;
+
       const listHTML = (portfolio[cat]||[]).map((it,idx)=>{
         if(cat==='savings'){
           return `
@@ -553,15 +642,33 @@
         </div>`;
       }).join('');
 
+      const sumCat = (portfolio[cat]||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
+      const collapsed = isCollapsed(cat); // true => секция закрыта
       wrap.insertAdjacentHTML('beforeend', `
-        <section class="section">
+        <section class="section collapsible ${collapsed ? '' : 'open'}" data-acc="${cat}">
           <div class="section-header">
-            <h2>${label}</h2>
-            <div style="font-weight:800;color:var(--muted)">${fmt((portfolio[cat]||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0))} ₽</div>
+            <div class="acc-head" data-acc-toggle="${cat}">
+              <span class="chev">▾</span>
+              <span class="acc-title">${label}</span>
+            </div>
+            <div class="acc-sum">${fmt(sumCat)} ₽</div>
           </div>
-          <div class="assets-list">${listHTML}</div>
+          <div class="section-content">
+            <div class="assets-list">${listHTML}</div>
+          </div>
         </section>`);
     }
+
+    // Навешиваем обработчики раскрытия
+    wrap.querySelectorAll('[data-acc-toggle]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const cat = btn.getAttribute('data-acc-toggle');
+        const sec = btn.closest('.section');
+        const willOpen = !sec.classList.contains('open');
+        sec.classList.toggle('open', willOpen);
+        setCollapsed(cat, !willOpen);
+      });
+    });
   }
 
   // ====== CHARTS ======
@@ -705,9 +812,11 @@
     g.addColorStop(0,'rgba(67,97,238,.35)'); g.addColorStop(1,'rgba(67,97,238,.02)');
     charts[canvasId] = new Chart(ctx,{
       type:'line',
-      data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.5, fill:true, backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#4361ee', pointRadius:0, tension:.25 }] },
+      data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.5, fill:true, backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#4361ee', pointRadius:0, pointHoverRadius:4, tension:.25 }] },
       options:{
-        responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=> `${fmt(c.parsed.y)} ₽` } } },
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false, axis:'x' },
+        plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=> `${fmt(c.parsed.y)} ₽` } } },
         scales:{
           x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true } },
           y:{ grid:{ color:getComputedStyle(document.documentElement).getPropertyValue('--stroke')||'rgba(0,0,0,.1)' }, ticks:{ callback:(v)=> fmt(v) } }
@@ -849,8 +958,10 @@
     btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
   }
 
+  // обработчик кнопок (график/редакт/удалить) и табов периода
   document.addEventListener('click', async (e)=>{
-    const act = e.target.closest('[data-action]'); if(!act) return;
+    const act = e.target.closest('[data-action]');
+    if(!act) return;
     const action = act.getAttribute('data-action');
 
     if(action==='del'){
@@ -919,8 +1030,12 @@
       if(charts[canvasId] && charts[canvasId].canvas !== el){ try{ charts[canvasId].destroy(); }catch(_){ } delete charts[canvasId]; }
       if(!charts[canvasId]){ makeLineChart(canvasId, displayLabel(it) || it?.name || name); }
 
-      if(figi){ await updateAssetChartByFigi(canvasId, figi, displayLabel(it) || it?.name || name, '1D'); }
-      else{ toast('Нет FIGI для графика — обнови котировки','err'); }
+      if(figi){
+        await updateAssetChartByFigi(canvasId, figi, displayLabel(it) || it?.name || name, '1D');
+        setTimeout(()=>{ try{ charts[canvasId]?.resize(); }catch(_){} }, 30); // форс ресайз после анимации раскрытия
+      }else{
+        toast('Нет FIGI для графика — обнови котировки','err');
+      }
 
       box.querySelectorAll('.chart-tab').forEach(t=> t.classList.remove('active'));
       box.querySelector('[data-period="1D"]').classList.add('active');
@@ -938,8 +1053,10 @@
       const name = card?.querySelector('[data-action="show"]')?.getAttribute('data-name');
       const it = [...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])]
         .find(x => x.name === name);
-      if(it?.figi){ await updateAssetChartByFigi(`canvas-${id}`, it.figi, displayLabel(it) || it?.name || name, period); }
-      else{ toast('Нет FIGI для графика — обнови котировки','err'); }
+      if(it?.figi){
+        await updateAssetChartByFigi(`canvas-${id}`, it.figi, displayLabel(it) || it?.name || name, period);
+        setTimeout(()=>{ try{ charts[`canvas-${id}`]?.resize(); }catch(_){} }, 10);
+      }else{ toast('Нет FIGI для графика — обнови котировки','err'); }
       return;
     }
   });
@@ -973,6 +1090,16 @@
       e.currentTarget.style.setProperty('--rx', x); e.currentTarget.style.setProperty('--ry', y);
       e.currentTarget.classList.remove('rippling'); setTimeout(()=> e.currentTarget.classList.add('rippling'), 0); setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250);
       const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark'; setTheme(cur);
+    });
+
+    // клик вне hovercard — закрыть (на мобильных)
+    document.addEventListener('click', (ev)=> {
+      if(hoverEl && hoverEl.style.display!=='none'){
+        const r = hoverEl.getBoundingClientRect();
+        if(!(ev.clientX>=r.left && ev.clientX<=r.right && ev.clientY>=r.top && ev.clientY<=r.bottom)){
+          hideHoverSoon(80);
+        }
+      }
     });
 
     initDatePicker();
