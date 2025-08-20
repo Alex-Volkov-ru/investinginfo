@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
@@ -21,6 +22,7 @@ class LoginOut(BaseModel):
     token_type: str = "bearer"
     user_id: int
     email: EmailStr
+    tg_username: str | None = None 
 
 @router.post("/login", response_model=LoginOut)
 def login(payload: LoginIn, db: Session = Depends(get_db)):
@@ -28,4 +30,9 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(401, "Неверный email или пароль")
     token = create_access_token(user.id, settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return LoginOut(access_token=token, user_id=user.id, email=user.email)
+    return LoginOut(
+        access_token=token,
+        user_id=user.id,
+        email=user.email,
+        tg_username=user.tg_username,  # ← добавили
+    )

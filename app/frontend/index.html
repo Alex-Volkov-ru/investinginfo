@@ -352,13 +352,18 @@
   function loadAuth(){
     auth.token = localStorage.getItem('pf_token') || null;
     auth.userId = Number(localStorage.getItem('pf_user_id') || '') || null;
-    auth.email = localStorage.getItem('pf_email') || null;
+    auth.email  = localStorage.getItem('pf_email') || null;
+    auth.tg_username = localStorage.getItem('pf_tg_username') || null; 
     auth.portfolioId = Number(localStorage.getItem('pf_portfolio_id') || '') || null;
-    applyAuthUi();
   }
   function clearAuth(){
-    auth = { token:null, userId:null, email:null, portfolioId:null };
-    saveAuth();
+    auth = { token:null, userId:null, email:null, portfolioId:null, tg_username:null };
+    localStorage.removeItem('pf_token');
+    localStorage.removeItem('pf_user_id');
+    localStorage.removeItem('pf_email');
+    localStorage.removeItem('pf_portfolio_id');
+    localStorage.removeItem('pf_tg_username');
+    applyAuthUi();
   }
 
   function saveCollapsed(){ try{ localStorage.setItem('pf_collapsed', JSON.stringify(collapsedMap)); }catch(_){} }
@@ -379,8 +384,8 @@
   function applyAuthUi(){
     const st = document.getElementById('authStatus');
     const btnOut = document.getElementById('logoutBtn');
-    if(auth.token && auth.email){
-      st.textContent = `Привет, ${auth.email}`;
+    if(auth.token && (auth.tg_username || auth.email)){
+      st.textContent = `Привет, ${auth.tg_username || auth.email}`;
       btnOut.style.display = '';
     }else{
       st.textContent = 'Гость';
@@ -936,7 +941,7 @@
         });
 
         // Без локального push — перечитываем портфель, тогда позиция уже будет агрегирована
-        toast('Сделка сохранена в БД');
+        toast('Сделка сохранена');
         await loadFromDB();
         await recalcQuotes();
       }catch(err){

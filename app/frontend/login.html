@@ -33,6 +33,8 @@
   .btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent}
   .btn-ghost{background:transparent}
   .muted{color:var(--muted); font-weight:700}
+  .error{color:#ffd1d1; font-size:12px; margin-top:4px; display:none}
+  .error.show{display:block}
 </style>
 </head>
 <body>
@@ -43,15 +45,16 @@
     <div id="tabRegister" class="tab">Регистрация</div>
   </div>
 
+  <!-- ВХОД -->
   <form id="loginForm" novalidate>
     <div class="grid">
       <div>
         <label for="loginEmail">Email</label>
-        <input id="loginEmail" type="email" required placeholder="you@example.com" />
+        <input id="loginEmail" type="email" required placeholder="you@example.com" autocomplete="username" />
       </div>
       <div>
         <label for="loginPassword">Пароль</label>
-        <input id="loginPassword" type="password" required placeholder="••••••••" />
+        <input id="loginPassword" type="password" required placeholder="••••••••" autocomplete="current-password" />
       </div>
     </div>
     <div class="actions">
@@ -60,19 +63,32 @@
     </div>
   </form>
 
+  <!-- РЕГИСТРАЦИЯ -->
   <form id="registerForm" style="display:none" novalidate>
     <div class="grid">
       <div>
+        <label for="regName">Имя</label>
+        <input id="regName" type="text" required minlength="2" maxlength="100" placeholder="Иван" autocomplete="nickname" />
+        <div id="errName" class="error">Имя слишком короткое.</div>
+      </div>
+      <div>
         <label for="regEmail">Email</label>
-        <input id="regEmail" type="email" required placeholder="you@example.com" />
+        <input id="regEmail" type="email" required placeholder="you@example.com" autocomplete="email" />
+        <div id="errEmail" class="error">Неверный формат email.</div>
       </div>
       <div>
         <label for="regPassword">Пароль</label>
-        <input id="regPassword" type="password" required placeholder="Минимум 6 символов" />
+        <!-- >=6 символов, содержит буквы и цифры -->
+        <input id="regPassword" type="password" required minlength="6"
+               pattern="(?=.*[A-Za-z])(?=.*\d).{6,}"
+               title="Минимум 6 символов, обязательно с буквами и цифрами"
+               placeholder="Минимум 6 символов (буквы и цифры)" autocomplete="new-password" />
+        <div id="errPassword" class="error">Минимум 6 символов, обязательно буквы и цифры.</div>
       </div>
       <div>
         <label for="regPhone">Телефон (необязательно)</label>
-        <input id="regPhone" type="tel" placeholder="+79991234567" />
+        <input id="regPhone" type="tel" placeholder="+79991234567" pattern="^\+?\d{10,15}$" title="От 10 до 15 цифр, можно с + в начале" autocomplete="tel" />
+        <div id="errPhone" class="error">Телефон должен содержать 10–15 цифр (можно + в начале).</div>
       </div>
     </div>
     <div class="actions">
@@ -101,6 +117,7 @@
   document.getElementById('tabLogin').addEventListener('click', ()=> switchTab('login'));
   document.getElementById('tabRegister').addEventListener('click', ()=> switchTab('register'));
 
+  // ----- Вход -----
   document.getElementById('loginForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const email=document.getElementById('loginEmail').value.trim();
@@ -110,21 +127,54 @@
       localStorage.setItem('pf_token', data.access_token || '');
       localStorage.setItem('pf_user_id', String(data.user_id || ''));
       localStorage.setItem('pf_email', data.email || email);
+      if (data.tg_username) localStorage.setItem('pf_tg_username', data.tg_username); // имя в локал
       localStorage.removeItem('pf_portfolio_id');
       window.location.replace('index.html');
     }catch(err){ alert(err?.response?.data?.detail || 'Неверный email или пароль'); }
   });
 
+  // helpers для ошибок
+  function showErr(id, show){ const el=document.getElementById(id); if(!el) return; el.classList.toggle('show', !!show); }
+  ['regName','regEmail','regPassword','regPhone'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener('input', ()=>{
+      if(id==='regName') showErr('errName', false);
+      if(id==='regEmail') showErr('errEmail', false);
+      if(id==='regPassword') showErr('errPassword', false);
+      if(id==='regPhone') showErr('errPhone', false);
+    });
+  });
+
+  // ----- Регистрация -----
   document.getElementById('registerForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const email=document.getElementById('regEmail').value.trim();
-    const password=document.getElementById('regPassword').value;
-    const phone=document.getElementById('regPhone').value.trim();
+    const tg_username = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const phone = document.getElementById('regPhone').value.trim();
+
+    // фронт-валидация
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const passOk  = /[A-Za-z]/.test(password) && /\d/.test(password) && password.length>=6;
+    const phoneOk = !phone || /^\+?\d{10,15}$/.test(phone);
+    const nameOk  = tg_username.length>=2;
+
+    showErr('errEmail', !emailOk);
+    showErr('errPassword', !passOk);
+    showErr('errPhone', !phoneOk);
+    showErr('errName', !nameOk);
+
+    if(!(emailOk && passOk && phoneOk && nameOk)) return;
+
     try{
-      await api.post('/users', { email, password, phone: phone || null });
-      alert('Регистрация успешна. Выполните вход.'); switchTab('login');
-      document.getElementById('loginEmail').value=email; document.getElementById('loginPassword').value='';
-    }catch(err){ alert(err?.response?.data?.detail || 'Ошибка регистрации'); }
+      await api.post('/users', { email, password, tg_username, phone: phone || null });
+      alert('Регистрация успешна. Выполните вход.');
+      switchTab('login');
+      document.getElementById('loginEmail').value=email;
+      document.getElementById('loginPassword').value='';
+    }catch(err){
+      alert(err?.response?.data?.detail || 'Ошибка регистрации');
+    }
   });
 </script>
 </body>
