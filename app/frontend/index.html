@@ -113,6 +113,7 @@
   .btn-ghost{background:transparent}
   .btn::after{content:""; position:absolute; inset:0; background:radial-gradient(140px 140px at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.45), transparent 60%); opacity:0; transition:opacity .6s ease}
   .btn.rippling::after{opacity:.8; transition:none}
+  .btn:disabled{opacity:.5; pointer-events:none}
 
   .search-wrap{min-width:200px; flex:1 1 260px; max-width:360px}
   .search-wrap input{ width:100%; }
@@ -235,8 +236,8 @@
       <div class="search-wrap">
         <input id="searchInput" type="text" placeholder="Поиск по тикерам/названию…" />
       </div>
-      <button class="btn btn-ghost" id="collapseAllBtn" title="Свернуть все">⤵️ Все</button>
-      <button class="btn btn-ghost" id="expandAllBtn" title="Развернуть все">⤴️ Все</button>
+      <!-- ЕДИНАЯ кнопка свертнуть/развернуть всё -->
+      <button class="btn btn-ghost" id="toggleAllBtn" title="Свернуть/развернуть все секции">⤴️ Все</button>
       <div id="authStatus" class="auth-status">Гость</div>
       <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
       <button id="refreshBtn" class="btn" title="Обновить котировки">🔄 Обновить</button>
@@ -676,6 +677,8 @@
           </div>
         </section>`);
     }
+
+    updateToggleAllBtn(); // обновляем состояние кнопки в шапке
   }
 
   // ====== CHARTS ======
@@ -1065,11 +1068,9 @@
       saveCollapsed();
       const el = document.querySelector(`.section[data-section="${sec}"]`);
       if(el){ el.classList.toggle('open', !collapsedMap[sec]); const btn = el.querySelector('.section-toggle'); if(btn) btn.setAttribute('aria-expanded', String(!collapsedMap[sec])); }
+      updateToggleAllBtn();
       return;
     }
-
-    if(action==='collapse-all'){ ['stocks','bonds','funds','savings'].forEach(k=> collapsedMap[k]=true); saveCollapsed(); document.querySelectorAll('.section').forEach(s=> s.classList.remove('open')); return; }
-    if(action==='expand-all'){ ['stocks','bonds','funds','savings'].forEach(k=> collapsedMap[k]=false); saveCollapsed(); document.querySelectorAll('.section').forEach(s=> s.classList.add('open')); return; }
   });
 
   function onTypeChange(){
@@ -1085,25 +1086,50 @@
     document.getElementById('savingsAmount').required = isSavings;
   }
 
+  function updateToggleAllBtn(){
+    const btn = document.getElementById('toggleAllBtn');
+    if(!btn) return;
+    const q = (searchQuery||'').trim();
+    btn.disabled = !!q; // при активном поиске — отключаем
+    const anyOpen = document.querySelectorAll('.section.open').length > 0;
+    // если что-то открыто — показываем "Свернуть"
+    if(anyOpen){
+      btn.textContent = '⤵️ Все';
+      btn.title = q ? 'Недоступно во время поиска' : 'Свернуть все секции';
+      btn.setAttribute('aria-label','Свернуть все секции');
+    }else{
+      btn.textContent = '⤴️ Все';
+      btn.title = q ? 'Недоступно во время поиска' : 'Развернуть все секции';
+      btn.setAttribute('aria-label','Развернуть все секции');
+    }
+  }
+
   function hookHeaderButtons(){
-    document.getElementById('collapseAllBtn').addEventListener('click', ()=>{
-      const btn = document.getElementById('collapseAllBtn');
-      btn.style.setProperty('--rx', '50%'); btn.style.setProperty('--ry', '50%');
-      btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
-      ['stocks','bonds','funds','savings'].forEach(k=> collapsedMap[k]=true);
+    const toggle = document.getElementById('toggleAllBtn');
+    toggle.addEventListener('click', ()=>{
+      // Риппл
+      toggle.style.setProperty('--rx', '50%'); toggle.style.setProperty('--ry', '50%');
+      toggle.classList.remove('rippling'); setTimeout(()=> toggle.classList.add('rippling'), 0); setTimeout(()=> toggle.classList.remove('rippling'), 250);
+
+      const anyOpen = document.querySelectorAll('.section.open').length > 0;
+      const keys = ['stocks','bonds','funds','savings'];
+      if(anyOpen){
+        keys.forEach(k=> collapsedMap[k]=true);
+        document.querySelectorAll('.section').forEach(s=> s.classList.remove('open'));
+      }else{
+        keys.forEach(k=> collapsedMap[k]=false);
+        document.querySelectorAll('.section').forEach(s=> s.classList.add('open'));
+      }
       saveCollapsed();
-      document.querySelectorAll('.section').forEach(s=> s.classList.remove('open'));
+      updateToggleAllBtn();
     });
-    document.getElementById('expandAllBtn').addEventListener('click', ()=>{
-      const btn = document.getElementById('expandAllBtn');
-      btn.style.setProperty('--rx', '50%'); btn.style.setProperty('--ry', '50%');
-      btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
-      ['stocks','bonds','funds','savings'].forEach(k=> collapsedMap[k]=false);
-      saveCollapsed();
-      document.querySelectorAll('.section').forEach(s=> s.classList.add('open'));
-    });
+
     const si = document.getElementById('searchInput');
-    si.addEventListener('input', ()=>{ searchQuery = si.value || ''; saveSearch(); renderSections(); });
+    si.addEventListener('input', ()=>{
+      searchQuery = si.value || '';
+      saveSearch();
+      renderSections(); // внутри вызовется updateToggleAllBtn
+    });
   }
 
   // ====== INIT ======
