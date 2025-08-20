@@ -16,8 +16,7 @@ from app.backend.models.instrument import Instrument
 
 router = APIRouter()
 
-
-# ===== Schemas =====
+# ===== Schemas (вход) =====
 class PortfolioCreateIn(BaseModel):
     title: str = "Основной"
     type: str = "broker"
@@ -44,24 +43,54 @@ def _ensure_portfolio_of_user(db: Session, portfolio_id: int, user_id: int) -> P
     return pf
 
 
+def _pf_to_dict(pf: Portfolio) -> dict:
+    return {
+        "id": pf.id,
+        "title": pf.title,
+        "type": pf.type,
+        "currency": pf.currency,
+        "user_id": pf.user_id,
+        "created_at": pf.created_at.isoformat() if getattr(pf, "created_at", None) else None,
+        "updated_at": pf.updated_at.isoformat() if getattr(pf, "updated_at", None) else None,
+    }
+
+
 # ===== Endpoints =====
-@router.get("/portfolio")
-def list_portfolios(user=Depends(get_current_user), db: Session = Depends(get_db)) -> List[Portfolio]:
-    return db.execute(
-        select(Portfolio).where(Portfolio.user_id == user.id).order_by(Portfolio.id.asc())
-    ).scalars().all()
+
+# ВАЖНО: не используем SQLAlchemy модели как тип возврата/response_model
+@router.get("/portfolio", response_model=None)
+def list_portfolios(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    rows = (
+        db.execute(
+            select(Portfolio)
+            .where(Portfolio.user_id == user.id)
+            .order_by(Portfolio.id.asc())
+        )
+        .scalars()
+        .all()
+    )
+    return [_pf_to_dict(p) for p in rows]
 
 
-@router.post("/portfolio")
-def create_portfolio(payload: PortfolioCreateIn, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    pf = Portfolio(title=payload.title, type=payload.type, currency=payload.currency, user_id=user.id)
+@router.post("/portfolio", response_model=None)
+def create_portfolio(
+    payload: PortfolioCreateIn,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    pf = Portfolio(
+        title=payload.title,
+        type=payload.type,
+        currency=payload.currency,
+        user_id=user.id,
+    )
     db.add(pf)
     db.commit()
     db.refresh(pf)
-    return pf
+    return _pf_to_dict(pf)
 
 
-@router.get("/portfolio/{portfolio_id}/positions/full")
+@router.get("/portfolio/{portfolio_id}/positions/full", response_model=None)
 def list_positions_full(
     portfolio_id: int = Path(..., ge=1),
     user=Depends(get_current_user),
@@ -69,37 +98,46 @@ def list_positions_full(
 ):
     _ensure_portfolio_of_user(db, portfolio_id, user.id)
 
-    # positions + instrument (для фронта удобнее одной структурой)
-    rows = db.execute(
-        select(Position).options(joinedload(Position.instrument))
-        .where(Position.portfolio_id == portfolio_id)
-        .order_by(Position.id.asc())
-    ).scalars().all()
+    # positions + instrument
+    rows: List[Position] = (
+        db.execute(
+            select(Position)
+            .options(joinedload(Position.instrument))
+            .where(Position.portfolio_id == portfolio_id)
+            .order_by(Position.id.asc())
+        )
+        .scalars()
+        .all()
+    )
 
-    # приводим к удобному json
     out = []
     for p in rows:
         inst = p.instrument
-        out.append({
-            "id": p.id,
-            "portfolio_id": p.portfolio_id,
-            "figi": p.figi,
-            "quantity": float(p.quantity or 0),
-            "avg_price": float(p.avg_price or 0),
-            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-            "instrument": {
-                "figi": inst.figi if inst else p.figi,
-                "ticker": (inst.ticker if inst else None) or None,
-                "name": inst.name if inst else None,
-                "class": getattr(inst, "class_", None) or getattr(inst, "class", None) or "other",
-                "currency": inst.currency if inst else None,
-                "nominal": inst.nominal if inst else None,
-            },
-        })
+        out.append(
+            {
+                "id": p.id,
+                "portfolio_id": p.portfolio_id,
+                "figi": p.figi,
+                "quantity": float(p.quantity or 0),
+                "avg_price": float(p.avg_price or 0),
+                "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+                "instrument": {
+                    "figi": inst.figi if inst else p.figi,
+                    "ticker": (inst.ticker if inst else None) or None,
+                    "name": inst.name if inst else None,
+                    # в JSON ключ будет "class", даже если в модели поле называется class_
+                    "class": getattr(inst, "class_", None)
+                    or getattr(inst, "class", None)
+                    or "other",
+                    "currency": inst.currency if inst else None,
+                    "nominal": inst.nominal if inst else None,
+                },
+            }
+        )
     return out
 
 
-@router.delete("/portfolio/positions/{position_id}")
+@router.delete("/portfolio/positions/{position_id}", response_model=None)
 def delete_position(
     position_id: int,
     user=Depends(get_current_user),
@@ -114,12 +152,16 @@ def delete_position(
     return {"ok": True}
 
 
-@router.post("/portfolio/positions")
-def upsert_position(payload: PositionUpsertIn, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    # валидация права пользователя на портфель
+@router.post("/portfolio/positions", response_model=None)
+def upsert_position(
+    payload: PositionUpsertIn,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # право пользователя
     _ensure_portfolio_of_user(db, payload.portfolio_id, user.id)
 
-    # гарантируем наличие инструмента
+    # гарантируем инструмент
     inst = db.get(Instrument, payload.figi)
     if not inst:
         inst = Instrument(
@@ -148,15 +190,19 @@ def upsert_position(payload: PositionUpsertIn, user=Depends(get_current_user), d
         / func.nullif(q_sum, 0)
     )
 
-    stmt = stmt.on_conflict_do_update(
-        index_elements=[Position.portfolio_id, Position.figi],
-        set_={
-            "quantity": q_sum,
-            "avg_price": func.coalesce(weighted_avg, stmt.excluded.avg_price),
-            "updated_at": datetime.utcnow(),
-        },
-    ).returning(Position)
+    stmt = (
+        stmt.on_conflict_do_update(
+            index_elements=[Position.portfolio_id, Position.figi],
+            set_={
+                "quantity": q_sum,
+                "avg_price": func.coalesce(weighted_avg, stmt.excluded.avg_price),
+                "updated_at": datetime.utcnow(),
+            },
+        )
+        .returning(Position.id)
+    )
 
-    pos = db.execute(stmt).scalar_one()
+    new_id = db.execute(stmt).scalar_one()
     db.commit()
-    return pos
+    # фронту отдаем только id – ему этого достаточно
+    return {"id": int(new_id)}
