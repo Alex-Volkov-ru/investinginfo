@@ -533,7 +533,7 @@
           </div>
         </div>`;
       wrap.insertAdjacentHTML('beforeend', header);
-    });
+    };
 
     // навесить обработчики открытия
     qSA('.collapsible-header').forEach(h=>{
@@ -652,9 +652,47 @@
 
     const el2=qS('#chartByTickerValue');
     if(el2){ const ctx=el2.getContext('2d'); if(charts.v) charts.v.destroy(); charts.v=new Chart(ctx,{ type:'bar', data:{ labels: labelsTickers, datasets:[{ data:values, borderRadius:10, backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(67,97,238,.9)','rgba(127,240,249,.4)')} }] }, options:barOpts }); }
-    const el3=qS('#chartByTickerQty');
-    if(el3){ const ctx=el3.getContext('2d'); if(charts.q) charts.q.destroy(); charts.q=new Chart(ctx,{ type:'bar', data:{ labels: labelsTickers, datasets:[{ data:qtys, borderRadius:10, backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(6,214,160,.9)','rgba(67,97,238,.4)')} }] }, options:{...barOpts, scales:{ x:{ grid:{display:false}, ticks:{ maxRotation:45, minRotation:0, autoSkip:true, callback:(v,i)=> trimLabel(labelsTickers[i]) } }, y:{ ticks:{ callback:(v)=> fmt(v,0) }, grid:{ color:axisGrid } } } }); }
-    removeSkeleton();
+    const el3 = qS('#chartByTickerQty');
+    if (el3) {
+      const ctx = el3.getContext('2d');
+      if (charts.q) charts.q.destroy();
+      charts.q = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labelsTickers,
+          datasets: [{
+            data: qtys,
+            borderRadius: 10,
+            backgroundColor: (c) => {
+              const ctx = c.chart.ctx;
+              return grad(ctx, 'rgba(6,214,160,.9)', 'rgba(67,97,238,.4)');
+            }
+          }]
+        },
+        options: {
+          ...barOpts,
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 0,
+                autoSkip: true,
+                callback: (v, i) => trimLabel(labelsTickers[i])
+              }
+            },
+            y: {
+              ticks: {
+                callback: (v) => fmt(v, 0)
+              },
+              grid: { color: axisGrid }
+            }
+          }
+        }
+      });
+    }
+
+    removeSkeleton(); 
   }
 
   function makeLineChart(canvasId,label){
