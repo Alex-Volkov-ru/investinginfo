@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title id="pageTitle">Мой инвестиционный портфель</title>
 
+<!-- ГАРД: если нет токена — на страницу входа -->
 <script>
   if (!localStorage.getItem('pf_token')) {
     window.location.replace('login.html');
@@ -14,32 +15,32 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
 
 <style>
-  :root{
-    --gap: 16px;
-    --radius: 16px;
-    --shadow: 0 10px 30px rgba(17,24,39,.12);
-    --shadow-lg: 0 20px 60px rgba(17,24,39,.18);
-    --chart-h: 280px;
-  }
-  @media (max-width: 900px){ :root{ --gap:14px; --chart-h: 240px; } }
-  @media (max-width: 560px){ :root{ --gap:12px; --chart-h: 200px; } }
-
+  /* === ТЕМА === */
   :root[data-theme='light']{
-    --bg:#f5f7ff; --bg2:#ffffff; --card:#ffffff; --stroke:rgba(0,0,0,.10);
-    --text:#17202a; --muted:#6b7280; --brand:#4361ee; --brand2:#67e8f9;
-    --accent:#f72585; --ok:#06d6a0; --warn:#fbbf24; --ring:0 0 0 3px rgba(67,97,238,.25);
-    --input-bg:#ffffff; --input-bg-hover:#f7f7fb; --menu-bg:#ffffff; --menu-text:#17202a;
-  }
-  :root[data-theme='dark']{
-    --bg:#0f1224; --bg2:#0b0e1a; --card:#151935; --stroke:rgba(255,255,255,.10);
+    --bg:#0f1020; --bg2:#15172b; /* делаем темнее фон — выглядит компактнее */
+    --card:#1b1e39; --stroke:rgba(255,255,255,.10);
     --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
-    --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166; --ring:0 0 0 3px rgba(122,162,255,.28);
-    --input-bg:#1b2146; --input-bg-hover:#202759; --menu-bg:#151935; --menu-text:#ecf0ff;
+    --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166;
+    --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 20px 60px rgba(0,0,0,.45);
+    --ring:0 0 0 3px rgba(122,162,255,.28);
+    --input-bg:#1b2146; --input-bg-hover:#202759;
+    --menu-bg:#151935; --menu-text:#ecf0ff;
+    color-scheme: dark;
+  }
+  :root[data-theme='dark']{ /* в этой версии обе темы тёмные, но оставил переключатель */
+    --bg:#0f1020; --bg2:#15172b; --card:#1b1e39; --stroke:rgba(255,255,255,.10);
+    --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
+    --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166;
+    --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 20px 60px rgba(0,0,0,.45);
+    --ring:0 0 0 3px rgba(122,162,255,.28);
+    --input-bg:#1b2146; --input-bg-hover:#202759;
+    --menu-bg:#151935; --menu-text:#ecf0ff;
     color-scheme: dark;
   }
 
@@ -48,34 +49,22 @@
   body{
     margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; color:var(--text);
     background:
-      radial-gradient(1400px 700px at -20% -10%, rgba(67,97,238,.18), transparent),
-      radial-gradient(900px 600px at 120% 10%, rgba(247,37,133,.12), transparent),
+      radial-gradient(900px 600px at 120% 10%, rgba(122,162,255,.13), transparent),
+      radial-gradient(1400px 700px at -20% -10%, rgba(247,37,133,.14), transparent),
       linear-gradient(180deg, var(--bg), var(--bg2));
     min-height:100vh; transition: background .35s ease, color .2s ease;
   }
-  .container{max-width:1200px; margin:0 auto; padding: clamp(12px, 2.2vw, 24px)}
+  .container{max-width:1180px; margin:0 auto; padding:18px 16px}
 
-  .blob{position:fixed; filter:blur(60px); opacity:.45; z-index:-1; mix-blend-mode:plus-lighter; animation:float 18s ease-in-out infinite}
-  .blob.one{width:360px; height:360px; left:-120px; top:-80px; background:#7ff0ff22;}
-  .blob.two{width:380px; height:380px; right:-140px; top:-60px; background:#f86aa422; animation-delay:-6s}
-  @keyframes float{0%,100%{transform:translateY(0)} 50%{transform:translateY(20px)}}
-
-  header{
-    position:sticky; top:0; backdrop-filter:saturate(1.2) blur(6px);
-    background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-    border:1px solid var(--stroke); border-radius: clamp(10px,1.8vw,14px);
-    display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px clamp(10px,1.6vw,14px); margin-bottom:var(--gap); z-index:10;
-  }
+  header{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px}
   .title-wrap{display:flex; gap:8px; align-items:center}
-  h1{margin:0; font-weight:800; letter-spacing:-.3px; font-size: clamp(18px, 2.5vw, 28px)}
+  h1{margin:0; font-weight:800; letter-spacing:-.3px; font-size:22px}
   .title-edit{cursor:pointer; border:1px solid var(--stroke); background:var(--card); border-radius:10px; padding:6px 10px; font-weight:700}
 
   .header-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
-  .auth-status{font-weight:800; color:var(--muted); font-size: clamp(12px, 1.6vw, 14px)}
-
   .btn{
     position:relative; overflow:hidden; padding:8px 12px; border-radius:12px; border:1px solid var(--stroke);
-    background:var(--card); color:var(--text); cursor:pointer; font-weight:800; font-size: clamp(12px, 1.7vw, 14px);
+    background:var(--card); color:var(--text); cursor:pointer; font-weight:800; font-size:13px;
     box-shadow:var(--shadow); transition:transform .18s ease, box-shadow .22s ease, background .2s ease
   }
   .btn:hover{transform:translateY(-1px); box-shadow:var(--shadow-lg)}
@@ -85,93 +74,84 @@
   .btn::after{content:""; position:absolute; inset:0; background:radial-gradient(140px 140px at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.45), transparent 60%); opacity:0; transition:opacity .6s ease}
   .btn.rippling::after{opacity:.8; transition:none}
 
-  .portfolio-charts{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:var(--gap); margin: 0 0 var(--gap)}
-  .chart-card{
-    background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-    border:1px solid var(--stroke); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow); transition:transform .25s ease, box-shadow .25s ease
-  }
-  .chart-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg)}
-  .chart-card h3{margin:0 0 6px; color:var(--muted); font-size: clamp(11px,1.6vw,13px); letter-spacing:.2px; text-transform:uppercase}
+  /* --- Карты/графики --- */
+  .cards{display:grid; grid-template-columns:repeat(12,1fr); gap:10px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)); border:1px solid var(--stroke); border-radius:14px; padding:12px; box-shadow:var(--shadow)}
+  .card h3{margin:0 0 8px; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.2px}
+  .card-sm{padding:10px}
+  .span-4{grid-column:span 4}
+  .span-12{grid-column:span 12}
 
-  .portfolio-summary{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:var(--gap); margin-bottom:var(--gap)}
-  .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:var(--radius); padding:14px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); box-shadow:var(--shadow)}
-  .summary-title{font-size: clamp(11px,1.6vw,12px); color:var(--muted); text-transform:uppercase; letter-spacing:.25px; margin-bottom:6px}
-  .summary-num{font-size: clamp(20px,3vw,26px); font-weight:800}
+  /* --- Сводные карточки (компакт) --- */
+  .summary{display:grid; grid-template-columns:repeat(12,1fr); gap:10px; margin:10px 0 14px}
+  .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:14px; padding:12px; background:var(--card); box-shadow:var(--shadow); cursor:default}
+  .summary-card .k{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px}
+  .summary-card .v{font-size:18px; font-weight:900; line-height:1.1; margin-top:4px}
+  .summary-card.hoverable{cursor:pointer}
+  .summary-card[data-kind="total"]{grid-column:span 6}
+  .summary-card:not([data-kind="total"]){grid-column:span 2}
 
-  .section{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid var(--stroke); border-radius:calc(var(--radius) + 2px); padding:14px; box-shadow:var(--shadow); margin-bottom:var(--gap)}
-  .section-header{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px}
-  .section h2{margin:0; font-size: clamp(16px, 2.4vw, 22px)}
+  /* --- Аккордеон секций --- */
+  .accordion{display:flex; flex-direction:column; gap:10px}
+  .collapsible{border:1px solid var(--stroke); border-radius:14px; background:var(--card); overflow:hidden}
+  .collapsible-header{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 14px; cursor:pointer; user-select:none}
+  .collapsible-title{display:flex; align-items:center; gap:8px; font-weight:800}
+  .collapsible-badge{font-weight:900; color:var(--muted)}
+  .chev{transition:transform .25s ease; opacity:.85}
+  .collapsible[aria-expanded="true"] .chev{transform:rotate(180deg)}
+  .collapse-content{max-height:0; opacity:.0; padding:0 12px; transition:max-height .30s ease, opacity .25s ease, padding .20s ease}
+  .collapsible[aria-expanded="true"] .collapse-content{max-height:1600px; opacity:1; padding:0 12px 12px}
 
-  .assets-list{display:grid; grid-template-columns:1fr; gap:12px}
-  .asset-card{border:1px dashed var(--stroke); border-radius:14px; padding:12px; background:rgba(255,255,255,.06); transition:transform .3s ease, box-shadow .3s ease}
-  .asset-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg)}
-  .asset-header{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap}
-  .asset-name{font-weight:800; font-size: clamp(14px, 2vw, 16px)}
-  .asset-actions{display:flex; gap:8px; flex-wrap:wrap}
-  .asset-actions .btn{padding:6px 10px; border-radius:10px}
+  /* --- Элементы активов --- */
+  .assets-list{display:grid; grid-template-columns:1fr; gap:10px; margin-top:10px}
+  .asset{border:1px dashed var(--stroke); border-radius:12px; padding:10px; background:rgba(255,255,255,.04)}
+  .asset-h{display:flex; justify-content:space-between; align-items:center; gap:8px}
+  .asset-name{font-weight:800}
+  .asset-d{color:var(--muted); font-size:12px; margin-top:6px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .asset-actions{display:flex; gap:6px; flex-wrap:wrap}
 
-  .asset-details{
-    color:var(--muted); font-size: clamp(12px,1.7vw,13px); margin-top:6px;
-    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px
-  }
-  @media (max-width: 900px){ .asset-details{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
-  @media (max-width: 560px){ .asset-details{ grid-template-columns:1fr; } }
-
-  select, input{
-    appearance:none; -webkit-appearance:none; -moz-appearance:none;
-    background:var(--input-bg);
-    border:1px solid var(--stroke); color:var(--text); border-radius:12px; padding:12px 40px 12px 12px; font-weight:700;
-    width:100%; transition:border-color .15s ease, box-shadow .15s ease, background .15s ease; font-size: clamp(14px,2.2vw,16px)
-  }
-  select:hover, input:hover{ background:var(--input-bg-hover); }
-  input{ padding-right:12px }
-  input::placeholder{ color:var(--muted); opacity:.9 }
-  .select-wrap{position:relative}
-  .select-wrap::after{ content:"▾"; position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--muted); font-weight:800; }
-  select option, select optgroup{ background-color:var(--menu-bg); color:var(--menu-text); }
-  input:focus, select:focus{ outline:none; box-shadow:var(--ring); border-color:transparent }
-  select::-ms-expand { display:none; }
-
-  .form-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px}
+  /* --- Форма добавления --- */
+  .form-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px}
   .form-group{display:flex; flex-direction:column; gap:6px}
-  label{font-size: clamp(11px,1.6vw,12px); color:var(--muted); font-weight:700}
-  .form-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:12px; flex-wrap:wrap}
+  label{font-size:11px; color:var(--muted); font-weight:700}
+  select,input{appearance:none; background:var(--input-bg); border:1px solid var(--stroke); color:var(--text); border-radius:12px; padding:10px 12px; font-weight:700; width:100%}
+  select:hover,input:hover{background:var(--input-bg-hover)}
+  .form-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:10px}
 
-  .chart-container{
-    overflow:hidden; max-height:0; opacity:0; border:1px solid var(--stroke); border-radius:12px; padding:0 8px;
-    transition:max-height .35s ease, opacity .35s ease, padding .35s ease, margin .35s ease; margin-top:0;
-  }
-  .chart-container.open{ max-height:calc(var(--chart-h) + 80px); opacity:1; padding:8px; margin-top:10px; }
-  .chart-tabs{display:flex; gap:6px; flex-wrap:wrap; margin:6px 0}
-  .chart-tab{padding:6px 10px; border-radius:999px; background:rgba(67,97,238,.1); font-weight:800; cursor:pointer; user-select:none; font-size: clamp(12px,1.7vw,13px)}
-  .chart-tab.active{background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#0c0f21}
+  /* --- Всплывающие подсказки (hover/tap) --- */
+  .tip{position:fixed; z-index:3000; background:var(--card); border:1px solid var(--stroke); box-shadow:var(--shadow-lg); border-radius:12px; padding:10px 12px; max-width:260px; font-size:12px; line-height:1.35; pointer-events:none; transform:translate(-50%,-100%); opacity:0; transition:opacity .15s ease}
+  .tip.show{opacity:1}
+  .tip .h{font-weight:900; margin-bottom:4px; color:var(--muted); text-transform:uppercase; font-size:11px}
+  .tip .row{display:flex; justify-content:space-between; gap:8px}
+  .tip .muted{color:var(--muted)}
 
-  .pnl-big{font-size: clamp(15px,2.2vw,18px); font-weight:900}
-
-  .flatpickr-calendar{font-family:Inter,system-ui; background:var(--card); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)}
-  .flatpickr-months, .flatpickr-weekdays{background:rgba(255,255,255,.04); color:var(--text)}
-  .flatpickr-day{border-radius:10px}
-  .flatpickr-day.today{border-color:var(--brand)}
-  .flatpickr-day.selected{background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#0c0f21; border-color:transparent}
-
-  @keyframes fadeUp{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
-  .animate-in{animation:fadeUp .6s cubic-bezier(.22,1,.36,1) both}
-
-  .skeleton{position:relative; overflow:hidden; background:linear-gradient(90deg, rgba(255,255,255,.08), rgba(255,255,255,.18), rgba(255,255,255,.08)); background-size:200% 100%; animation:shine 1.2s linear infinite}
+  /* --- Скелет --- */
+  .skeleton{position:relative; overflow:hidden; background:linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.14), rgba(255,255,255,.06)); background-size:200% 100%; animation:shine 1.2s linear infinite}
   @keyframes shine{0%{background-position:200% 0} 100%{background-position:-200% 0}}
 
-  .toast-wrap{position:fixed; bottom:12px; right:12px; display:flex; flex-direction:column; gap:10px; z-index:2000}
-  .toast{min-width:220px; max-width:320px; padding:12px 14px; border-radius:12px; background:var(--card); border:1px solid var(--stroke); box-shadow:var(--shadow); display:flex; gap:8px; align-items:flex-start; animation:slideIn .35s ease both}
-  .toast.ok{border-left:4px solid var(--ok)} .toast.err{border-left:4px solid var(--accent)}
-  @keyframes slideIn{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
+  /* --- Адаптив --- */
+  @media (max-width: 1100px){
+    .summary-card[data-kind="total"]{grid-column:span 12}
+    .summary-card:not([data-kind="total"]){grid-column:span 4}
+    .span-4{grid-column:span 12}
+  }
+  @media (max-width: 720px){
+    header{flex-direction:column; align-items:flex-start}
+    .btn{padding:7px 10px; font-size:12px}
+    .asset-d{grid-template-columns:1fr 1fr}
+    .form-grid{grid-template-columns:1fr 1fr}
+    .summary{grid-template-columns:repeat(6,1fr)}
+    .summary-card:not([data-kind="total"]){grid-column:span 3}
+  }
+  @media (max-width: 420px){
+    .asset-d{grid-template-columns:1fr}
+    .form-grid{grid-template-columns:1fr}
+  }
 
-  canvas{width:100% !important; height:var(--chart-h) !important;}
+  .auth-status{font-weight:800; color:var(--muted)}
 </style>
 </head>
 <body>
-<div class="blob one"></div>
-<div class="blob two"></div>
-
 <div class="container">
   <header>
     <div class="title-wrap">
@@ -186,78 +166,82 @@
     </div>
   </header>
 
-  <div class="portfolio-charts">
-    <div class="chart-card animate-in skeleton" id="sk1"><h3>Аллокация по классам</h3><canvas id="chartByClass"></canvas></div>
-    <div class="chart-card animate-in skeleton" id="sk2"><h3>Аллокация по тикерам (стоимость)</h3><canvas id="chartByTickerValue"></canvas></div>
-    <div class="chart-card animate-in skeleton" id="sk3"><h3>Количество бумаг по тикерам</h3><canvas id="chartByTickerQty"></canvas></div>
+  <!-- Графики -->
+  <div class="cards">
+    <div class="card span-4" id="sk1"><h3>Аллокация по классам</h3><canvas id="chartByClass" style="width:100%; height:280px"></canvas></div>
+    <div class="card span-4" id="sk2"><h3>Аллокация по тикерам (стоимость)</h3><canvas id="chartByTickerValue" style="width:100%; height:280px"></canvas></div>
+    <div class="card span-4" id="sk3"><h3>Количество бумаг по тикерам</h3><canvas id="chartByTickerQty" style="width:100%; height:280px"></canvas></div>
   </div>
 
-  <div class="portfolio-summary" id="portfolioSummary"></div>
-  <div id="portfolioSections"></div>
+  <!-- Сводные -->
+  <div class="summary" id="portfolioSummary"></div>
 
-  <div class="section animate-in">
-    <h2 style="margin-bottom:10px">Добавить актив</h2>
-    <form id="assetForm">
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="assetType">Тип актива</label>
-          <div class="select-wrap">
+  <!-- Аккордеон секций -->
+  <div class="accordion" id="portfolioSections"></div>
+
+  <!-- Добавить актив -->
+  <div class="collapsible" aria-expanded="true" id="sec-add">
+    <div class="collapsible-header" data-toggle="#sec-add">
+      <div class="collapsible-title">➕ Добавить актив</div>
+      <div class="chev">▾</div>
+    </div>
+    <div class="collapse-content">
+      <form id="assetForm" class="card-sm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="assetType">Тип актива</label>
             <select id="assetType" required>
-              <option value="" disabled selected>Выберите тип</option>
+              <option value="" disabled selected>Выберите</option>
               <option value="stock">Акция</option>
               <option value="bond">ОФЗ/Облигация</option>
               <option value="fund">Фонд/ETF</option>
               <option value="savings">Накопительный счёт</option>
             </select>
           </div>
+          <div class="form-group" id="fieldName">
+            <label for="assetName">Тикер / Название</label>
+            <input type="text" id="assetName" placeholder="SBER, YNDX, TGLD" />
+          </div>
+          <div class="form-group" id="fieldQuantity">
+            <label for="assetQuantity">Количество</label>
+            <input type="number" id="assetQuantity" min="0" step="1" placeholder="Напр.: 10" />
+          </div>
+          <div class="form-group" id="fieldPrice">
+            <label for="assetAvgPrice">Цена покупки (₽)</label>
+            <input type="number" id="assetAvgPrice" step="0.0001" min="0" placeholder="Напр.: 4383" />
+          </div>
+          <div class="form-group" id="fieldSavingsAmount" style="display:none;">
+            <label for="savingsAmount">Сумма (₽)</label>
+            <input type="number" id="savingsAmount" min="0" step="0.01" placeholder="Напр.: 100000" />
+          </div>
+          <div class="form-group" id="fieldDate">
+            <label for="assetDate">Дата покупки/внесения</label>
+            <input type="text" id="assetDate" placeholder="дд.мм.гггг" />
+          </div>
         </div>
-
-        <div class="form-group" id="fieldName">
-          <label for="assetName">Тикер / Название</label>
-          <input type="text" id="assetName" placeholder="SBER, YNDX, TGLD" />
+        <div class="form-actions">
+          <button type="reset" class="btn" id="resetBtn">Очистить</button>
+          <button type="submit" class="btn btn-primary" id="addBtn">Добавить</button>
         </div>
-        <div class="form-group" id="fieldQuantity">
-          <label for="assetQuantity">Количество</label>
-          <input type="number" id="assetQuantity" min="0" step="1" placeholder="Напр.: 10" />
-        </div>
-        <div class="form-group" id="fieldPrice">
-          <label for="assetAvgPrice">Цена покупки (₽)</label>
-          <input type="number" id="assetAvgPrice" step="0.0001" min="0" placeholder="Напр.: 4383" />
-        </div>
-
-        <div class="form-group" id="fieldSavingsAmount" style="display:none;">
-          <label for="savingsAmount">Сумма (₽)</label>
-          <input type="number" id="savingsAmount" min="0" step="0.01" placeholder="Напр.: 100000" />
-        </div>
-
-        <div class="form-group" id="fieldDate">
-          <label for="assetDate">Дата покупки/внесения</label>
-          <input type="text" id="assetDate" placeholder="дд.мм.гггг" />
-        </div>
-      </div>
-
-      <div class="form-actions">
-        <button type="reset" class="btn" id="resetBtn">Очистить</button>
-        <button type="submit" class="btn btn-primary" id="addBtn">Добавить</button>
-      </div>
-    </form>
+      </form>
+    </div>
   </div>
 </div>
 
-<div class="toast-wrap" id="toastWrap"></div>
+<!-- Tooltip container -->
+<div id="tooltip" class="tip" role="tooltip" aria-hidden="true"></div>
 
 <script>
-  // ====== CONFIG ======
+  /* ====== CONFIG ====== */
   const BACKEND =
     (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
       ? 'http://127.0.0.1:8000'
-      : '/api';
+      : '/api';  // продакшн — через nginx
 
   Chart.defaults.font.family = 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
   Chart.defaults.responsive = true;
-  Chart.defaults.maintainAspectRatio = false;
 
-  // ====== STATE ======
+  /* ====== STATE ====== */
   let auth = { token:null, userId:null, email:null, portfolioId:null };
   let portfolio = { savings:[], stocks:[], bonds:[], funds:[], history:[] };
   const charts = {};
@@ -266,174 +250,20 @@
   let isAnyChartOpen = false;
   let isRefreshing = false;
 
-  // ====== TOAST ======
-  function toast(msg, type='ok'){
-    const wrap = document.getElementById('toastWrap');
-    const el = document.createElement('div');
-    el.className = 'toast ' + (type==='err'?'err':'ok');
-    el.innerHTML = `<div>${msg}</div>`;
-    wrap.appendChild(el);
-    setTimeout(()=>{ el.style.opacity=.0; el.style.transform='translateY(6px)'; }, 2400);
-    setTimeout(()=>{ el.remove(); }, 2800);
-  }
-
-  // ====== PERSIST ======
-  function saveLocal(){ try{ localStorage.setItem('pf_data', JSON.stringify(portfolio)); }catch(_){} }
-  function loadLocal(){ try{ const j = localStorage.getItem('pf_data'); if(j) portfolio = JSON.parse(j); }catch(_){} }
-
-  function saveAuth(){
-    localStorage.setItem('pf_token', auth.token || '');
-    localStorage.setItem('pf_user_id', auth.userId || '');
-    localStorage.setItem('pf_email', auth.email || '');
-    localStorage.setItem('pf_portfolio_id', auth.portfolioId || '');
-    applyAuthUi();
-  }
-  function loadAuth(){
-    auth.token = localStorage.getItem('pf_token') || null;
-    auth.userId = Number(localStorage.getItem('pf_user_id') || '') || null;
-    auth.email = localStorage.getItem('pf_email') || null;
-    auth.portfolioId = Number(localStorage.getItem('pf_portfolio_id') || '') || null;
-    applyAuthUi();
-  }
-  function clearAuth(){
-    auth = { token:null, userId:null, email:null, portfolioId:null };
-    saveAuth();
-  }
-
-  // ====== UI ======
-  function applyTitle(t){
-    document.getElementById('portfolioTitle').textContent = t || '✨ Мой портфель';
-    document.getElementById('pageTitle').textContent = (t || 'Мой инвестиционный портфель');
-  }
-  function loadTitle(){
-    const t = localStorage.getItem('pf_title') || '✨ Мой портфель';
-    applyTitle(t);
-  }
-
-  function applyAuthUi(){
-    const st = document.getElementById('authStatus');
-    const btnOut = document.getElementById('logoutBtn');
-    if(auth.token && auth.email){
-      st.textContent = `Привет, ${auth.email}`;
-      btnOut.style.display = '';
-    }else{
-      st.textContent = 'Гость';
-      btnOut.style.display = 'none';
-    }
-  }
-
-  // ====== THEME ======
-  function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); renderCharts(); }
-  function initTheme(){ const t = localStorage.getItem('pf_theme') || 'light'; setTheme(t); }
-
-  // ====== DATEPICKER ======
-  function initDatePicker(){
-    if(fp) fp.destroy();
-    fp = flatpickr('#assetDate', {
-      locale: flatpickr.l10ns.ru,
-      dateFormat: 'Y-m-d',
-      altInput: true,
-      altFormat: 'd.m.Y',
-      allowInput: true,
-      defaultDate: new Date()
-    });
-  }
-
-  // ====== AXIOS ======
-  const api = axios.create({ baseURL: BACKEND, timeout: 20000 });
-  api.interceptors.request.use(cfg=>{
-    if(auth.token){
-      cfg.headers = cfg.headers || {};
-      cfg.headers['Authorization'] = `Bearer ${auth.token}`;
-    }
-    return cfg;
-  });
-
-  // --- Portfolio API ---
-  async function apiListPortfolios(){ const { data } = await api.get('/portfolio'); return data || []; }
-  async function apiCreatePortfolio(){ const { data } = await api.post('/portfolio', { title:'Основной', type:'broker', currency:'RUB' }); return data; }
-  async function apiListPositionsFull(pfId){ const { data } = await api.get(`/portfolio/${pfId}/positions/full`); return data || []; }
-  async function apiDeletePosition(positionId){ await api.delete(`/portfolio/positions/${positionId}`); }
-  async function apiUpsertPositionByFigi({ portfolio_id, figi, ticker, class_hint, qty, avg, name, currency, nominal }){
-    const payload = {
-      portfolio_id, figi, ticker: (ticker || '').toUpperCase(), class_hint: class_hint || null,
-      quantity: Number(qty) || 0, avg_price: Number(avg) || 0, name: name || null, currency: currency || null, nominal: nominal ?? null
-    };
-    const { data } = await api.post('/portfolio/positions', payload);
-    return data;
-  }
-
-  // ====== MARKET HELPERS ======
-  async function apiResolve(ticker, classHint=null){
-    const { data } = await api.get('/resolve', { params: { ticker } });
-    const hit = (data?.results && data.results[0]) ? data.results[0] : null;
-    if(!hit) throw new Error('Не найден FIGI для этого тикера');
-    return hit;
-  }
-  async function apiResolveQuoteByTicker(ticker, classHint=null){
-    const r = await apiResolve(ticker, classHint);
-    const { data: q } = await api.get(`/quote/${r.figi}`);
-    return { ...r, ...q };
-  }
-  async function apiBatchQuotes(tickers, classHint=null){
-    const payload = { tickers }; if(classHint) payload.class_hint = classHint;
-    const { data } = await api.post('/quotes_by_tickers', payload);
-    return data.results || [];
-  }
-  async function apiCandles(figi, interval='1d', fromISO=null, toISO=null){
-    try{
-      const params = { interval };
-      if(fromISO) params.from_ = fromISO;
-      if(toISO) params.to = toISO;
-      const { data } = await api.get(`/candles/${figi}`, { params });
-      return data;
-    }catch(err){
-      console.warn('candles error', err); toast('Нет данных для выбранного периода', 'err'); return [];
-    }
-  }
-
-  // ====== LOAD FROM DB ======
-  async function loadFromDB(){
-    let pfs = await apiListPortfolios();
-    if(!pfs.length){ const created = await apiCreatePortfolio(); pfs = [created]; }
-    const pf = pfs[0];
-    auth.portfolioId = pf.id; saveAuth();
-    const rows = await apiListPositionsFull(pf.id);
-    const hist = portfolio.history || [];
-    portfolio = { savings:[], stocks:[], bonds:[], funds:[], history: hist };
-    for(const pos of rows){
-      const inst = pos.instrument || {};
-      const cls = inst.class || 'share';
-      const bucket = (cls==='share') ? 'stocks' : (cls==='bond' ? 'bonds' : (cls==='etf' ? 'funds' : 'stocks'));
-      const ticker = (inst.ticker || '').toUpperCase();
-      const avg = Number(pos.avg_price)||0;
-      const qty = Number(pos.quantity)||0;
-      portfolio[bucket].push({
-        posId: pos.id, figi: pos.figi, name: ticker || pos.figi, ticker, class: cls, currency: inst.currency || null,
-        nominal: inst.nominal ?? null,
-        displayName: (inst.name && ticker) ? `${inst.name} (${ticker})` : (inst.name || ticker || pos.figi),
-        quantity: qty, avgPrice: avg, currentPrice: null, value: avg*qty, pnlAbs: 0, pnlPct: 0, date: null
-      });
-    }
-  }
-
-  // ====== UTILS ======
+  /* ====== HELPERS ====== */
   const nf0 = new Intl.NumberFormat('ru-RU',{ maximumFractionDigits:0 });
   const nf2 = new Intl.NumberFormat('ru-RU',{ maximumFractionDigits:2 });
   const fmt = (n,d=2)=> isFinite(n) ? (d===0? nf0.format(n) : nf2.format(n)) : '0';
   const cssId = s => (s||'').toString().replace(/[^a-z0-9]/gi,'_');
+  const qS = (sel,root=document)=>root.querySelector(sel);
+  const qSA = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+
   function totalValue(){ return ['savings','stocks','bonds','funds'].reduce((s,k)=> s + (portfolio[k]||[]).reduce((a,i)=>a+(i.value||0),0), 0); }
   function pushHistory(){ portfolio.history.push({ t: Date.now(), total: totalValue() }); if(portfolio.history.length>600) portfolio.history.shift(); saveLocal(); }
-  function fmtISOtoRU(iso){ if(!iso) return '—'; const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); if(!m) return iso; return `${m[3]}.${m[2]}.${m[1]}`; }
-  function toISOFromAlt(inputVal){ const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(inputVal.trim()); if(!m) return null; return `${m[3]}-${m[2]}-${m[1]}`; }
-  function animateNumbers(){
-    document.querySelectorAll('[data-anim-num]')?.forEach(el=>{
-      const to = Number(el.getAttribute('data-anim-num')||0);
-      const dur = 700; const t0 = performance.now();
-      const step = (t)=>{ const p = Math.min(1, (t-t0)/dur); const v = to*p; el.textContent = `${fmt(v)} ₽`; if(p<1) requestAnimationFrame(step); };
-      requestAnimationFrame(step);
-    });
-  }
+  function fmtISOtoRU(iso){ if(!iso) return '—'; const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); if(!m) return iso; return `${m[3]}.${m[2]}.${m[1]}`; }
+  function toISOFromAlt(inputVal){ const m=/^(\d{2})\.(\d{2})\.(\d{4})$/.exec((inputVal||'').trim()); if(!m) return null; return `${m[3]}-${m[2]}-${m[1]}`; }
+  function displayLabel(it){ if (it.displayName) return it.displayName; if (it.name && it.ticker) return `${it.name} (${it.ticker})`; return it.name || it.ticker || ''; }
+
   function totalPL(){
     const cats = ['stocks','bonds','funds'];
     let abs=0, base=0;
@@ -452,44 +282,177 @@
     return {abs, pct};
   }
 
-  // ====== RENDER: SUMMARY ======
+  /* ====== TOAST ====== */
+  function toast(msg, type='ok'){
+    const id='__toasts'; let wrap=qS('#'+id);
+    if(!wrap){ wrap=document.createElement('div'); wrap.id=id; wrap.style.cssText='position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:10px;z-index:4000'; document.body.appendChild(wrap); }
+    const el=document.createElement('div');
+    el.style.cssText='min-width:220px;max-width:320px;padding:12px 14px;border-radius:12px;background:var(--card);border:1px solid var(--stroke);box-shadow:var(--shadow);display:flex;gap:8px;align-items:flex-start;animation:slideIn .35s ease both';
+    el.innerHTML=`<div style="font-weight:800;${type==='err'?'color:var(--accent)':''}">${msg}</div>`;
+    wrap.appendChild(el);
+    setTimeout(()=>{ el.style.opacity=.0; el.style.transform='translateY(6px)'; }, 2400);
+    setTimeout(()=>{ el.remove(); }, 2800);
+  }
+
+  /* ====== LOCALSTORAGE ====== */
+  function saveLocal(){ try{ localStorage.setItem('pf_data', JSON.stringify(portfolio)); }catch(_){} }
+  function loadLocal(){ try{ const j = localStorage.getItem('pf_data'); if(j) portfolio = JSON.parse(j); }catch(_){} }
+  function saveAuth(){
+    localStorage.setItem('pf_token', auth.token||''); localStorage.setItem('pf_user_id', auth.userId||'');
+    localStorage.setItem('pf_email', auth.email||''); localStorage.setItem('pf_portfolio_id', auth.portfolioId||''); applyAuthUi();
+  }
+  function loadAuth(){
+    auth.token = localStorage.getItem('pf_token') || null;
+    auth.userId = Number(localStorage.getItem('pf_user_id') || '') || null;
+    auth.email = localStorage.getItem('pf_email') || null;
+    auth.portfolioId = Number(localStorage.getItem('pf_portfolio_id') || '') || null;
+    applyAuthUi();
+  }
+  function clearAuth(){ auth = { token:null, userId:null, email:null, portfolioId:null }; saveAuth(); }
+
+  /* ====== UI BASICS ====== */
+  function applyTitle(t){ qS('#portfolioTitle').textContent = t || '✨ Мой портфель'; qS('#pageTitle').textContent = (t || 'Мой инвестиционный портфель'); }
+  function loadTitle(){ const t = localStorage.getItem('pf_title') || '✨ Мой портфель'; applyTitle(t); }
+  function applyAuthUi(){ const st=qS('#authStatus'); const btnOut=qS('#logoutBtn'); if(auth.token && auth.email){ st.textContent=`Привет, ${auth.email}`; btnOut.style.display=''; }else{ st.textContent='Гость'; btnOut.style.display='none'; } }
+  function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); renderCharts(); }
+  function initTheme(){ setTheme(localStorage.getItem('pf_theme') || 'dark'); }
+  function initDatePicker(){ if(fp) fp.destroy(); fp = flatpickr('#assetDate',{ locale: flatpickr.l10ns.ru, dateFormat: 'Y-m-d', altInput: true, altFormat: 'd.m.Y', allowInput: true, defaultDate: new Date() }); }
+
+  /* ====== AXIOS ====== */
+  const api = axios.create({ baseURL: BACKEND, timeout: 20000 });
+  api.interceptors.request.use(cfg=>{ if(auth.token){ cfg.headers = cfg.headers || {}; cfg.headers['Authorization'] = `Bearer ${auth.token}`; } return cfg; });
+
+  /* ====== API ====== */
+  async function apiListPortfolios(){ const {data} = await api.get('/portfolio'); return data||[]; }
+  async function apiCreatePortfolio(){ const {data} = await api.post('/portfolio', { title:'Основной', type:'broker', currency:'RUB' }); return data; }
+  async function apiListPositionsFull(pfId){ const {data} = await api.get(`/portfolio/${pfId}/positions/full`); return data||[]; }
+  async function apiDeletePosition(positionId){ await api.delete(`/portfolio/positions/${positionId}`); }
+  async function apiUpsertPositionByFigi({ portfolio_id, figi, ticker, class_hint, qty, avg, name, currency, nominal }){
+    const payload={ portfolio_id, figi, ticker:(ticker||'').toUpperCase(), class_hint:class_hint||null, quantity:Number(qty)||0, avg_price:Number(avg)||0, name:name||null, currency:currency||null, nominal:nominal??null };
+    const {data}=await api.post('/portfolio/positions', payload); return data;
+  }
+  async function apiResolve(ticker, classHint=null){ const {data}=await api.get('/resolve',{ params:{ ticker } }); const hit=(data?.results&&data.results[0])?data.results[0]:null; if(!hit) throw new Error('Не найден FIGI для этого тикера'); return hit; }
+  async function apiResolveQuoteByTicker(ticker, classHint=null){ const r=await apiResolve(ticker, classHint); const {data:q}=await api.get(`/quote/${r.figi}`); return {...r,...q}; }
+  async function apiBatchQuotes(tickers, classHint=null){ const payload={tickers}; if(classHint) payload.class_hint=classHint; const {data}=await api.post('/quotes_by_tickers', payload); return data.results||[]; }
+  async function apiCandles(figi, interval='1d', fromISO=null, toISO=null){
+    try{ const params={interval}; if(fromISO) params.from_=fromISO; if(toISO) params.to=toISO; const {data}=await api.get(`/candles/${figi}`,{params}); return data; }
+    catch(err){ console.warn('candles error', err); toast('Нет данных для выбранного периода', 'err'); return []; }
+  }
+
+  /* ====== LOAD DB ====== */
+  async function loadFromDB(){
+    let pfs=await apiListPortfolios(); if(!pfs.length){ const created=await apiCreatePortfolio(); pfs=[created]; }
+    const pf=pfs[0]; auth.portfolioId=pf.id; saveAuth();
+    const rows=await apiListPositionsFull(pf.id);
+    const hist=portfolio.history||[]; portfolio={ savings:[], stocks:[], bonds:[], funds:[], history:hist };
+    for(const pos of rows){
+      const inst=pos.instrument||{}; const cls=inst.class||'share';
+      const bucket=(cls==='share')?'stocks':(cls==='bond'?'bonds':(cls==='etf'?'funds':'stocks'));
+      const ticker=(inst.ticker||'').toUpperCase(); const avg=Number(pos.avg_price)||0; const qty=Number(pos.quantity)||0;
+      portfolio[bucket].push({
+        posId:pos.id, figi:pos.figi, name:ticker||pos.figi, ticker, class:cls, currency:inst.currency||null, nominal:inst.nominal??null,
+        displayName:(inst.name&&ticker)?`${inst.name} (${ticker})`:(inst.name||ticker||pos.figi),
+        quantity:qty, avgPrice:avg, currentPrice:null, value:avg*qty, pnlAbs:0, pnlPct:0, date:null
+      });
+    }
+  }
+
+  /* ====== SUMMARY RENDER + TIPS ====== */
+  function buildBreakdown(){
+    const vS=(portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
+    const vB=(portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
+    const vF=(portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
+    const vSv=(portfolio.savings||[]).reduce((s,i)=>s+i.value,0);
+    const sum=vS+vB+vF+vSv || 1;
+    return {
+      total:sum,
+      parts:[
+        {k:'Накопит.', v:vSv, p:vSv/sum*100},
+        {k:'Акции', v:vS, p:vS/sum*100},
+        {k:'ОФЗ', v:vB, p:vB/sum*100},
+        {k:'Фонды', v:vF, p:vF/sum*100},
+      ]
+    };
+  }
+
+  function sectionTipText(kind){
+    const map = { stocks:'Акции', bonds:'ОФЗ', funds:'Фонды' };
+    if(kind==='total'){
+      const br=buildBreakdown();
+      const lines = br.parts.map(x=>`<div class="row"><span>${x.k}</span><b>${fmt(x.v)} ₽</b></div><div class="muted">${fmt(x.p)}%</div>`).join('');
+      return `<div class="h">Состав портфеля</div>${lines}`;
+    }
+    const arr = portfolio[kind]||[];
+    if(!arr.length) return `<div class="h">${map[kind]}</div><div class="muted">Пусто</div>`;
+    const totalVal = arr.reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0) || 1;
+    const top = arr
+      .map(i=>({ label: displayLabel(i)||i.name, val:(i.currentPrice??i.avgPrice??0)*(i.quantity||0) }))
+      .sort((a,b)=>b.val-a.val)
+      .slice(0,6);
+    const lines = top.map(x=>`<div class="row"><span>${x.label}</span><b>${fmt(x.val)} ₽</b></div><div class="muted">${fmt(x.val/totalVal*100)}%</div>`).join('');
+    const more = arr.length>6 ? `<div class="muted">и ещё ${arr.length-6}…</div>` : '';
+    return `<div class="h">${map[kind]}</div>${lines}${more}`;
+  }
+
+  function attachSummaryTips(){
+    const tip = qS('#tooltip');
+    function showTip(html, x, y){
+      tip.innerHTML = html; tip.style.left = `${x}px`; tip.style.top = `${y-12}px`; tip.classList.add('show'); tip.setAttribute('aria-hidden','false');
+    }
+    function hideTip(){ tip.classList.remove('show'); tip.setAttribute('aria-hidden','true'); }
+
+    // На десктопе — hover, на мобилке — tap
+    const isTouch = matchMedia('(pointer: coarse)').matches;
+
+    qSA('.summary-card.hoverable').forEach(card=>{
+      const kind = card.dataset.kind;
+      const handlerMove = (e)=> showTip(sectionTipText(kind), e.clientX, e.clientY);
+      const handlerLeave = ()=> hideTip();
+      const handlerTap = (e)=>{
+        if(tip.classList.contains('show') && tip.dataset.kind===kind){ hideTip(); tip.dataset.kind=''; return; }
+        tip.dataset.kind=kind; showTip(sectionTipText(kind), e.clientX|| (card.getBoundingClientRect().left + card.offsetWidth/2), (e.clientY||card.getBoundingClientRect().top));
+      };
+
+      card.removeEventListener('mousemove', handlerMove);
+      card.removeEventListener('mouseleave', handlerLeave);
+      card.removeEventListener('click', handlerTap);
+
+      if(isTouch){ card.addEventListener('click', handlerTap); }
+      else { card.addEventListener('mousemove', handlerMove); card.addEventListener('mouseleave', handlerLeave); }
+    });
+
+    if(isTouch){ document.addEventListener('click', (e)=>{ if(!e.target.closest('.summary-card')){ tip.classList.remove('show'); } }); }
+  }
+
   function renderSummary(){
+    const vTotal = totalValue();
     const blocks = [
-      { title:'Всего', val: totalValue() },
-      { title:'Накопит. счёт', val: (portfolio.savings||[]).reduce((s,i)=>s+i.value,0) },
-      { title:'Акции', val: (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0) },
-      { title:'ОФЗ', val: (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0) },
-      { title:'Фонды', val: (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0) },
+      { key:'total', title:'Всего', val: vTotal, hover:true, wide:true },
+      { key:'savings', title:'Накопит. счёт', val: (portfolio.savings||[]).reduce((s,i)=>s+i.value,0), hover:false },
+      { key:'stocks', title:'Акции', val: (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0), hover:true },
+      { key:'bonds', title:'ОФЗ', val: (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0), hover:true },
+      { key:'funds', title:'Фонды', val: (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0), hover:true },
     ];
-    const wrap = document.getElementById('portfolioSummary');
+    const wrap = qS('#portfolioSummary');
     wrap.innerHTML = blocks.map(b=>`
-      <div class="summary-card animate-in">
-        <div class="summary-title">${b.title}</div>
-        <div class="summary-num" data-anim-num="${b.val}">0 ₽</div>
+      <div class="summary-card ${b.hover?'hoverable':''}" data-kind="${b.key}">
+        <div class="k">${b.title}</div>
+        <div class="v">${fmt(b.val)} ₽</div>
       </div>`).join('');
-    animateNumbers();
-  }
+    attachSummaryTips();
 
-  function displayLabel(it){
-    if (it.displayName) return it.displayName;
-    if (it.name && it.ticker) return `${it.name} (${it.ticker})`;
-    return it.name || it.ticker || '';
-  }
-
-  function destroyPerAssetCharts(){
-    Object.keys(charts).forEach(key=>{
-      if(key.startsWith('canvas-') && charts[key] && typeof charts[key].destroy==='function'){
-        charts[key].destroy();
-        delete charts[key];
-      }
+    // клик по мини-карточке открывает соответствующую секцию (аккордеон)
+    qSA('.summary-card').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const m = {stocks:'#sec-stocks', bonds:'#sec-bonds', funds:'#sec-funds', savings:'#sec-savings'};
+        if(m[el.dataset.kind]) toggleCollapsible(m[el.dataset.kind], true);
+      });
     });
   }
 
-  // ====== RENDER: SECTIONS ======
+  /* ====== SECTIONS (АККОРДЕОН) ====== */
   function renderSections(){
-    const wrap = document.getElementById('portfolioSections');
-    destroyPerAssetCharts();
-    wrap.innerHTML = '';
+    const wrap = qS('#portfolioSections'); wrap.innerHTML = '';
 
     const groups = [
       ['stocks','Акции'],
@@ -499,113 +462,129 @@
     ];
 
     for(const [cat,label] of groups){
-      if(!(portfolio[cat]||[]).length) continue;
-      const listHTML = (portfolio[cat]||[]).map((it,idx)=>{
-        if(cat==='savings'){
-          return `
-          <div class="asset-card animate-in">
-            <div class="asset-header">
-              <div class="asset-name">Пополнение</div>
-              <div class="asset-actions">
-                <button class="btn btn-danger" data-action="del" data-type="${cat}" data-index="${idx}">Удалить</button>
-              </div>
-            </div>
-            <div class="asset-details" style="grid-template-columns:repeat(2,1fr)">
-              <div>Сумма: <b>${fmt(it.value)} ₽</b></div>
-              <div>Дата: <b>${fmtISOtoRU(it.date)}</b></div>
-            </div>
-          </div>`;
-        }
-        const id = cssId(it.name);
-        const curPrice = it.currentPrice ?? it.avgPrice ?? 0;
-        const curVal = curPrice * (it.quantity||0);
-        const pnlAbs = it.avgPrice ? (curPrice - it.avgPrice) * it.quantity : 0;
-        const pnlPct = it.avgPrice ? ((curPrice - it.avgPrice)/it.avgPrice*100) : 0;
-        const pnlColor = pnlAbs >= 0 ? 'color:var(--ok)' : 'color:var(--accent)';
-        const title = displayLabel(it) || it.name;
-        return `
-        <div class="asset-card animate-in">
-          <div class="asset-header">
-            <div class="asset-name">${title} ${it.figi?`<small style="color:var(--muted)">(${it.figi})</small>`:''}</div>
-            <div class="asset-actions">
-              <button class="btn" data-action="show" data-name="${it.name}" title="Показать/скрыть график">📈 График</button>
-              <button class="btn" data-action="edit" data-type="${cat}" data-index="${idx}">✏️ Изменить</button>
-              <button class="btn btn-danger" data-action="del" data-type="${cat}" data-index="${idx}">Удалить</button>
-            </div>
+      const items = portfolio[cat]||[];
+      const total = cat==='savings'
+        ? items.reduce((s,i)=>s+i.value,0)
+        : items.reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0);
+
+      const secId = `sec-${cat}`;
+      const header = `
+        <div class="collapsible" id="${secId}" aria-expanded="false">
+          <div class="collapsible-header" data-toggle="#${secId}">
+            <div class="collapsible-title">${label}</div>
+            <div class="collapsible-badge">${fmt(total)} ₽</div>
+            <div class="chev">▾</div>
           </div>
-          <div class="asset-details">
-            <div>Кол-во: <b>${fmt(it.quantity,0)}</b></div>
-            <div>Цена ср.: <b>${fmt(it.avgPrice)} ₽</b></div>
-            <div>Тек. цена: <b>${fmt(curPrice)} ₽</b></div>
-            <div>Дата покупки: <b>${fmtISOtoRU(it.date)}</b></div>
-            <div>Стоимость: <b>${fmt(curVal)} ₽</b></div>
-            <div class="pnl-big" style="${pnlColor}">P/L: <b>${fmt(pnlAbs)} ₽</b> (${fmt(pnlPct)}%)</div>
-          </div>
-          <div class="chart-container" id="box-${id}">
-            <div class="chart-tabs">
-              <div class="chart-tab active" data-action="period" data-period="1D" data-for="${id}">День</div>
-              <div class="chart-tab" data-action="period" data-period="1W" data-for="${id}">Неделя</div>
-              <div class="chart-tab" data-action="period" data-period="1M" data-for="${id}">Месяц</div>
-              <div class="chart-tab" data-action="period" data-period="1Y" data-for="${id}">Год</div>
+          <div class="collapse-content">
+            <div class="assets-list">
+              ${items.map((it,idx)=>{
+                if(cat==='savings'){
+                  return `
+                  <div class="asset">
+                    <div class="asset-h">
+                      <div class="asset-name">Пополнение</div>
+                      <div class="asset-actions">
+                        <button class="btn btn-danger" data-action="del" data-type="${cat}" data-index="${idx}">Удалить</button>
+                      </div>
+                    </div>
+                    <div class="asset-d" style="grid-template-columns:repeat(2,1fr)">
+                      <div>Сумма: <b>${fmt(it.value)} ₽</b></div>
+                      <div>Дата: <b>${fmtISOtoRU(it.date)}</b></div>
+                    </div>
+                  </div>`;
+                }
+                const id = cssId(it.name);
+                const curPrice = it.currentPrice ?? it.avgPrice ?? 0;
+                const curVal = curPrice * (it.quantity||0);
+                const pnlAbs = it.avgPrice ? (curPrice - it.avgPrice) * it.quantity : 0;
+                const pnlPct = it.avgPrice ? ((curPrice - it.avgPrice)/it.avgPrice*100) : 0;
+                const pnlColor = pnlAbs >= 0 ? 'color:var(--ok)' : 'color:var(--accent)';
+                const title = displayLabel(it) || it.name;
+                return `
+                <div class="asset">
+                  <div class="asset-h">
+                    <div class="asset-name">${title} ${it.figi?`<small style="color:var(--muted)">(${it.figi})</small>`:''}</div>
+                    <div class="asset-actions">
+                      <button class="btn" data-action="show" data-name="${it.name}" title="Показать/скрыть график">📈 График</button>
+                      <button class="btn" data-action="edit" data-type="${cat}" data-index="${idx}">✏️ Изменить</button>
+                      <button class="btn btn-danger" data-action="del" data-type="${cat}" data-index="${idx}">Удалить</button>
+                    </div>
+                  </div>
+                  <div class="asset-d">
+                    <div>Кол-во: <b>${fmt(it.quantity,0)}</b></div>
+                    <div>Цена ср.: <b>${fmt(it.avgPrice)} ₽</b></div>
+                    <div>Тек. цена: <b>${fmt(curPrice)} ₽</b></div>
+                    <div>Дата покупки: <b>${fmtISOtoRU(it.date)}</b></div>
+                    <div>Стоимость: <b>${fmt(curVal)} ₽</b></div>
+                    <div style="${pnlColor}">P/L: <b>${fmt(pnlAbs)} ₽</b> (${fmt(pnlPct)}%)</div>
+                  </div>
+                  <div class="card-sm" id="box-${id}" style="display:none; margin-top:8px">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">
+                      <button class="btn btn-ghost chart-tab" data-action="period" data-period="1D" data-for="${id}">День</button>
+                      <button class="btn btn-ghost chart-tab" data-action="period" data-period="1W" data-for="${id}">Неделя</button>
+                      <button class="btn btn-ghost chart-tab" data-action="period" data-period="1M" data-for="${id}">Месяц</button>
+                      <button class="btn btn-ghost chart-tab" data-action="period" data-period="1Y" data-for="${id}">Год</button>
+                    </div>
+                    <canvas id="canvas-${id}" style="width:100%;height:260px"></canvas>
+                  </div>
+                </div>`;
+              }).join('')}
             </div>
-            <canvas id="canvas-${id}"></canvas>
           </div>
         </div>`;
-      }).join('');
+      wrap.insertAdjacentHTML('beforeend', header);
+    });
 
-      wrap.insertAdjacentHTML('beforeend', `
-        <section class="section">
-          <div class="section-header">
-            <h2>${label}</h2>
-            <div style="font-weight:800;color:var(--muted)">${fmt((portfolio[cat]||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0))} ₽</div>
-          </div>
-          <div class="assets-list">${listHTML}</div>
-        </section>`);
+    // навесить обработчики открытия
+    qSA('.collapsible-header').forEach(h=>{
+      h.addEventListener('click', ()=> toggleCollapsible(h.dataset.toggle, true));
+    });
+
+    // по умолчанию: на мобиле всё закрыто, на десктопе откроем первую непустую секцию
+    const isMobile = matchMedia('(max-width: 900px)').matches;
+    if(!isMobile){
+      const firstNonEmpty = ['#sec-stocks','#sec-bonds','#sec-funds','#sec-savings'].find(sel=>{
+        const id = sel.replace('#sec-',''); const cat = id; const arr = portfolio[cat]||[];
+        return arr.length>0;
+      });
+      if(firstNonEmpty) toggleCollapsible(firstNonEmpty, false, true);
     }
   }
 
-  // ====== CHARTS ======
+  function toggleCollapsible(selector, scrollInto=false, forceOpen=false){
+    const el = qS(selector); if(!el) return;
+    const wantOpen = forceOpen || el.getAttribute('aria-expanded')!=='true';
+    // аккордеон — закрыть остальные
+    qSA('.collapsible').forEach(x=>{ if(x!==el){ x.setAttribute('aria-expanded','false'); } });
+    el.setAttribute('aria-expanded', wantOpen ? 'true' : 'false');
+    if(scrollInto && wantOpen){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
+  }
+
+  /* ====== CHARTS ====== */
   function grad(ctx, c1, c2){ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
-  function rebuild(id, cfg){ const el=document.getElementById(id); if(!el) return null; if(charts[id]) charts[id].destroy(); const ctx=el.getContext('2d'); charts[id]=new Chart(ctx,cfg); return charts[id]; }
-  function removeSkeleton(){ ['sk1','sk2','sk3'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('skeleton'); }); }
+  function removeSkeleton(){ ['sk1','sk2','sk3'].forEach(id=>{ const el=qS('#'+id); if(el) el.classList.remove('skeleton'); }); }
 
   const donutCenter = (getTextFn) => ({
     id: 'donutCenter',
     beforeDraw(chart) {
-      const meta = chart.getDatasetMeta(0);
-      if (!meta || !meta.data || !meta.data.length) return;
-      const arc = meta.data[0];
-      const { x, y } = arc;
-      const innerR = arc.innerRadius;
-      const outerR = arc.outerRadius;
-      const ctx = chart.ctx;
-      const info = getTextFn(chart);
-
+      const meta = chart.getDatasetMeta(0); if (!meta || !meta.data || !meta.data.length) return;
+      const arc = meta.data[0]; const { x, y } = arc; const innerR = arc.innerRadius; const outerR = arc.outerRadius;
+      const ctx = chart.ctx; const info = getTextFn(chart);
       ctx.save();
-      ctx.beginPath();
-      ctx.arc(x, y, (innerR + outerR) / 2 * 0.70, 0, Math.PI * 2);
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--card') || '#fff';
-      ctx.fill();
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#666';
-      ctx.font = '700 12px Inter';
+      ctx.beginPath(); ctx.arc(x, y, (innerR + outerR) / 2 * 0.70, 0, Math.PI * 2);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--card') || '#fff'; ctx.fill();
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#666'; ctx.font = '700 11px Inter';
       if (info.title) ctx.fillText(info.title, x, y - 18);
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text') || '#111';
-      ctx.font = '800 16px Inter';
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text') || '#111'; ctx.font='800 16px Inter';
       if (info.line1) ctx.fillText(info.line1, x, y + 2);
-      if (info.line2) {
-        ctx.fillStyle = info.line2Color || (getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#666');
-        ctx.font = '800 12px Inter';
-        ctx.fillText(info.line2, x, y + 20);
-      }
+      if (info.line2) { ctx.fillStyle = info.line2Color || (getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#666'); ctx.font='800 11px Inter'; ctx.fillText(info.line2, x, y + 20);}
       ctx.restore();
     }
   });
 
   function renderCharts(){
-    const theme = document.documentElement.getAttribute('data-theme') || 'light';
-    const isDark = theme === 'dark';
-    const axisGrid = isDark ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.08)';
+    const axisGrid = 'rgba(255,255,255,.10)';
 
     // Doughnut
     const classValues = [
@@ -618,7 +597,7 @@
     const classLabels = ['Накопит','Акции','ОФЗ','Фонды'];
     const pl = totalPL();
 
-    const el1 = document.getElementById('chartByClass');
+    const el1 = qS('#chartByClass');
     if (el1) {
       const ctx1 = el1.getContext('2d');
       if (charts.c1) charts.c1.destroy();
@@ -632,13 +611,7 @@
         type: 'doughnut',
         data: { labels: classLabels, datasets: [{ data: classValues, borderWidth: 0, hoverOffset: 8, cutout: '62%', backgroundColor: bg }] },
         options: {
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: (c) => {
-              const val = c.raw || 0; const p = total > 0 ? (val / total * 100) : 0;
-              return `${c.label}: ${fmt(val)} ₽ (${fmt(p)}%)`;
-            }}}
-          },
+          plugins: { legend: { display: false }, tooltip: { enabled:false } },
           onHover: (_, els) => { charts.c1.setActiveElements(els); charts.c1.update(); },
           animation: { duration: 900, easing: 'easeOutQuart' }
         },
@@ -649,79 +622,50 @@
             const p = total > 0 ? (val / total * 100) : 0;
             return { title: classLabels[i], line1: `${fmt(val)} ₽`, line2: `${fmt(p)}%` };
           } else {
-            const color = pl.abs >= 0
-              ? getComputedStyle(document.documentElement).getPropertyValue('--ok')
-              : getComputedStyle(document.documentElement).getPropertyValue('--accent');
+            const color = pl.abs >= 0 ? getComputedStyle(document.documentElement).getPropertyValue('--ok') : getComputedStyle(document.documentElement).getPropertyValue('--accent');
             return { title:'Всего', line1:`${fmt(total)} ₽`, line2:`P/L: ${fmt(pl.abs)} ₽ (${fmt(pl.pct)}%)`, line2Color: color };
           }
         })]
       });
+
+      // Клик по сектору → открыть нужную секцию
+      el1.addEventListener('click', (evt)=>{
+        const points = charts.c1.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, false);
+        if(points.length){
+          const idx = points[0].index;
+          const map = {1:'#sec-stocks',2:'#sec-bonds',3:'#sec-funds',0:'#sec-savings'};
+          const sel = map[idx]; if(sel) toggleCollapsible(sel, true, true);
+        }
+      });
+
       el1.addEventListener('mouseleave', () => { charts.c1.setActiveElements([]); charts.c1.update(); });
     }
 
     // Bars
-    const items = [...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])]
-      .filter(i => (i.quantity||0)>0);
+    const items = [...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])].filter(i => (i.quantity||0)>0);
     const labelsTickers = items.map(i=> displayLabel(i) || i.name);
     const values = items.map(i=>(i.currentPrice??i.avgPrice??0)*(i.quantity||0));
     const qtys   = items.map(i=>i.quantity||0);
-
     const trimLabel = s => (s||'').length>18 ? (s||'').slice(0,17)+'…' : (s||'');
 
-    const barOpts = {
-      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=> `${fmt(c.raw)} ${c.dataset.unit || ''}` } } },
-      scales:{
-        x:{ grid:{ display:false }, ticks:{ maxRotation: 45, minRotation: 0, autoSkip:true, callback:(v, i)=> trimLabel(labelsTickers[i]) } },
-        y:{ ticks:{ callback:(v)=> fmt(v) }, grid:{ color:axisGrid } }
-      },
-      animation:{duration:700}
-    };
+    const barOpts = { plugins:{ legend:{ display:false } }, scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation: 45, minRotation: 0, autoSkip:true, callback:(v,i)=> trimLabel(labelsTickers[i]) } }, y:{ ticks:{ callback:(v)=> fmt(v) }, grid:{ color:axisGrid } } }, animation:{duration:700} };
 
-    if(document.getElementById('chartByTickerValue')) rebuild('chartByTickerValue', {
-      type:'bar',
-      data:{ labels: labelsTickers, datasets:[{ data:values, borderRadius:10, unit:'₽', backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(67,97,238,.9)','rgba(127,240,249,.4)')} }] },
-      options: barOpts
-    });
-
-    if(document.getElementById('chartByTickerQty')) rebuild('chartByTickerQty', {
-      type:'bar',
-      data:{ labels: labelsTickers, datasets:[{ data:qtys, borderRadius:10, unit:'шт.', backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(6,214,160,.9)','rgba(67,97,238,.4)')} }] },
-      options:{
-        ...barOpts,
-        scales:{
-          x:{ grid:{ display:false }, ticks:{ maxRotation: 45, minRotation: 0, autoSkip:true, callback:(v, i)=> trimLabel(labelsTickers[i]) } },
-          y:{ ticks:{ callback:(v)=> fmt(v,0) }, grid:{ color:axisGrid } }
-        }
-      }
-    });
-
+    const el2=qS('#chartByTickerValue');
+    if(el2){ const ctx=el2.getContext('2d'); if(charts.v) charts.v.destroy(); charts.v=new Chart(ctx,{ type:'bar', data:{ labels: labelsTickers, datasets:[{ data:values, borderRadius:10, backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(67,97,238,.9)','rgba(127,240,249,.4)')} }] }, options:barOpts }); }
+    const el3=qS('#chartByTickerQty');
+    if(el3){ const ctx=el3.getContext('2d'); if(charts.q) charts.q.destroy(); charts.q=new Chart(ctx,{ type:'bar', data:{ labels: labelsTickers, datasets:[{ data:qtys, borderRadius:10, backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(6,214,160,.9)','rgba(67,97,238,.4)')} }] }, options:{...barOpts, scales:{ x:{ grid:{display:false}, ticks:{ maxRotation:45, minRotation:0, autoSkip:true, callback:(v,i)=> trimLabel(labelsTickers[i]) } }, y:{ ticks:{ callback:(v)=> fmt(v,0) }, grid:{ color:axisGrid } } } }); }
     removeSkeleton();
   }
 
   function makeLineChart(canvasId,label){
-    const el = document.getElementById(canvasId); if(!el) return null;
-    const ctx = el.getContext('2d');
-    const g = ctx.createLinearGradient(0,0,0,300);
-    g.addColorStop(0,'rgba(67,97,238,.35)'); g.addColorStop(1,'rgba(67,97,238,.02)');
-    charts[canvasId] = new Chart(ctx,{
-      type:'line',
-      data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.5, fill:true, backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#4361ee', pointRadius:0, tension:.25 }] },
-      options:{
-        responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=> `${fmt(c.parsed.y)} ₽` } } },
-        scales:{
-          x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true } },
-          y:{ grid:{ color:getComputedStyle(document.documentElement).getPropertyValue('--stroke')||'rgba(0,0,0,.1)' }, ticks:{ callback:(v)=> fmt(v) } }
-        },
-        animation:{duration:600}
-      }
-    });
+    const el = qS('#'+canvasId); if(!el) return null;
+    const ctx = el.getContext('2d'); const g = ctx.createLinearGradient(0,0,0,300); g.addColorStop(0,'rgba(67,97,238,.35)'); g.addColorStop(1,'rgba(67,97,238,.02)');
+    charts[canvasId] = new Chart(ctx,{ type:'line', data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.2, fill:true, backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#4361ee', pointRadius:0, tension:.25 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true } }, y:{ grid:{ color:getComputedStyle(document.documentElement).getPropertyValue('--stroke')||'rgba(0,0,0,.1)' }, ticks:{ callback:(v)=> fmt(v) } } }, animation:{duration:600} }});
     return charts[canvasId];
   }
 
   function periodToBackend(period){
-    const to = new Date();
-    const from = new Date(to);
-    let interval = '1d';
+    const to=new Date(); const from=new Date(to); let interval='1d';
     if(period==='1D'){ interval='1min'; from.setDate(to.getDate()-1); }
     else if(period==='1W'){ interval='15min'; from.setDate(to.getDate()-7); }
     else if(period==='1M'){ interval='1h'; from.setDate(to.getDate()-30); }
@@ -729,124 +673,82 @@
     return { interval, fromISO: from.toISOString(), toISO: to.toISOString() };
   }
   function formatXAxisLabel(period, isoString){
-    const d = new Date(isoString);
-    if(period==='1D'){ const hh = d.getHours().toString().padStart(2,'0'); const mm = d.getMinutes().toString().padStart(2,'0'); return `${hh}:${mm}`; }
-    if(period==='1W' || period==='1M'){ const dd = d.getDate().toString().padStart(2,'0'); const mm = (d.getMonth()+1).toString().padStart(2,'0'); return `${dd}.${mm}`; }
-    const mm = (d.getMonth()+1).toString().padStart(2,'0'); const yy = (d.getFullYear()%100).toString().padStart(2,'0'); return `${mm}.${yy}`;
+    const d=new Date(isoString);
+    if(period==='1D'){ const hh=String(d.getHours()).padStart(2,'0'); const mm=String(d.getMinutes()).padStart(2,'0'); return `${hh}:${mm}`; }
+    if(period==='1W'||period==='1M'){ const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0'); return `${dd}.${mm}`; }
+    const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=String(d.getFullYear()%100).padStart(2,'0'); return `${mm}.${yy}`;
   }
   async function updateAssetChartByFigi(canvasId, figi, label, period){
-    let {interval, fromISO, toISO} = periodToBackend(period);
-    let data = await apiCandles(figi, interval, fromISO, toISO);
-    if ((!data || data.length === 0) && (interval === '1min' || interval === '5min' || interval === '15min')) {
-      const fallback = interval === '15min' ? '1h' : (interval === '5min' ? '15min' : '5min');
+    let {interval, fromISO, toISO}=periodToBackend(period);
+    let data=await apiCandles(figi, interval, fromISO, toISO);
+    if((!data||data.length===0)&& (interval==='1min'||interval==='5min'||interval==='15min')){
+      const fallback = interval==='15min'?'1h':(interval==='5min'?'15min':'5min');
       data = await apiCandles(figi, fallback, fromISO, toISO);
     }
-    const ch = charts[canvasId] || makeLineChart(canvasId, label);
-    ch.data.labels = (data||[]).map(x=> formatXAxisLabel(period, x.time));
-    ch.data.datasets[0].data = (data||[]).map(x=> x.close);
-    ch.update();
+    const ch=charts[canvasId]||makeLineChart(canvasId, label);
+    ch.data.labels=(data||[]).map(x=> formatXAxisLabel(period, x.time));
+    ch.data.datasets[0].data=(data||[]).map(x=> x.close); ch.update();
   }
 
-  // ====== QUOTES ======
+  /* ====== QUOTES ====== */
   async function recalcQuotes(){
-    if(isRefreshing) return; isRefreshing = true;
-    const tickers = [
-      ...(portfolio.stocks||[]).map(i=>i.name),
-      ...(portfolio.bonds||[]).map(i=>i.name),
-      ...(portfolio.funds||[]).map(i=>i.name),
-    ];
+    if(isRefreshing) return; isRefreshing=true;
+    const tickers=[...(portfolio.stocks||[]).map(i=>i.name), ...(portfolio.bonds||[]).map(i=>i.name), ...(portfolio.funds||[]).map(i=>i.name)];
     if(!tickers.length){ isRefreshing=false; return; }
     try{
-      const results = await apiBatchQuotes(tickers);
-      const map = {}; results.forEach(q => { map[(q.ticker||'').toUpperCase()] = q; });
+      const results=await apiBatchQuotes(tickers);
+      const map={}; results.forEach(q => { map[(q.ticker||'').toUpperCase()] = q; });
       for(const cat of ['stocks','bonds','funds']){
         for(const it of (portfolio[cat]||[])){
-          const q = map[(it.name||'').toUpperCase()]; if(!q) continue;
-          it.figi = q.figi;
-          it.currency = q.currency;
-          it.ticker = q.ticker;
-          it.displayName = (q.name && q.ticker) ? `${q.name} (${q.ticker})` : (q.name || q.ticker || it.name);
-          it.currentPrice = q.price;
-          it.value = (it.currentPrice??it.avgPrice??0) * (it.quantity||0);
-          it.pnlAbs = it.avgPrice ? (it.currentPrice - it.avgPrice) * (it.quantity||0) : 0;
-          it.pnlPct = it.avgPrice ? ((it.currentPrice - it.avgPrice)/it.avgPrice*100) : 0;
+          const q=map[(it.name||'').toUpperCase()]; if(!q) continue;
+          it.figi=q.figi; it.currency=q.currency; it.ticker=q.ticker;
+          it.displayName=(q.name&&q.ticker)?`${q.name} (${q.ticker})`:(q.name||q.ticker||it.name);
+          it.currentPrice=q.price; it.value=(it.currentPrice??it.avgPrice??0)*(it.quantity||0);
+          it.pnlAbs=it.avgPrice ? (it.currentPrice - it.avgPrice) * (it.quantity||0) : 0;
+          it.pnlPct=it.avgPrice ? ((it.currentPrice - it.avgPrice)/it.avgPrice*100) : 0;
         }
       }
       pushHistory();
       if(!isAnyChartOpen){ renderSummary(); renderSections(); renderCharts(); }
       saveLocal();
-    }catch(err){
-      console.error(err);
-      toast('Ошибка обновления котировок','err');
-    }finally{
-      isRefreshing = false;
-    }
+    }catch(err){ console.error(err); toast('Ошибка обновления котировок','err'); }
+    finally{ isRefreshing=false; }
   }
 
-  // ====== ADD / EDIT / DELETE ======
+  /* ====== ADD / EDIT / DELETE ====== */
   function ensureAuthGuard(){ if(!auth.token || !auth.userId){ toast('Войдите в аккаунт, чтобы сохранять в БД','err'); window.location.href='login.html'; return false; } return true; }
 
   async function addAsset(e){
     e.preventDefault();
-    const type = document.getElementById('assetType').value;
-    let dateVal = document.getElementById('assetDate').value || '';
-    if(dateVal && dateVal.indexOf('-')<0){
-      const iso = toISOFromAlt(dateVal);
-      if(iso) dateVal = iso;
-    }
+    const type=qS('#assetType').value;
+    let dateVal=qS('#assetDate').value||''; if(dateVal && dateVal.indexOf('-')<0){ const iso=toISOFromAlt(dateVal); if(iso) dateVal=iso; }
     const date = dateVal || new Date().toISOString().slice(0,10);
 
     if(type==='savings'){
-      const amount = parseFloat(document.getElementById('savingsAmount').value)||0;
-      if(amount<=0){ toast('Введите сумму для накопительного счёта','err'); return; }
-      portfolio.savings.push({ value: amount, date });
-      toast('Пополнение сохранено (локально)');
+      const amount=parseFloat(qS('#savingsAmount').value)||0; if(amount<=0){ toast('Введите сумму для накопительного счёта','err'); return; }
+      portfolio.savings.push({ value: amount, date }); toast('Пополнение сохранено (локально)');
     } else {
       if(!ensureAuthGuard()) return;
-
-      const name = (document.getElementById('assetName').value||'').trim().toUpperCase();
-      const qty  = parseFloat(document.getElementById('assetQuantity').value)||0;
-      const avg  = parseFloat(document.getElementById('assetAvgPrice').value)||0;
+      const name=(qS('#assetName').value||'').trim().toUpperCase();
+      const qty=parseFloat(qS('#assetQuantity').value)||0;
+      const avg=parseFloat(qS('#assetAvgPrice').value)||0;
       if(!name || qty<=0){ toast('Введите тикер и количество','err'); return; }
-
-      const mapClass = { stock:'share', bond:'bond', fund:'etf' };
-      const classHint = mapClass[type] || null;
-
+      const mapClass={ stock:'share', bond:'bond', fund:'etf' }; const classHint=mapClass[type]||null;
       try{
-        const r = await apiResolve(name, classHint);
-        const pfId = auth.portfolioId || (await apiCreatePortfolio()).id;
-
-        const saved = await apiUpsertPositionByFigi({
-          portfolio_id: pfId, figi: r.figi, ticker: name, class_hint: classHint,
-          qty: qty, avg: avg, name: r.name, currency: r.currency, nominal: r.nominal || null
-        });
-
-        const q = await apiResolveQuoteByTicker(name, classHint);
-        const price = q.price || avg;
-        const bucket = type+'s';
-        const val = (price||0) * qty;
-        const pnlAbs = avg ? (price-avg)*qty : 0;
-        const pnlPct = avg ? ((price-avg)/avg*100) : 0;
-        const displayName = (q.name && q.ticker) ? `${q.name} (${q.ticker})` : (q.name || q.ticker || name);
-
-        portfolio[bucket].push({
-          posId: saved?.id || null, name, quantity: qty, avgPrice: avg, currentPrice: price, value: val, pnlAbs, pnlPct, date,
-          figi: q.figi, currency: q.currency, class: q.class, ticker: q.ticker, displayName
-        });
+        const r=await apiResolve(name, classHint);
+        const pfId=auth.portfolioId || (await apiCreatePortfolio()).id;
+        const saved=await apiUpsertPositionByFigi({ portfolio_id:pfId, figi:r.figi, ticker:name, class_hint:classHint, qty, avg, name:r.name, currency:r.currency, nominal:r.nominal||null });
+        const q=await apiResolveQuoteByTicker(name, classHint); const price=q.price||avg; const bucket=type+'s';
+        const val=(price||0) * qty; const pnlAbs=avg ? (price-avg)*qty : 0; const pnlPct=avg ? ((price-avg)/avg*100) : 0;
+        const displayName=(q.name&&q.ticker)?`${q.name} (${q.ticker})`:(q.name||q.ticker||name);
+        portfolio[bucket].push({ posId:saved?.id||null, name, quantity:qty, avgPrice:avg, currentPrice:price, value:val, pnlAbs, pnlPct, date, figi:q.figi, currency:q.currency, class:q.class, ticker:q.ticker, displayName });
         toast('Актив сохранён в БД');
-      }catch(err){
-        console.error(err);
-        toast(err?.response?.data?.detail || err?.message || 'Ошибка добавления', 'err');
-        return;
-      }
+      }catch(err){ console.error(err); toast(err?.response?.data?.detail || err?.message || 'Ошибка добавления', 'err'); return; }
     }
 
-    renderSummary(); renderSections(); renderCharts();
-    pushHistory(); saveLocal();
+    renderSummary(); renderSections(); renderCharts(); pushHistory(); saveLocal();
     e.target.reset(); if(fp) fp.setDate(new Date()); onTypeChange();
-
-    const btn = document.getElementById('addBtn');
-    btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
+    const btn=qS('#addBtn'); btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
   }
 
   document.addEventListener('click', async (e)=>{
@@ -854,159 +756,73 @@
     const action = act.getAttribute('data-action');
 
     if(action==='del'){
-      const type = act.getAttribute('data-type');
-      const idx = Number(act.getAttribute('data-index'));
-      const it = (portfolio[type]||[])[idx];
-      if(!it) return;
-
-      if(it.posId){
-        try { await apiDeletePosition(it.posId); }
-        catch(err){ console.warn('delete failed', err); toast('Ошибка удаления в БД','err'); return; }
-      }
-
-      (portfolio[type]||[]).splice(idx,1);
-      renderSummary(); renderSections(); renderCharts(); saveLocal();
-      toast('Удалено'); return;
+      const type=act.getAttribute('data-type'); const idx=Number(act.getAttribute('data-index')); const it=(portfolio[type]||[])[idx]; if(!it) return;
+      if(it.posId){ try { await apiDeletePosition(it.posId); } catch(err){ console.warn('delete failed', err); toast('Ошибка удаления в БД','err'); return; } }
+      (portfolio[type]||[]).splice(idx,1); renderSummary(); renderSections(); renderCharts(); saveLocal(); toast('Удалено'); return;
     }
 
     if(action==='edit'){
-      const type = act.getAttribute('data-type');
-      const idx = Number(act.getAttribute('data-index'));
-      const it = (portfolio[type]||[])[idx]; if(!it) return;
-
-      const q = prompt(`Новое количество для ${displayLabel(it)}:`, it.quantity);
-      if(q===null) return;
-      const a = prompt(`Новая средняя цена (₽ за 1 шт.) для ${displayLabel(it)}:`, it.avgPrice||0);
-      if(a===null) return;
-
-      it.quantity = parseFloat(q)||0;
-      it.avgPrice = parseFloat(a)||0;
-
-      if(it.figi){
-        try{
-          const saved = await apiUpsertPositionByFigi({
-            portfolio_id: auth.portfolioId, figi: it.figi, ticker: it.ticker || it.name,
-            class_hint: it.class || null, qty: it.quantity, avg: it.avgPrice, name: it.displayName,
-            currency: it.currency, nominal: it.nominal
-          });
-          if(saved?.id) it.posId = saved.id;
-        }catch(err){
-          console.warn('upsert failed', err);
-          toast('Ошибка сохранения в БД','err');
-        }
-      }
-
+      const type=act.getAttribute('data-type'); const idx=Number(act.getAttribute('data-index')); const it=(portfolio[type]||[])[idx]; if(!it) return;
+      const q = prompt(`Новое количество для ${displayLabel(it)}:`, it.quantity); if(q===null) return;
+      const a = prompt(`Новая средняя цена (₽ за 1 шт.) для ${displayLabel(it)}:`, it.avgPrice||0); if(a===null) return;
+      it.quantity=parseFloat(q)||0; it.avgPrice=parseFloat(a)||0;
+      if(it.figi){ try{ const saved=await apiUpsertPositionByFigi({ portfolio_id:auth.portfolioId, figi:it.figi, ticker:it.ticker||it.name, class_hint:it.class||null, qty:it.quantity, avg:it.avgPrice, name:it.displayName, currency:it.currency, nominal:it.nominal }); if(saved?.id) it.posId=saved.id; }catch(err){ console.warn('upsert failed', err); toast('Ошибка сохранения в БД','err'); } }
       await recalcQuotes(); toast('Изменено'); return;
     }
 
     if(action==='show'){
-      const name = act.getAttribute('data-name');
-      const id = cssId(name);
-      const box = document.getElementById(`box-${id}`);
-      if(!box) return;
-
-      const isOpen = box.classList.contains('open');
-      document.querySelectorAll('.chart-container').forEach(el=> el.classList.remove('open'));
-      if(isOpen){ isAnyChartOpen = false; return; }
-      box.classList.add('open'); isAnyChartOpen = true;
-
-      const it = [...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])]
-        .find(x => x.name === name);
-      const figi = it?.figi;
-      const canvasId = `canvas-${id}`;
-      const el = document.getElementById(canvasId);
-
-      if(charts[canvasId] && charts[canvasId].canvas !== el){ try{ charts[canvasId].destroy(); }catch(_){ } delete charts[canvasId]; }
+      const name=act.getAttribute('data-name'); const id=cssId(name); const box=qS(`#box-${id}`); if(!box) return;
+      const it=[...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])].find(x=>x.name===name);
+      const figi=it?.figi; const canvasId=`canvas-${id}`;
+      const visible = box.style.display!=='none';
+      qSA('[id^="box-"]').forEach(b=> b.style.display='none'); // один график на экране
+      if(visible){ box.style.display='none'; isAnyChartOpen=false; return; }
+      box.style.display='block'; isAnyChartOpen=true;
+      if(charts[canvasId] && charts[canvasId].canvas !== qS('#'+canvasId)){ try{ charts[canvasId].destroy(); }catch(_){ } delete charts[canvasId]; }
       if(!charts[canvasId]){ makeLineChart(canvasId, displayLabel(it) || it?.name || name); }
-
-      if(figi){ await updateAssetChartByFigi(canvasId, figi, displayLabel(it) || it?.name || name, '1D'); }
-      else{ toast('Нет FIGI для графика — обнови котировки','err'); }
-
-      box.querySelectorAll('.chart-tab').forEach(t=> t.classList.remove('active'));
-      box.querySelector('[data-period="1D"]').classList.add('active');
+      if(figi){ await updateAssetChartByFigi(canvasId, figi, displayLabel(it) || it?.name || name, '1D'); } else { toast('Нет FIGI для графика — обнови котировки','err'); }
       setTimeout(()=>{ box.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
       return;
     }
 
     if(action==='period'){
-      const id = act.getAttribute('data-for');
-      const box = document.getElementById(`box-${id}`); if(!box) return;
-      box.querySelectorAll('.chart-tab').forEach(t=> t.classList.remove('active'));
-      act.classList.add('active');
-      const period = act.getAttribute('data-period');
-      const card = act.closest('.asset-card');
-      const name = card?.querySelector('[data-action="show"]')?.getAttribute('data-name');
-      const it = [...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])]
-        .find(x => x.name === name);
-      if(it?.figi){ await updateAssetChartByFigi(`canvas-${id}`, it.figi, displayLabel(it) || it?.name || name, period); }
-      else{ toast('Нет FIGI для графика — обнови котировки','err'); }
+      const id=act.getAttribute('data-for'); const card=act.closest('.asset'); const name=card?.querySelector('[data-action="show"]')?.getAttribute('data-name');
+      card.querySelectorAll('.chart-tab').forEach(t=>t.classList.remove('btn-primary')); act.classList.add('btn-primary');
+      const it=[...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])].find(x=>x.name===name);
+      if(it?.figi){ await updateAssetChartByFigi(`canvas-${id}`, it.figi, displayLabel(it) || it?.name || name, act.getAttribute('data-period')); } else { toast('Нет FIGI для графика — обнови котировки','err'); }
       return;
     }
   });
 
   function onTypeChange(){
-    const t = document.getElementById('assetType').value;
-    const isSavings = t==='savings';
-    document.getElementById('fieldName').style.display = isSavings ? 'none' : '';
-    document.getElementById('fieldQuantity').style.display = isSavings ? 'none' : '';
-    document.getElementById('fieldPrice').style.display = isSavings ? 'none' : '';
-    document.getElementById('fieldSavingsAmount').style.display = isSavings ? '' : 'none';
-    document.getElementById('assetName').required = !isSavings;
-    document.getElementById('assetQuantity').required = !isSavings;
-    document.getElementById('assetAvgPrice').required = false;
-    document.getElementById('savingsAmount').required = isSavings;
+    const t=qS('#assetType').value; const isSavings=t==='savings';
+    qS('#fieldName').style.display=isSavings?'none':''; qS('#fieldQuantity').style.display=isSavings?'none':''; qS('#fieldPrice').style.display=isSavings?'none':'';
+    qS('#fieldSavingsAmount').style.display=isSavings?'':'none';
+    qS('#assetName').required = !isSavings; qS('#assetQuantity').required=!isSavings; qS('#assetAvgPrice').required=false; qS('#savingsAmount').required=isSavings;
   }
 
-  // ====== INIT ======
-  const io = new IntersectionObserver((ents)=>{
-    ents.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('animate-in'); io.unobserve(e.target); } });
-  }, {threshold:.12});
-
+  /* ====== INIT ====== */
   async function hardRefresh(){ await recalcQuotes(); }
 
   document.addEventListener('DOMContentLoaded', async ()=>{
     initTheme();
-    document.getElementById('themeToggle').addEventListener('click', (e)=>{
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = ((e.clientX - rect.left)/rect.width*100).toFixed(2)+"%";
-      const y = ((e.clientY - rect.top)/rect.height*100).toFixed(2)+"%";
-      e.currentTarget.style.setProperty('--rx', x); e.currentTarget.style.setProperty('--ry', y);
-      e.currentTarget.classList.remove('rippling'); setTimeout(()=> e.currentTarget.classList.add('rippling'), 0); setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250);
-      const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark'; setTheme(cur);
-    });
+    qS('#themeToggle').addEventListener('click', (e)=>{ const rect=e.currentTarget.getBoundingClientRect(); const x=((e.clientX-rect.left)/rect.width*100).toFixed(2)+"%"; const y=((e.clientY-rect.top)/rect.height*100).toFixed(2)+"%"; e.currentTarget.style.setProperty('--rx',x); e.currentTarget.style.setProperty('--ry',y); e.currentTarget.classList.remove('rippling'); setTimeout(()=> e.currentTarget.classList.add('rippling'), 0); setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250); const cur=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'; setTheme(cur); });
 
-    initDatePicker();
-    loadTitle();
-    document.getElementById('editTitleBtn').addEventListener('click', ()=>{
-      const cur = document.getElementById('portfolioTitle').textContent.trim();
-      const v = prompt('Введите новое название портфеля', cur);
-      if(v!==null && v.trim()){
-        localStorage.setItem('pf_title', v.trim());
-        applyTitle(v.trim());
-        toast('Название обновлено');
-      }
-    });
+    initDatePicker(); loadTitle();
+    qS('#editTitleBtn').addEventListener('click', ()=>{ const cur=qS('#portfolioTitle').textContent.trim(); const v=prompt('Название портфеля', cur); if(v!==null && v.trim()){ localStorage.setItem('pf_title', v.trim()); applyTitle(v.trim()); toast('Название обновлено'); } });
 
-    loadAuth();
-    loadLocal();
+    loadAuth(); loadLocal();
+    qS('#logoutBtn').addEventListener('click', ()=>{ clearAuth(); toast('Вы вышли'); window.location.href='login.html'; });
 
-    document.getElementById('logoutBtn').addEventListener('click', ()=>{
-      clearAuth(); toast('Вы вышли'); window.location.href='login.html';
-    });
-
-    document.getElementById('assetForm').addEventListener('submit', addAsset);
-    document.getElementById('assetType').addEventListener('change', onTypeChange);
-    onTypeChange();
+    qS('#assetForm').addEventListener('submit', addAsset);
+    qS('#assetType').addEventListener('change', onTypeChange); onTypeChange();
 
     try{ await loadFromDB(); }catch(e){ console.warn('loadFromDB failed', e); toast('Не удалось загрузить портфель из БД','err'); }
 
     renderSummary(); renderSections(); renderCharts();
-    document.querySelectorAll('.chart-card, .summary-card, .section').forEach(el=> io.observe(el));
-
-    document.getElementById('refreshBtn').addEventListener('click', hardRefresh);
+    qS('#refreshBtn').addEventListener('click', hardRefresh);
     await hardRefresh();
-    if(quotesTimer) clearInterval(quotesTimer);
-    quotesTimer = setInterval(hardRefresh, 30 * 1000);
+    if(quotesTimer) clearInterval(quotesTimer); quotesTimer=setInterval(hardRefresh, 30*1000);
   });
 </script>
 </body>

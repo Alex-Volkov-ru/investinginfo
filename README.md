@@ -1,5 +1,6 @@
 ## Автор проекта:
 **Волков Александр** — [https://t.me/ximikat01](https://t.me/ximikat01)
+**Апазиди Константин** — [https://t.me/@apazidii](https://t.me/@apazidii)
 
 
 # BIGS — инвестиционный портфель (Frontend + FastAPI)
