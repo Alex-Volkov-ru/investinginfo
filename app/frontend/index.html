@@ -287,6 +287,37 @@
     background: var(--card);
     border: 1px solid var(--stroke);
   }
+    /* ===== ZEBRA для карточек позиций ===== */
+  :root[data-theme='light']{
+    --zebra-1: rgba(0,0,0,.028);
+    --zebra-2: rgba(67,97,238,.06);
+  }
+  :root[data-theme='dark']{
+    --zebra-1: rgba(255,255,255,.04);
+    --zebra-2: rgba(127,240,249,.07);
+  }
+
+  /* Чередование фона у карточек внутри списков позиций */
+  .assets-list > .asset-card{
+    background: var(--zebra-1);             /* нечётные */
+    border: 1px dashed var(--stroke);
+  }
+  .assets-list > .asset-card:nth-child(even){
+    background: var(--zebra-2);             /* чётные */
+  }
+
+  /* Более спокойный hover */
+  .assets-list > .asset-card:hover{
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+
+  /* Тонкий разделитель между шапкой и деталями */
+  .assets-list .asset-card .asset-header{
+    border-bottom: 1px dashed var(--stroke);
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
 </style>
 </head>
 <body>
@@ -590,7 +621,12 @@
     const pct = base>0 ? abs/base*100 : 0;
     return {abs, pct};
   }
-  function escHtml(s=''){ return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt').replace(/>/g,'&gt;'); }
+  function escHtml(s=''){
+    return (s+'')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')   // ← точка с запятой внутри сущности
+      .replace(/>/g,'&gt;');
+  }
   function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
   function highlightMatch(text, q){
     if(!q) return escHtml(text||'');
