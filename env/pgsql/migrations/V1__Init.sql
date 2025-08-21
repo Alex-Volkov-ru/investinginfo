@@ -9,6 +9,7 @@ CREATE TABLE pf.users (
   phone         TEXT,
   tg_username   TEXT,
   tg_chat_id    BIGINT,
+  tinkoff_token_enc TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_login_at TIMESTAMPTZ
 );

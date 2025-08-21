@@ -341,6 +341,9 @@
       <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
       <button id="refreshBtn" class="btn" title="Обновить котировки">🔄 Обновить</button>
       <button id="themeToggle" class="btn" title="Сменить тему">🌓 Тема</button>
+      <button id="apiStatusBtn" class="btn" title="Подключение Tinkoff Invest API">
+        🔌 <span id="apiStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#888;margin-left:6px;"></span>
+      </button>
     </div>
   </header>
 
@@ -524,6 +527,73 @@
     return cfg;
   });
 
+  /* === НОВОЕ: статус InvestAPI и модалка === */
+  async function apiGetMe(){
+    try{ const { data } = await api.get('/users/me'); return data; }catch{ return null; }
+  }
+  function setApiIndicator(on){
+    const dot = document.getElementById('apiStatusDot');
+    if(dot) dot.style.background = on ? 'var(--ok)' : '#888';
+    const btn = document.getElementById('apiStatusBtn');
+    if(btn) btn.title = on ? 'API подключено' : 'API не подключено';
+  }
+  async function refreshApiIndicator(){
+    const me = await apiGetMe();
+    setApiIndicator(!!(me && me.has_tinkoff));
+    const authEl = document.getElementById('authStatus');
+    if(authEl && me) authEl.textContent = me.email || authEl.textContent;
+  }
+  function hookTokenModal(){
+    const tokenModal = document.getElementById('tokenModal');
+    const openBtn = document.getElementById('apiStatusBtn');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    const clearBtn = document.getElementById('modalClearBtn');
+    const saveBtn = document.getElementById('modalSaveBtn');
+    const input = document.getElementById('modalTinkoffToken');
+
+    if(openBtn){
+      openBtn.addEventListener('click', ()=>{
+        if(!auth.token){ toast('Сначала войдите', 'err'); return; }
+        input.value = '';
+        tokenModal.style.display = 'flex';
+      });
+    }
+    if(cancelBtn){
+      cancelBtn.addEventListener('click', ()=> tokenModal.style.display = 'none');
+    }
+    if(clearBtn){
+      clearBtn.addEventListener('click', async ()=>{
+        if(!confirm('Очистить сохранённый токен? Доступ к API будет отключён.')) return;
+        try{
+          await api.put('/users/me/token', { tinkoff_token: null });
+          await refreshApiIndicator();
+          tokenModal.style.display = 'none';
+          toast('Токен очищен');
+        }catch(e){
+          toast(e?.response?.data?.detail || 'Ошибка при очистке', 'err');
+        }
+      });
+    }
+    if(saveBtn){
+      saveBtn.addEventListener('click', async ()=>{
+        const val = (input.value || '').trim();
+        if(!val){ toast('Введите токен или нажмите «Очистить»', 'err'); return; }
+        if(!/^t\./i.test(val)){
+          if(!confirm('Токен не начинается с "t." — всё равно сохранить?')) return;
+        }
+        try{
+          await api.put('/users/me/token', { tinkoff_token: val });
+          await refreshApiIndicator();
+          tokenModal.style.display = 'none';
+          toast('Токен сохранён');
+        }catch(e){
+          toast(e?.response?.data?.detail || 'Ошибка при сохранении', 'err');
+        }
+      });
+    }
+  }
+  /* === КОНЕЦ блока InvestAPI === */
+
   // --- Portfolio API ---
   async function apiListPortfolios(){ const { data } = await api.get('/portfolio'); return data || []; }
   async function apiCreatePortfolio(){ const { data } = await api.post('/portfolio', { title:'Основной', type:'broker', currency:'RUB' }); return data; }
@@ -624,7 +694,7 @@
   function escHtml(s=''){
     return (s+'')
       .replace(/&/g,'&amp;')
-      .replace(/</g,'&lt;')   // ← точка с запятой внутри сущности
+      .replace(/</g,'&lt;')
       .replace(/>/g,'&gt;');
   }
   function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
@@ -1298,6 +1368,8 @@
     loadCollapsed();
     loadSearch();
     hookHeaderButtons();
+    hookTokenModal();         // <<-- НОВОЕ
+    await refreshApiIndicator(); // <<-- НОВОЕ
 
     document.getElementById('logoutBtn').addEventListener('click', ()=>{
       clearAuth(); toast('Вы вышли'); window.location.href='login.html';
@@ -1315,8 +1387,26 @@
     document.getElementById('refreshBtn').addEventListener('click', hardRefresh);
     await hardRefresh();
     if(quotesTimer) clearInterval(quotesTimer);
-    quotesTimer = setInterval(hardRefresh, 30 * 1000);
+    quotesTimer = setInterval(async ()=>{
+      await hardRefresh();
+      await refreshApiIndicator(); // индикатор не «зависает»
+    }, 30 * 1000);
   });
 </script>
+
+<!-- Modal: управление токеном Тинькофф -->
+<div id="tokenModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); align-items:center; justify-content:center; z-index:1000;">
+  <div style="background:#1b1e39; color:#ecf0ff; padding:20px; border-radius:12px; width:min(520px, 90vw); box-shadow:var(--shadow-lg);">
+    <h3 style="margin-top:0">Токен Тинькофф</h3>
+    <p class="muted">Токен хранится на сервере в зашифрованном виде. Изменение токена повлияет на доступ к данным рынка.</p>
+    <label for="modalTinkoffToken">Новый токен</label>
+    <input id="modalTinkoffToken" type="password" placeholder="t.xxxxx" style="width:100%; padding:10px; margin:8px 0 16px; background:var(--input-bg); color:var(--text); border:1px solid var(--stroke); border-radius:8px;" />
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button id="modalCancelBtn" class="btn btn-ghost">Отмена</button>
+      <button id="modalClearBtn" class="btn btn-danger">Очистить</button>
+      <button id="modalSaveBtn" class="btn btn-primary">Сохранить</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

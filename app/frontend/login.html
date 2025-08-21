@@ -3,175 +3,172 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Вход | Портфель</title>
-
+<title>Вход • Портфель</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
-
 <style>
   :root{
-    --bg:#0f1020; --bg2:#15172b; --card:#1b1e39; --stroke:rgba(255,255,255,.10);
+    --bg:#0f1224; --card:#151935; --stroke:rgba(255,255,255,.12);
     --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
-    --accent:#f86aa4; --ok:#26d3a9; --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-lg:0 20px 60px rgba(0,0,0,.45);
-    --ring:0 0 0 3px rgba(122,162,255,.28); --input-bg:#1b2146; --input-bg-hover:#202759;
+    --accent:#f86aa4; --ok:#26d3a9;
   }
   *{box-sizing:border-box}
-  body{margin:0; min-height:100vh; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; color:var(--text);
-    background: radial-gradient(900px 600px at 120% 10%, rgba(122,162,255,.13), transparent), radial-gradient(1400px 700px at -20% -10%, rgba(247,37,133,.14), transparent), linear-gradient(180deg, var(--bg), var(--bg2));
-    display:flex; align-items:center; justify-content:center; padding:24px}
-  .card{width:100%; max-width:460px; background:var(--card); border:1px solid var(--stroke); border-radius:18px; box-shadow:var(--shadow-lg); padding:18px}
-  .title{margin:0 0 8px; font-weight:800}
-  .tabs{display:flex; gap:8px; margin-bottom:12px}
-  .tab{flex:1; text-align:center; padding:10px; border-radius:12px; border:1px solid var(--stroke); background:var(--input-bg); cursor:pointer; font-weight:800; user-select:none}
-  .tab.active{background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#0c0f21; border:none}
-  label{font-size:12px; color:var(--muted); font-weight:700}
-  input{width:100%; padding:12px; border-radius:12px; border:1px solid var(--stroke); background:var(--input-bg); color:var(--text); font-weight:700}
-  input:hover{background:var(--input-bg-hover)} input:focus{outline:none; box-shadow:var(--ring); border-color:transparent}
-  .grid{display:grid; grid-template-columns:1fr; gap:12px}
-  .actions{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:12px}
-  .btn{position:relative; overflow:hidden; padding:10px 14px; border-radius:14px; border:1px solid var(--stroke); background:var(--card); color:var(--text); cursor:pointer; font-weight:800; box-shadow:var(--shadow)}
-  .btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent}
-  .btn-ghost{background:transparent}
-  .muted{color:var(--muted); font-weight:700}
-  .error{color:#ffd1d1; font-size:12px; margin-top:4px; display:none}
-  .error.show{display:block}
+  body{margin:0; font-family:Inter,system-ui; color:var(--text); background:radial-gradient(1200px 700px at 10% -10%, rgba(122,162,255,.25), transparent), linear-gradient(180deg, #0f1224, #0b0e1a); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px}
+  .card{width:min(920px, 96vw); background:var(--card); border:1px solid var(--stroke); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:grid; grid-template-columns: 1.2fr 1fr; overflow:hidden}
+  .card .left{padding:22px; border-right: 1px solid var(--stroke)}
+  .card .right{padding:22px}
+  h1{margin:.2em 0 .6em; font-size:26px; letter-spacing:-.2px}
+  label{display:block; font-weight:800; color:var(--muted); font-size:12px; margin:10px 0 6px}
+  input{width:100%; padding:12px; border-radius:12px; border:1px solid var(--stroke); background:#1b2146; color:var(--text); font-weight:700}
+  input::placeholder{color:var(--muted)}
+  .btn{display:inline-block; padding:10px 14px; border-radius:12px; border:1px solid var(--stroke); background:#1b2146; color:var(--text); font-weight:800; cursor:pointer}
+  .btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:none}
+  .tabs{display:flex; gap:8px; margin:0 0 12px}
+  .tab{padding:8px 12px; border-radius:999px; background:#1b2146; border:1px solid var(--stroke); cursor:pointer; font-weight:800}
+  .tab.active{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:none}
+  .muted{color:var(--muted); font-size:12px}
+  .err{color:#ff8383; font-weight:800; font-size:12px; display:none; margin-top:6px}
+  @media (max-width: 820px){ .card{ grid-template-columns:1fr } .card .left{ border-right: none; border-bottom:1px solid var(--stroke) } }
 </style>
 </head>
 <body>
-<div class="card">
-  <h1 class="title">🔑 Добро пожаловать</h1>
-  <div class="tabs">
-    <div id="tabLogin" class="tab active">Вход</div>
-    <div id="tabRegister" class="tab">Регистрация</div>
+  <div class="card">
+    <div class="left">
+      <div class="tabs">
+        <div class="tab active" id="tabLogin">Войти</div>
+        <div class="tab" id="tabRegister">Регистрация</div>
+      </div>
+
+      <div id="loginPane">
+        <h1>Добро пожаловать 👋</h1>
+        <form id="loginForm">
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" type="email" placeholder="you@example.com" required />
+          <label for="loginPassword">Пароль</label>
+          <input id="loginPassword" type="password" placeholder="••••••••" required />
+          <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
+            <button type="submit" class="btn btn-primary">Войти</button>
+          </div>
+          <div class="err" id="loginErr">Неверный email или пароль</div>
+        </form>
+      </div>
+
+      <div id="registerPane" style="display:none">
+        <h1>Создать аккаунт ✨</h1>
+        <form id="registerForm">
+          <label for="regEmail">Email</label>
+          <input id="regEmail" type="email" placeholder="you@example.com" required />
+          <label for="regPassword">Пароль</label>
+          <input id="regPassword" type="password" placeholder="минимум 6 символов, буквы и цифры" required />
+          <label for="regName">Имя (ник)</label>
+          <input id="regName" type="text" placeholder="например, ivan" />
+          <label for="regPhone">Телефон</label>
+          <input id="regPhone" type="tel" placeholder="+79991234567" />
+          <label for="regTinkoff">Токен Тинькофф (необязательно)</label>
+          <input id="regTinkoff" type="password" placeholder="t.xxxxxx" autocomplete="off" />
+          <div class="muted" style="margin-top:6px">Можно ввести позже в личном кабинете.</div>
+          <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
+            <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+          </div>
+          <div class="err" id="regErr">Проверьте введённые данные</div>
+        </form>
+      </div>
+    </div>
+
+    <div class="right">
+      <h1>Зачем токен?</h1>
+      <p class="muted">Токен Тинькофф нужен, чтобы получать котировки и свечи напрямую из Invest API под вашим аккаунтом. Он хранится на сервере <b>в зашифрованном виде</b> и не передается на фронтенд.</p>
+      <ul class="muted">
+        <li>Можно пропустить на этапе регистрации.</li>
+        <li>Позже добавить/заменить в профиле — кнопка 🔌 в шапке.</li>
+        <li>Токен выглядит как <code>t.xxxxx...</code></li>
+      </ul>
+    </div>
   </div>
 
-  <!-- ВХОД -->
-  <form id="loginForm" novalidate>
-    <div class="grid">
-      <div>
-        <label for="loginEmail">Email</label>
-        <input id="loginEmail" type="email" required placeholder="you@example.com" autocomplete="username" />
-      </div>
-      <div>
-        <label for="loginPassword">Пароль</label>
-        <input id="loginPassword" type="password" required placeholder="••••••••" autocomplete="current-password" />
-      </div>
-    </div>
-    <div class="actions">
-      <a href="index.html" class="btn btn-ghost" id="backBtn">← На главную</a>
-      <button type="submit" class="btn btn-primary">Войти</button>
-    </div>
-  </form>
-
-  <!-- РЕГИСТРАЦИЯ -->
-  <form id="registerForm" style="display:none" novalidate>
-    <div class="grid">
-      <div>
-        <label for="regName">Имя</label>
-        <input id="regName" type="text" required minlength="2" maxlength="100" placeholder="Иван" autocomplete="nickname" />
-        <div id="errName" class="error">Имя слишком короткое.</div>
-      </div>
-      <div>
-        <label for="regEmail">Email</label>
-        <input id="regEmail" type="email" required placeholder="you@example.com" autocomplete="email" />
-        <div id="errEmail" class="error">Неверный формат email.</div>
-      </div>
-      <div>
-        <label for="regPassword">Пароль</label>
-        <!-- >=6 символов, содержит буквы и цифры -->
-        <input id="regPassword" type="password" required minlength="6"
-               pattern="(?=.*[A-Za-z])(?=.*\d).{6,}"
-               title="Минимум 6 символов, обязательно с буквами и цифрами"
-               placeholder="Минимум 6 символов (буквы и цифры)" autocomplete="new-password" />
-        <div id="errPassword" class="error">Минимум 6 символов, обязательно буквы и цифры.</div>
-      </div>
-      <div>
-        <label for="regPhone">Телефон (необязательно)</label>
-        <input id="regPhone" type="tel" placeholder="+79991234567" pattern="^\+?\d{10,15}$" title="От 10 до 15 цифр, можно с + в начале" autocomplete="tel" />
-        <div id="errPhone" class="error">Телефон должен содержать 10–15 цифр (можно + в начале).</div>
-      </div>
-    </div>
-    <div class="actions">
-      <a href="index.html" class="btn btn-ghost">Отмена</a>
-      <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
-    </div>
-  </form>
-
-  <div class="muted" style="margin-top:12px">После входа вы будете перенаправлены в личный кабинет.</div>
-</div>
-
 <script>
-  const BACKEND = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://127.0.0.1:8000' : '/api';
+  const BACKEND =
+    (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://127.0.0.1:8000'
+      : '/api';
+
   const api = axios.create({ baseURL: BACKEND, timeout: 20000 });
 
-  function switchTab(tab){
-    const tL=document.getElementById('tabLogin'); const tR=document.getElementById('tabRegister');
-    const fL=document.getElementById('loginForm'); const fR=document.getElementById('registerForm');
-    if(tab==='login'){ tL.classList.add('active'); tR.classList.remove('active'); fL.style.display=''; fR.style.display='none'; }
-    else { tL.classList.remove('active'); tR.classList.add('active'); fL.style.display='none'; fR.style.display=''; }
-  }
+  // Tabs
+  const tabLogin = document.getElementById('tabLogin');
+  const tabRegister = document.getElementById('tabRegister');
+  const loginPane = document.getElementById('loginPane');
+  const registerPane = document.getElementById('registerPane');
 
-  // уже авторизован → в кабинет
-  (function(){ const tok=localStorage.getItem('pf_token'); if(tok){ window.location.replace('index.html'); } })();
+  tabLogin.addEventListener('click', ()=>{
+    tabLogin.classList.add('active'); tabRegister.classList.remove('active');
+    loginPane.style.display=''; registerPane.style.display='none';
+  });
+  tabRegister.addEventListener('click', ()=>{
+    tabRegister.classList.add('active'); tabLogin.classList.remove('active');
+    registerPane.style.display=''; loginPane.style.display='none';
+  });
 
-  document.getElementById('tabLogin').addEventListener('click', ()=> switchTab('login'));
-  document.getElementById('tabRegister').addEventListener('click', ()=> switchTab('register'));
-
-  // ----- Вход -----
+  // Login
   document.getElementById('loginForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const email=document.getElementById('loginEmail').value.trim();
-    const password=document.getElementById('loginPassword').value;
+    document.getElementById('loginErr').style.display='none';
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+
     try{
       const { data } = await api.post('/auth/login', { email, password });
-      localStorage.setItem('pf_token', data.access_token || '');
-      localStorage.setItem('pf_user_id', String(data.user_id || ''));
-      localStorage.setItem('pf_email', data.email || email);
-      if (data.tg_username) localStorage.setItem('pf_tg_username', data.tg_username); // имя в локал
-      localStorage.removeItem('pf_portfolio_id');
+      const token = data?.access_token || data?.token || data?.jwt;
+      if(!token) throw new Error('Нет токена');
+      localStorage.setItem('pf_token', token);
+
+      // Опционально подтянем профиль — пригодится в шапке
+      try{
+        const me = (await api.get('/users/me', { headers: { Authorization: `Bearer ${token}` } })).data;
+        if(me){
+          localStorage.setItem('pf_user_id', me.id || '');
+          localStorage.setItem('pf_email', me.email || '');
+          if (me.tg_username) localStorage.setItem('pf_tg_username', me.tg_username);
+        }
+      }catch(_){}
+
       window.location.replace('index.html');
-    }catch(err){ alert(err?.response?.data?.detail || 'Неверный email или пароль'); }
+    }catch(err){
+      console.error(err);
+      document.getElementById('loginErr').style.display='block';
+    }
   });
 
-  // helpers для ошибок
-  function showErr(id, show){ const el=document.getElementById(id); if(!el) return; el.classList.toggle('show', !!show); }
-  ['regName','regEmail','regPassword','regPhone'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.addEventListener('input', ()=>{
-      if(id==='regName') showErr('errName', false);
-      if(id==='regEmail') showErr('errEmail', false);
-      if(id==='regPassword') showErr('errPassword', false);
-      if(id==='regPhone') showErr('errPhone', false);
-    });
-  });
-
-  // ----- Регистрация -----
+  // Register (с полем токена)
   document.getElementById('registerForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
+    document.getElementById('regErr').style.display='none';
+
     const tg_username = document.getElementById('regName').value.trim();
     const email = document.getElementById('regEmail').value.trim();
     const password = document.getElementById('regPassword').value;
     const phone = document.getElementById('regPhone').value.trim();
+    const tinkoff_token = document.getElementById('regTinkoff').value.trim();
 
-    // фронт-валидация
+    // простая фронт-валидация
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    const passOk  = /[A-Za-z]/.test(password) && /\d/.test(password) && password.length>=6;
+    const passOk = password.length >= 6 && /[A-Za-z]/.test(password) && /\d/.test(password);
     const phoneOk = !phone || /^\+?\d{10,15}$/.test(phone);
-    const nameOk  = tg_username.length>=2;
-
-    showErr('errEmail', !emailOk);
-    showErr('errPassword', !passOk);
-    showErr('errPhone', !phoneOk);
-    showErr('errName', !nameOk);
-
-    if(!(emailOk && passOk && phoneOk && nameOk)) return;
+    if(!emailOk || !passOk || !phoneOk){
+      document.getElementById('regErr').textContent = 'Проверьте email, пароль и телефон';
+      document.getElementById('regErr').style.display='block';
+      return;
+    }
 
     try{
-      await api.post('/users', { email, password, tg_username, phone: phone || null });
-      alert('Регистрация успешна. Выполните вход.');
-      switchTab('login');
-      document.getElementById('loginEmail').value=email;
-      document.getElementById('loginPassword').value='';
+      await api.post('/users/register', {
+        email, password, tg_username: tg_username || null, phone: phone || null,
+        tinkoff_token: tinkoff_token || null
+      });
+      alert('Регистрация успешна. Войдите под своим email и паролем.');
+      tabLogin.click();
+      document.getElementById('loginEmail').value = email;
+      document.getElementById('loginPassword').value = '';
     }catch(err){
       alert(err?.response?.data?.detail || 'Ошибка регистрации');
     }
