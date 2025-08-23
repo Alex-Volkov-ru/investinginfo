@@ -4,32 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Вход • Портфель</title>
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
-<style>
-  :root{
-    --bg:#0f1224; --card:#151935; --stroke:rgba(255,255,255,.12);
-    --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
-    --accent:#f86aa4; --ok:#26d3a9;
-  }
-  *{box-sizing:border-box}
-  body{margin:0; font-family:Inter,system-ui; color:var(--text); background:radial-gradient(1200px 700px at 10% -10%, rgba(122,162,255,.25), transparent), linear-gradient(180deg, #0f1224, #0b0e1a); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px}
-  .card{width:min(920px, 96vw); background:var(--card); border:1px solid var(--stroke); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:grid; grid-template-columns: 1.2fr 1fr; overflow:hidden}
-  .card .left{padding:22px; border-right: 1px solid var(--stroke)}
-  .card .right{padding:22px}
-  h1{margin:.2em 0 .6em; font-size:26px; letter-spacing:-.2px}
-  label{display:block; font-weight:800; color:var(--muted); font-size:12px; margin:10px 0 6px}
-  input{width:100%; padding:12px; border-radius:12px; border:1px solid var(--stroke); background:#1b2146; color:var(--text); font-weight:700}
-  input::placeholder{color:var(--muted)}
-  .btn{display:inline-block; padding:10px 14px; border-radius:12px; border:1px solid var(--stroke); background:#1b2146; color:var(--text); font-weight:800; cursor:pointer}
-  .btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:none}
-  .tabs{display:flex; gap:8px; margin:0 0 12px}
-  .tab{padding:8px 12px; border-radius:999px; background:#1b2146; border:1px solid var(--stroke); cursor:pointer; font-weight:800}
-  .tab.active{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:none}
-  .muted{color:var(--muted); font-size:12px}
-  .err{color:#ff8383; font-weight:800; font-size:12px; display:none; margin-top:6px}
-  @media (max-width: 820px){ .card{ grid-template-columns:1fr } .card .left{ border-right: none; border-bottom:1px solid var(--stroke) } }
-</style>
+
+<link rel="stylesheet" href="assets/css/login.css" />
 </head>
 <body>
   <div class="card">
@@ -86,93 +65,7 @@
     </div>
   </div>
 
-<script>
-  const BACKEND =
-    (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-      ? 'http://127.0.0.1:8000'
-      : '/api';
-
-  const api = axios.create({ baseURL: BACKEND, timeout: 20000 });
-
-  // Tabs
-  const tabLogin = document.getElementById('tabLogin');
-  const tabRegister = document.getElementById('tabRegister');
-  const loginPane = document.getElementById('loginPane');
-  const registerPane = document.getElementById('registerPane');
-
-  tabLogin.addEventListener('click', ()=>{
-    tabLogin.classList.add('active'); tabRegister.classList.remove('active');
-    loginPane.style.display=''; registerPane.style.display='none';
-  });
-  tabRegister.addEventListener('click', ()=>{
-    tabRegister.classList.add('active'); tabLogin.classList.remove('active');
-    registerPane.style.display=''; loginPane.style.display='none';
-  });
-
-  // Login
-  document.getElementById('loginForm').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    document.getElementById('loginErr').style.display='none';
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
-
-    try{
-      const { data } = await api.post('/auth/login', { email, password });
-      const token = data?.access_token || data?.token || data?.jwt;
-      if(!token) throw new Error('Нет токена');
-      localStorage.setItem('pf_token', token);
-
-      // Опционально подтянем профиль — пригодится в шапке
-      try{
-        const me = (await api.get('/users/me', { headers: { Authorization: `Bearer ${token}` } })).data;
-        if(me){
-          localStorage.setItem('pf_user_id', me.id || '');
-          localStorage.setItem('pf_email', me.email || '');
-          if (me.tg_username) localStorage.setItem('pf_tg_username', me.tg_username);
-        }
-      }catch(_){}
-
-      window.location.replace('index.html');
-    }catch(err){
-      console.error(err);
-      document.getElementById('loginErr').style.display='block';
-    }
-  });
-
-  // Register (с полем токена)
-  document.getElementById('registerForm').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    document.getElementById('regErr').style.display='none';
-
-    const tg_username = document.getElementById('regName').value.trim();
-    const email = document.getElementById('regEmail').value.trim();
-    const password = document.getElementById('regPassword').value;
-    const phone = document.getElementById('regPhone').value.trim();
-    const tinkoff_token = document.getElementById('regTinkoff').value.trim();
-
-    // простая фронт-валидация
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    const passOk = password.length >= 6 && /[A-Za-z]/.test(password) && /\d/.test(password);
-    const phoneOk = !phone || /^\+?\d{10,15}$/.test(phone);
-    if(!emailOk || !passOk || !phoneOk){
-      document.getElementById('regErr').textContent = 'Проверьте email, пароль и телефон';
-      document.getElementById('regErr').style.display='block';
-      return;
-    }
-
-    try{
-      await api.post('/users/register', {
-        email, password, tg_username: tg_username || null, phone: phone || null,
-        tinkoff_token: tinkoff_token || null
-      });
-      alert('Регистрация успешна. Войдите под своим email и паролем.');
-      tabLogin.click();
-      document.getElementById('loginEmail').value = email;
-      document.getElementById('loginPassword').value = '';
-    }catch(err){
-      alert(err?.response?.data?.detail || 'Ошибка регистрации');
-    }
-  });
-</script>
+<!-- ВНЕСЕНО: внешний JS вместо inline <script> -->
+<script defer src="assets/js/login.js"></script>
 </body>
 </html>
