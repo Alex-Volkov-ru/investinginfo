@@ -2,230 +2,83 @@ name: 🚀 Deploy BIGS
 
 on:
   push:
-    branches: [ master ]
-  workflow_dispatch:
-
-# Не допускаем параллельных деплоев одной ветки
-concurrency:
-  group: bigs-${{ github.ref }}
-  cancel-in-progress: true
-
-# Права для коммента к коммиту и работы с Docker
-permissions:
-  contents: write
-  packages: write
-
-env:
-  BACKEND_IMAGE: ximikat01/bigs_backend
-  FRONTEND_IMAGE: ximikat01/bigs_frontend
+    branches: [master]
 
 jobs:
-  # ====================== ТЕСТЫ (плейсхолдер) ======================
-  tests:
-    name: 🧪 Тесты
+  build-and-deploy:
     runs-on: ubuntu-latest
-    steps:
-      - name: 🔄 Checkout
-        uses: actions/checkout@v4
-      - name: 🧰 Сообщение
-        run: |
-          echo "Пока автотестов нет — этот шаг плейсхолдер."
-          echo "Добавим линтеры/юнит-тесты позднее." >> $GITHUB_STEP_SUMMARY
+    permissions:
+      contents: read
+      packages: write
 
-  # ====================== БИЛД BACKEND ======================
-  build_backend:
-    name: 🐳 Билд backend-образа
-    runs-on: ubuntu-latest
-    needs: tests
     steps:
-      - name: 🔄 Checkout
+      # ====================== CHECKOUT ======================
+      - name: 🔄 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🧱 Настройка Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 🔑 Логин в Docker Hub
+      # ====================== LOGIN TO DOCKER HUB ======================
+      - name: 🔑 Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: 🏷️ Метаданные образа
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.BACKEND_IMAGE }}
-          tags: |
-            type=raw,value=latest
-            type=sha,format=short
-
-      - name: 🏗️ Сборка и push backend
-        uses: docker/build-push-action@v5
+      # ====================== BUILD & PUSH BACKEND ======================
+      - name: 🏗️ Build & Push Backend
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: ./env/backend/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ximikat01/bigs_backend:latest
 
-      - name: 📝 Итог
-        run: |
-          echo "✅ Backend собран и запушен:" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" | tr ' ' '\n' >> $GITHUB_STEP_SUMMARY
-
-  # ====================== БИЛД FRONTEND ======================
-  build_frontend:
-    name: 🐳 Билд frontend-образа
-    runs-on: ubuntu-latest
-    needs: tests
-    steps:
-      - name: 🔄 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🧱 Настройка Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 🔑 Логин в Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: 🏷️ Метаданные образа
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.FRONTEND_IMAGE }}
-          tags: |
-            type=raw,value=latest
-            type=sha,format=short
-
-      - name: 🏗️ Сборка и push frontend
-        uses: docker/build-push-action@v5
+      # ====================== BUILD & PUSH FRONTEND ======================
+      - name: 🏗️ Build & Push Frontend
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: ./env/frontend/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ximikat01/bigs_frontend:latest
 
-      - name: 📝 Итог
+      # ====================== SSH SETUP ======================
+      - name: 🔑 Setup SSH
         run: |
-          echo "✅ Frontend собран и запушен:" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" | tr ' ' '\n' >> $GITHUB_STEP_SUMMARY
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-  # ====================== ДЕПЛОЙ ======================
-  deploy:
-    name: 🚀 Деплой на сервер
-    runs-on: ubuntu-latest
-    needs:
-      - build_backend
-      - build_frontend
-    steps:
-      - name: 🔄 Checkout
-        uses: actions/checkout@v4
+      # ====================== COPY FILES & DEPLOY ======================
+      - name: 🚀 Deploy on server
+        run: |
+          # копируем compose и nginx.conf на сервер
+          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/docker-compose.production.yml
+          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/nginx.conf ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/frontend/nginx.conf
 
-      - name: 🛠️ Подготовить директории на сервере
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -e
-            mkdir -p ${{ secrets.PROJECT_DIR }}/env/frontend
+          # рестарт сервисов
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          set -e
+          cd ${{ secrets.PROJECT_DIR }}
+          docker compose -f docker-compose.production.yml pull
+          docker compose -f docker-compose.production.yml down
+          docker compose -f docker-compose.production.yml up -d
+          EOF
 
-      - name: 📦 Копируем файлы (compose + nginx)
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          source: |
-            docker-compose.production.yml
-            nginx.conf
-            env/frontend/nginx.conf
-          target: ${{ secrets.PROJECT_DIR }}
-          overwrite: true
+      # ====================== VERIFY DEPLOY ======================
+      - name: ✅ Verify deployment
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
 
-      - name: 🖥️ Перезапуск контейнеров
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -e
-            cd ${{ secrets.PROJECT_DIR }}
-            echo "📥 Тянем свежие образы…"
-            docker compose -f docker-compose.production.yml pull
-            echo "🧹 Останавливаем старые…"
-            docker compose -f docker-compose.production.yml down
-            echo "🚀 Поднимаем новые…"
-            docker compose -f docker-compose.production.yml up -d
-            echo "✅ Готово."
-
-  # ====================== ПРОВЕРКА ======================
-  verify:
-    name: 🔎 Проверка
-    runs-on: ubuntu-latest
-    needs: deploy
-    steps:
-      - name: docker ps
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
-
-  # ====================== КОММЕНТАРИЙ К КОММИТУ ======================
-  comment:
-    name: 💬 Комментарий к коммиту (RU)
-    runs-on: ubuntu-latest
-    needs: deploy
-    if: always()
-    steps:
-      - name: ✍️ Пишем комментарий
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const ok = '${{ needs.deploy.result }}' === 'success';
-            const body = [
-              `🛰️ *Деплой BIGS*: **${ok ? 'успешно' : 'с ошибками'}**`,
-              `Ветвь: \`${context.ref}\``,
-              `Коммит: https://github.com/${{ github.repository }}/commit/${{ github.sha }}`,
-              `Сервер: \`${{ secrets.SSH_HOST }}\``,
-            ].join('\n');
-            await github.rest.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: context.sha,
-              body
-            });
-
-  # ====================== УВЕДОМЛЕНИЕ В TELEGRAM ======================
-  notify:
-    name: 📣 Telegram-уведомление
-    runs-on: ubuntu-latest
-    needs: [deploy]
-    if: always()
-    steps:
-      - name: 📢 Отправка
+      # ====================== NOTIFICATION ======================
+      - name: 📢 Notify Telegram
+        if: always()
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
-            🚀 Деплой BIGS: *${{ needs.deploy.result }}*
-            📦 Репозиторий: https://github.com/${{ github.repository }}
-            🔗 Коммит: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+            🚀 BIGS Deployment *${{ job.status }}*
+            📦 Repo: https://github.com/${{ github.repository }}
+            🔗 Commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
