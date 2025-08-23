@@ -2,61 +2,80 @@ name: 🚀 Deploy BIGS
 
 on:
   push:
-    branches: [master]
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  build-and-deploy:
+  build_backend:
+    name: 🐳 Build & Push Backend
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-      # ====================== CHECKOUT ======================
       - name: 🔄 Checkout code
         uses: actions/checkout@v4
-
-      # ====================== LOGIN TO DOCKER HUB ======================
       - name: 🔑 Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # ====================== BUILD & PUSH BACKEND ======================
-      - name: 🏗️ Build & Push Backend
+      - name: 🏗️ Build & Push Backend Image
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ./env/backend/Dockerfile
           push: true
           tags: ximikat01/bigs_backend:latest
+      - name: 📝 Итог (backend)
+        run: echo "✅ Backend собран и запушен: ximikat01/bigs_backend:latest" >> $GITHUB_STEP_SUMMARY
 
-      # ====================== BUILD & PUSH FRONTEND ======================
-      - name: 🏗️ Build & Push Frontend
+  build_frontend:
+    name: 🐳 Build & Push Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔄 Checkout code
+        uses: actions/checkout@v4
+      - name: 🔑 Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: 🏗️ Build & Push Frontend Image
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ./env/frontend/Dockerfile
           push: true
           tags: ximikat01/bigs_frontend:latest
+      - name: 📝 Итог (frontend)
+        run: echo "✅ Frontend собран и запушен: ximikat01/bigs_frontend:latest" >> $GITHUB_STEP_SUMMARY
 
-      # ====================== SSH SETUP ======================
+  deploy:
+    name: 🚀 Deploy on server
+    runs-on: ubuntu-latest
+    needs: [ build_backend, build_frontend ]
+    steps:
+      - name: 🔄 Checkout code
+        uses: actions/checkout@v4
       - name: 🔑 Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${{ secrets.SSH_PORT }} -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-
-      # ====================== COPY FILES & DEPLOY ======================
-      - name: 🚀 Deploy on server
+          echo "✅ SSH подготовлен"
+      - name: 📁 Ensure remote dirs exist
         run: |
-          # копируем compose и nginx.conf на сервер
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p '${{ secrets.PROJECT_DIR }}/env/frontend'"
+          echo "📂 Убедились, что каталог на сервере существует"
+      - name: 📤 Copy files & restart services
+        run: |
+          echo "📦 Копируем файлы на сервер"
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/docker-compose.production.yml
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/nginx.conf ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/frontend/nginx.conf
-
-          # рестарт сервисов
+          echo "🚀 Перезапускаем стек контейнеров"
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           set -e
           cd ${{ secrets.PROJECT_DIR }}
@@ -64,21 +83,38 @@ jobs:
           docker compose -f docker-compose.production.yml down
           docker compose -f docker-compose.production.yml up -d
           EOF
+          echo "✅ Деплой завершён"
+      - name: 📝 Итог (deploy)
+        run: echo "✅ Деплой успешно выполнен на сервере ${{ secrets.SSH_HOST }}" >> $GITHUB_STEP_SUMMARY
 
-      # ====================== VERIFY DEPLOY ======================
-      - name: ✅ Verify deployment
+  verify:
+    name: ✅ Verify deployment
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: 🔑 Setup SSH
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      - name: 🔎 docker ps
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
+          echo "🧪 Проверка контейнеров выполнена" >> $GITHUB_STEP_SUMMARY
 
-      # ====================== NOTIFICATION ======================
-      - name: 📢 Notify Telegram
-        if: always()
+  notify:
+    name: 📣 Notify Telegram
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [ deploy ]
+    steps:
+      - name: 📢 Send message
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
-            🚀 BIGS Deployment *${{ job.status }}*
+            🚀 BIGS Deployment *${{ needs.deploy.result }}*
             📦 Repo: https://github.com/${{ github.repository }}
             🔗 Commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
