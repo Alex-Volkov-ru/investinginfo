@@ -16,11 +16,13 @@ jobs:
     steps:
       - name: 🔄 Checkout code
         uses: actions/checkout@v4
+
       - name: 🔑 Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: 🏗️ Build & Push Backend Image
         uses: docker/build-push-action@v4
         with:
@@ -28,8 +30,10 @@ jobs:
           file: ./env/backend/Dockerfile
           push: true
           tags: ximikat01/bigs_backend:latest
+
       - name: 📝 Итог (backend)
-        run: echo "✅ Backend собран и запушен: ximikat01/bigs_backend:latest" >> $GITHUB_STEP_SUMMARY
+        run: |
+          echo "✅ Backend собран и запушен: ximikat01/bigs_backend:latest" >> $GITHUB_STEP_SUMMARY
 
   build_frontend:
     name: 🐳 Build & Push Frontend
@@ -37,11 +41,13 @@ jobs:
     steps:
       - name: 🔄 Checkout code
         uses: actions/checkout@v4
+
       - name: 🔑 Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: 🏗️ Build & Push Frontend Image
         uses: docker/build-push-action@v4
         with:
@@ -49,8 +55,10 @@ jobs:
           file: ./env/frontend/Dockerfile
           push: true
           tags: ximikat01/bigs_frontend:latest
+
       - name: 📝 Итог (frontend)
-        run: echo "✅ Frontend собран и запушен: ximikat01/bigs_frontend:latest" >> $GITHUB_STEP_SUMMARY
+        run: |
+          echo "✅ Frontend собран и запушен: ximikat01/bigs_frontend:latest" >> $GITHUB_STEP_SUMMARY
 
   deploy:
     name: 🚀 Deploy on server
@@ -59,6 +67,7 @@ jobs:
     steps:
       - name: 🔄 Checkout code
         uses: actions/checkout@v4
+
       - name: 🔑 Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -66,26 +75,35 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${{ secrets.SSH_PORT }} -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
           echo "✅ SSH подготовлен"
+
       - name: 📁 Ensure remote dirs exist
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p '${{ secrets.PROJECT_DIR }}/env/frontend'"
-          echo "📂 Убедились, что каталог на сервере существует"
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "mkdir -p '${{ secrets.PROJECT_DIR }}/env/frontend'"
+          echo "📂 Убедились, что каталог на сервере существует" >> $GITHUB_STEP_SUMMARY
+
       - name: 📤 Copy files & restart services
         run: |
           echo "📦 Копируем файлы на сервер"
-          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/docker-compose.production.yml
-          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/nginx.conf ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/frontend/nginx.conf
+          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/docker-compose.production.yml
+          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/nginx.conf \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/frontend/nginx.conf
+
           echo "🚀 Перезапускаем стек контейнеров"
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           set -e
           cd ${{ secrets.PROJECT_DIR }}
           docker compose -f docker-compose.production.yml pull
           docker compose -f docker-compose.production.yml down
           docker compose -f docker-compose.production.yml up -d
           EOF
-          echo "✅ Деплой завершён"
+
       - name: 📝 Итог (deploy)
-        run: echo "✅ Деплой успешно выполнен на сервере ${{ secrets.SSH_HOST }}" >> $GITHUB_STEP_SUMMARY
+        run: |
+          echo "✅ Деплой успешно выполнен на сервере ${{ secrets.SSH_HOST }}" >> $GITHUB_STEP_SUMMARY
 
   verify:
     name: ✅ Verify deployment
@@ -98,9 +116,12 @@ jobs:
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${{ secrets.SSH_PORT }} -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
       - name: 🔎 docker ps
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
           echo "🧪 Проверка контейнеров выполнена" >> $GITHUB_STEP_SUMMARY
 
   notify:
