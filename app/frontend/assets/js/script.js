@@ -23,9 +23,6 @@ let isRefreshing = false;
 let editCtx = { item:null, type:null, idx:null };
 let editFp = null;
 
-// ====== ADD MODAL MOVE HOST ======
-let addFormHome = null;
-
 // ====== TOAST ======
 function toast(msg, type='ok'){
   const wrap = document.getElementById('toastWrap');
@@ -75,10 +72,7 @@ function applyTitle(t){
   document.getElementById('portfolioTitle').textContent = t || '✨ Мой портфель';
   document.getElementById('pageTitle').textContent = (t || 'Мой инвестиционный портфель');
 }
-function loadTitle(){
-  const t = localStorage.getItem('pf_title') || '✨ Мой портфель';
-  applyTitle(t);
-}
+function loadTitle(){ const t = localStorage.getItem('pf_title') || '✨ Мой портфель'; applyTitle(t); }
 
 function applyAuthUi(){
   const st = document.getElementById('authStatus');
@@ -119,10 +113,8 @@ api.interceptors.request.use(cfg=>{
   return cfg;
 });
 
-/* === InvestAPI статус + модалка токена === */
-async function apiGetMe(){
-  try{ const { data } = await api.get('/users/me'); return data; }catch{ return null; }
-}
+/* === InvestAPI === */
+async function apiGetMe(){ try{ const { data } = await api.get('/users/me'); return data; }catch{ return null; } }
 function setApiIndicator(on){
   const dot = document.getElementById('apiStatusDot');
   if(dot) dot.style.background = on ? 'var(--ok)' : '#888';
@@ -159,7 +151,7 @@ function hookTokenModal(){
 
   if(clearBtn){
     clearBtn.addEventListener('click', async ()=>{
-      if(!confirm('Очистить сохранённый токен? Доступ к API будет отключён.')) return;
+      if(!confirm('Очистить сохранённый токен?')) return;
       try{
         await api.put('/users/me/token', { tinkoff_token: null });
         await refreshApiIndicator();
@@ -175,7 +167,7 @@ function hookTokenModal(){
       const val = (input.value || '').trim();
       if(!val){ toast('Введите токен или нажмите «Очистить»', 'err'); return; }
       if(!/^t\./i.test(val)){
-        if(!confirm('Токен не начинается с "t." — всё равно сохранить?')) return;
+        if(!confirm('Токен не начинается с "t." — сохранить?')) return;
       }
       try{
         await api.put('/users/me/token', { tinkoff_token: val });
@@ -183,12 +175,11 @@ function hookTokenModal(){
         close();
         toast('Токен сохранён');
       }catch(e){
-        toast(e?.response?.data?.detail || 'Ошибка при сохранении', 'err');
+        toast(e?.response?.data?.detail || 'Ошибка сохранения', 'err');
       }
     });
   }
 }
-/* === КОНЕЦ блока InvestAPI === */
 
 // --- Portfolio API ---
 async function apiListPortfolios(){ const { data } = await api.get('/portfolio'); return data || []; }
@@ -305,9 +296,7 @@ function totalPL(){
   const pct = base>0 ? abs/base*100 : 0;
   return {abs, pct};
 }
-function escHtml(s=''){
-  return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function escHtml(s=''){ return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function highlightMatch(text, q){
   if(!q) return escHtml(text||'');
@@ -540,7 +529,7 @@ function renderCharts(){
           tooltip: { callbacks: { label: (c) => {
             const val = c.raw || 0; const p = total > 0 ? (val / total * 100) : 0;
             return `${c.label}: ${fmt(val)} ₽ (${fmt(p)}%)`;
-          }}},
+          } } },
           title:{ display:false }
         },
         onHover: (_, els) => { charts.c1.setActiveElements(els); charts.c1.update(); },
@@ -740,11 +729,10 @@ async function addAsset(e){
   const btn = document.getElementById('addBtn');
   btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
 
-  // если форма была в модалке — закрываем её
-  if(document.getElementById('addModal')?.classList.contains('modal--open')) closeAddModal();
+  closeAddModal();
 }
 
-// ====== EDIT MODAL LOGIC ======
+// ====== EDIT MODAL ======
 function openEditModal(item, type, idx){
   editCtx = { item, type, idx };
   const modal = document.getElementById('editModal');
@@ -767,14 +755,9 @@ function openEditModal(item, type, idx){
 
   modal.classList.add('modal--open');
 }
-function closeEditModal(){
-  const modal = document.getElementById('editModal');
-  if (modal) modal.classList.remove('modal--open');
-  editCtx = { item:null, type:null, idx:null };
-}
+function closeEditModal(){ document.getElementById('editModal')?.classList.remove('modal--open'); editCtx = { item:null, type:null, idx:null }; }
 async function saveEdit(){
   const it = editCtx.item; if(!it) return;
-
   const dqEl    = document.getElementById('editDeltaQty');
   const priceEl = document.getElementById('editPrice');
   const dateEl  = document.getElementById('editDate');
@@ -819,27 +802,19 @@ function hookEditModal(){
   const cancelX = document.getElementById('editCancelX');
 
   [cancelBtn, cancelX].forEach(b=> b && b.addEventListener('click', (e)=>{ e.preventDefault(); closeEditModal(); }));
-  if (modal) modal.addEventListener('click', (e)=>{ if (e.target.id === 'editModal') closeEditModal(); });
-  if (saveBtn) saveBtn.addEventListener('click', (e)=>{ e.preventDefault(); saveEdit(); });
+  modal?.addEventListener('click', (e)=>{ if (e.target.id === 'editModal') closeEditModal(); });
+  saveBtn?.addEventListener('click', (e)=>{ e.preventDefault(); saveEdit(); });
 }
 
-// ====== ADD MODAL (перенос формы) ======
-function openAddModal(){
-  const modal = document.getElementById('addModal');
-  const host = document.getElementById('addModalHost');
-  const wrap = document.getElementById('addFormWrap');
-  if(!modal || !host || !wrap) return;
-  addFormHome = addFormHome || wrap.parentElement;
-  host.appendChild(wrap);
-  modal.classList.add('modal--open');
-}
+// ====== ADD MODAL ======
+function openAddModal(){ document.getElementById('addModal')?.classList.add('modal--open'); }
 function closeAddModal(){
-  const modal = document.getElementById('addModal');
-  const wrap = document.getElementById('addFormWrap');
-  if(addFormHome && wrap && addFormHome !== wrap.parentElement){
-    addFormHome.appendChild(wrap);
-  }
-  modal?.classList.remove('modal--open');
+  const m = document.getElementById('addModal');
+  const form = document.getElementById('assetForm');
+  form?.reset();
+  if(fp) fp.setDate(new Date());
+  onTypeChange();
+  m?.classList.remove('modal--open');
 }
 function hookAddModal(){
   const openBtn = document.getElementById('openAddBtn');
@@ -853,7 +828,7 @@ function hookAddModal(){
   modal?.addEventListener('click', (e)=>{ if(e.target.id==='addModal') closeAddModal(); });
 }
 
-// ====== CLICK HANDLERS (list) ======
+// ====== CLICK HANDLERS (списки) ======
 document.addEventListener('click', async (e)=>{
   const act = e.target.closest('[data-action]'); if(!act) return;
   const action = act.getAttribute('data-action');
@@ -1003,7 +978,6 @@ async function hardRefresh(){ await recalcQuotes(); }
 document.addEventListener('DOMContentLoaded', async ()=>{
   initTheme();
 
-  /* компактный хедер при скролле */
   const headerEl = document.querySelector('header');
   const applyCompact = () => headerEl.classList.toggle('header--compact', window.scrollY > 8);
   window.addEventListener('scroll', applyCompact, { passive: true });

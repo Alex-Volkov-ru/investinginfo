@@ -1,71 +1,87 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title id="pageTitle">Мой инвестиционный портфель</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title id="pageTitle">Мой инвестиционный портфель</title>
 
-<script>
-  if (!localStorage.getItem('pf_token')) {
-    window.location.replace('login.html');
-  }
-</script>
+  <!-- если нет токена — редирект на логин -->
+  <script>
+    if (!localStorage.getItem('pf_token')) {
+      window.location.replace('login.html');
+    }
+  </script>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+  <!-- libs -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
 
-<link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
-<div class="aurora"></div>
-<div class="blob one"></div>
-<div class="blob two"></div>
+  <div class="aurora"></div>
+  <div class="blob one"></div>
+  <div class="blob two"></div>
 
-<div class="container">
-  <header>
-    <div class="title-wrap">
-      <h1 id="portfolioTitle">✨ Мой портфель</h1>
-      <button id="editTitleBtn" class="title-edit" title="Изменить название">✏️</button>
-    </div>
-    <div class="header-actions">
-      <div class="search-wrap">
-        <input id="searchInput" type="text" placeholder="Поиск по тикерам/названию…" />
+  <div class="container">
+    <header>
+      <div class="title-wrap">
+        <h1 id="portfolioTitle">✨ Мой портфель</h1>
+        <button id="editTitleBtn" class="title-edit" title="Изменить название">✏️</button>
       </div>
-      <!-- Быстрое добавление: в десктопной шапке -->
-      <button id="openAddBtn" class="btn btn-primary" title="Добавить актив">➕ Добавить</button>
 
-      <button class="btn btn-ghost" id="toggleAllBtn" title="Свернуть/развернуть все секции">⤴️ Все</button>
-      <div id="authStatus" class="auth-status">Гость</div>
-      <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
-      <button id="refreshBtn" class="btn" title="Обновить котировки">🔄 Обновить</button>
-      <button id="themeToggle" class="btn" title="Сменить тему">🌓 Тема</button>
-      <button id="apiStatusBtn" class="btn" title="Подключение Tinkoff Invest API">
-        🔌 <span id="apiStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#888;margin-left:6px;"></span>
-      </button>
+      <div class="header-actions">
+        <div class="search-wrap">
+          <input id="searchInput" type="text" placeholder="Поиск по тикерам/названию…" />
+        </div>
+
+        <button class="btn btn-ghost" id="toggleAllBtn" title="Свернуть/развернуть все секции">⤴️ Все</button>
+        <div id="authStatus" class="auth-status">Гость</div>
+        <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
+        <button id="refreshBtn" class="btn" title="Обновить котировки">🔄 Обновить</button>
+        <button id="themeToggle" class="btn" title="Сменить тему">🌓 Тема</button>
+        <button id="apiStatusBtn" class="btn" title="Подключение Tinkoff Invest API">
+          🔌 <span id="apiStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#888;margin-left:6px;"></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="portfolio-charts">
+      <div class="chart-card animate-in skeleton" id="sk1"><h3>Аллокация по классам</h3><canvas id="chartByClass"></canvas></div>
+      <div class="chart-card animate-in skeleton" id="sk2"><h3>Аллокация по тикерам (стоимость)</h3><canvas id="chartByTickerValue"></canvas></div>
+      <div class="chart-card animate-in skeleton" id="sk3"><h3>Количество бумаг по тикерам</h3><canvas id="chartByTickerQty"></canvas></div>
     </div>
-  </header>
 
-  <div class="portfolio-charts">
-    <div class="chart-card animate-in skeleton" id="sk1"><h3>Аллокация по классам</h3><canvas id="chartByClass"></canvas></div>
-    <div class="chart-card animate-in skeleton" id="sk2"><h3>Аллокация по тикерам (стоимость)</h3><canvas id="chartByTickerValue"></canvas></div>
-    <div class="chart-card animate-in skeleton" id="sk3"><h3>Количество бумаг по тикерам</h3><canvas id="chartByTickerQty"></canvas></div>
+    <h2 class="zone-title">Итоги</h2>
+    <div class="portfolio-summary" id="portfolioSummary"></div>
+
+    <!-- Заголовок «Позиции» + кнопка открытия модалки -->
+    <div class="title-row">
+      <h2 class="zone-title">Позиции</h2>
+      <button id="openAddBtn" class="btn btn-primary">Добавить актив</button>
+    </div>
+
+    <div id="portfolioSections"></div>
   </div>
 
-  <h2 class="zone-title">Итоги</h2>
-  <div class="portfolio-summary" id="portfolioSummary"></div>
+  <!-- Toasts -->
+  <div class="toast-wrap" id="toastWrap"></div>
 
-  <h2 class="zone-title">Позиции</h2>
-  <div id="portfolioSections"></div>
+  <!-- FAB (мобилка) -->
+  <button id="fabAddBtn" class="fab" title="Добавить актив">＋</button>
 
-  <!-- Раздел с формой добавления остаётся на странице (для тех, кто любит добавлять «внизу»).
-       В модалку форма будет физически ПЕРЕНОСИТЬСЯ при открытии, поэтому id не дублируются. -->
-  <div class="section animate-in" id="addSection">
-    <h2 style="margin-bottom:10px">Добавить актив</h2>
-    <div id="addFormWrap">
+  <!-- Модалка: ДОБАВИТЬ АКТИВ -->
+  <div id="addModal" class="modal" aria-hidden="true">
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Добавить актив</h3>
+        <button class="modal__close" id="addCloseX" aria-label="Закрыть">✕</button>
+      </div>
+
       <form id="assetForm">
         <div class="form-grid">
           <div class="form-group">
@@ -85,10 +101,12 @@
             <label for="assetName">Тикер / Название</label>
             <input type="text" id="assetName" placeholder="SBER, YNDX, TGLD" />
           </div>
+
           <div class="form-group" id="fieldQuantity">
             <label for="assetQuantity">Количество</label>
             <input type="number" id="assetQuantity" min="0" step="1" placeholder="Напр.: 10" />
           </div>
+
           <div class="form-group" id="fieldPrice">
             <label for="assetAvgPrice">Цена покупки (₽)</label>
             <input type="number" id="assetAvgPrice" step="0.0001" min="0" placeholder="Напр.: 4383" />
@@ -105,85 +123,64 @@
           </div>
         </div>
 
-        <div class="form-actions">
-          <button type="reset" class="btn" id="resetBtn">Очистить</button>
+        <div class="modal__footer">
+          <button id="addCloseBtn" type="button" class="btn btn-ghost">Отмена</button>
           <button type="submit" class="btn btn-primary" id="addBtn">Добавить</button>
         </div>
       </form>
     </div>
   </div>
-</div>
 
-<!-- Toasts -->
-<div class="toast-wrap" id="toastWrap"></div>
-
-<!-- FAB для мобильных -->
-<button id="fabAddBtn" class="fab" title="Добавить актив">＋</button>
-
-<!-- Модалка: добавить актив (сюда временно переносится addFormWrap) -->
-<div id="addModal" class="modal" aria-hidden="true">
-  <div class="modal__dialog">
-    <div class="modal__header">
-      <h3>Добавить актив</h3>
-      <button class="modal__close" id="addCloseX" aria-label="Закрыть">✕</button>
-    </div>
-    <div id="addModalHost"></div>
-    <div class="modal__footer">
-      <button id="addCloseBtn" class="btn btn-ghost">Отмена</button>
+  <!-- Модалка: ИЗМЕНИТЬ -->
+  <div id="editModal" class="modal" aria-hidden="true">
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3 id="editTitle">Изменить позицию</h3>
+        <button class="modal__close" id="editCancelX" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>FIGI</label>
+          <div id="editFigi" class="readonly-box">—</div>
+        </div>
+        <div class="form-group">
+          <label for="editDeltaQty">Количество (Δ)</label>
+          <input id="editDeltaQty" type="number" placeholder="+/- шт. (покупка = +, продажа = -)" />
+        </div>
+        <div class="form-group">
+          <label for="editPrice">Цена сделки</label>
+          <input id="editPrice" type="number" step="0.0001" placeholder="Цена за 1 шт." />
+        </div>
+        <div class="form-group">
+          <label for="editDate">Дата сделки</label>
+          <input id="editDate" type="text" placeholder="дд.мм.гггг" />
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button id="editCancelBtn" class="btn btn-ghost">Отмена</button>
+        <button id="editSaveBtn" class="btn btn-primary">Сохранить</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- Модалка: изменить позицию -->
-<div id="editModal" class="modal" aria-hidden="true">
-  <div class="modal__dialog">
-    <div class="modal__header">
-      <h3 id="editTitle">Изменить позицию</h3>
-      <button class="modal__close" id="editCancelX" aria-label="Закрыть">✕</button>
-    </div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>FIGI</label>
-        <div id="editFigi" class="readonly-box">—</div>
+  <!-- Модалка: ТОКЕН -->
+  <div id="tokenModal" class="modal" aria-hidden="true">
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Токен Тинькофф</h3>
+        <button class="modal__close" id="modalCancelX" aria-label="Закрыть">✕</button>
       </div>
-      <div class="form-group">
-        <label for="editDeltaQty">Количество (Δ)</label>
-        <input id="editDeltaQty" type="number" placeholder="+/- шт. (покупка = +, продажа = -)" />
+      <p class="muted">Токен хранится на сервере в зашифрованном виде. Изменение токена повлияет на доступ к данным рынка.</p>
+      <label for="modalTinkoffToken">Новый токен</label>
+      <input id="modalTinkoffToken" type="password" placeholder="t.xxxxx" />
+      <div class="modal__footer">
+        <button id="modalCancelBtn" class="btn btn-ghost">Отмена</button>
+        <button id="modalClearBtn" class="btn btn-danger">Очистить</button>
+        <button id="modalSaveBtn" class="btn btn-primary">Сохранить</button>
       </div>
-      <div class="form-group">
-        <label for="editPrice">Цена сделки</label>
-        <input id="editPrice" type="number" step="0.0001" placeholder="Цена за 1 шт." />
-      </div>
-      <div class="form-group">
-        <label for="editDate">Дата сделки</label>
-        <input id="editDate" type="text" placeholder="дд.мм.гггг" />
-      </div>
-    </div>
-    <div class="modal__footer">
-      <button id="editCancelBtn" class="btn btn-ghost">Отмена</button>
-      <button id="editSaveBtn" class="btn btn-primary">Сохранить</button>
     </div>
   </div>
-</div>
 
-<!-- Модалка: токен Тинькофф -->
-<div id="tokenModal" class="modal" aria-hidden="true">
-  <div class="modal__dialog">
-    <div class="modal__header">
-      <h3>Токен Тинькофф</h3>
-      <button class="modal__close" id="modalCancelX" aria-label="Закрыть">✕</button>
-    </div>
-    <p class="muted">Токен хранится на сервере в зашифрованном виде. Изменение токена повлияет на доступ к данным рынка.</p>
-    <label for="modalTinkoffToken">Новый токен</label>
-    <input id="modalTinkoffToken" type="password" placeholder="t.xxxxx" />
-    <div class="modal__footer">
-      <button id="modalCancelBtn" class="btn btn-ghost">Отмена</button>
-      <button id="modalClearBtn" class="btn btn-danger">Очистить</button>
-      <button id="modalSaveBtn" class="btn btn-primary">Сохранить</button>
-    </div>
-  </div>
-</div>
-
-<script defer src="assets/js/script.js"></script>
+  <script defer src="assets/js/script.js"></script>
 </body>
 </html>
