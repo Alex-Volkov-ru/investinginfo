@@ -247,3 +247,37 @@ header{ top: env(safe-area-inset-top, 0); }
 .assets-list > .asset-card:nth-child(even){ background: var(--zebra-2); }
 .assets-list > .asset-card:hover{ transform: translateY(-2px); box-shadow: var(--shadow); }
 .assets-list .asset-card .asset-header{ border-bottom: 1px dashed var(--stroke); padding-bottom: 8px; margin-bottom: 8px; }
+
+/* ===== Telegram WebApp адаптация ===== */
+:root { --tg-topbar: 56px; } /* примерная высота верхней панели Telegram */
+
+html.tg-app body{
+  /* безопасный отступ под верхнюю панель и вырезы */
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--tg-topbar));
+}
+
+/* На мобиле в TG убираем липкую шапку, чтобы не конфликтовала с панелью Telegram */
+@media (max-width: 560px){
+  html.tg-app header{
+    position: static !important;
+    margin-top: 6px;
+  }
+}
+
+/* Тосты не уезжают под жестовую панель/вырезы */
+.toast-wrap{
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  right:  calc(12px + env(safe-area-inset-right, 0px));
+}
+
+/* аккуратнее обработки тапов в In-App браузере */
+body, button, .btn, input, select, canvas{
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* чуть компактнее общий верхний отступ контейнера в TG */
+html.tg-app .container{
+  padding-top: clamp(8px, 2vw, 16px);
+}
+

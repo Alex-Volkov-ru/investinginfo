@@ -90,6 +90,27 @@ function applyAuthUi(){
 function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); renderCharts(); }
 function initTheme(){ const t = localStorage.getItem('pf_theme') || 'light'; setTheme(t); }
 
+// ====== Telegram helpers (новое) ======
+function tgSyncColors(){
+  try{
+    const tg = Telegram.WebApp;
+    const isDark = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark';
+    tg.setBackgroundColor(isDark ? '#0f1224' : '#f5f7ff');
+    tg.setHeaderColor('secondary_bg_color');
+  }catch(_){}
+}
+function initTelegram(){
+  const isTG = !!(window.Telegram && Telegram.WebApp) || /Telegram/i.test(navigator.userAgent);
+  if(!isTG) return;
+  try{
+    const tg = Telegram.WebApp;
+    tg.expand();
+    tg.disableVerticalSwipes && tg.disableVerticalSwipes();
+    tgSyncColors();
+    tg.onEvent && tg.onEvent('themeChanged', tgSyncColors);
+  }catch(_){}
+}
+
 // ====== DATEPICKER ======
 function initDatePicker(){
   if(fp) fp.destroy();
@@ -977,6 +998,7 @@ async function hardRefresh(){ await recalcQuotes(); }
 
 document.addEventListener('DOMContentLoaded', async ()=>{
   initTheme();
+  initTelegram(); // <-- важно для Telegram WebApp
 
   const headerEl = document.querySelector('header');
   const applyCompact = () => headerEl.classList.toggle('header--compact', window.scrollY > 8);
@@ -990,6 +1012,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     e.currentTarget.style.setProperty('--rx', x); e.currentTarget.style.setProperty('--ry', y);
     e.currentTarget.classList.remove('rippling'); setTimeout(()=> e.currentTarget.classList.add('rippling'), 0); setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250);
     const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark'; setTheme(cur);
+    tgSyncColors(); // <-- синхрон фона в Telegram
   });
 
   initDatePicker();

@@ -2,7 +2,8 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- важный meta для Telegram: viewport-fit=cover и max-scale=1 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <title id="pageTitle">Мой инвестиционный портфель</title>
 
   <!-- если нет токена — редирект на логин -->
@@ -10,6 +11,31 @@
     if (!localStorage.getItem('pf_token')) {
       window.location.replace('login.html');
     }
+  </script>
+
+  <!-- детектор Telegram WebApp + базовая инициализация -->
+  <script>
+    (function () {
+      const isTG =
+        (window.Telegram && Telegram.WebApp) ||
+        /Telegram/i.test(navigator.userAgent);
+      if (!isTG) return;
+
+      document.documentElement.classList.add('tg-app');
+      try {
+        const tg = Telegram.WebApp;
+        tg.expand();                                    // на всю высоту
+        tg.disableVerticalSwipes && tg.disableVerticalSwipes(); // меньше конфликтов со свайпом
+        tg.setBackgroundColor('#0f1224');
+        tg.setHeaderColor('secondary_bg_color');
+
+        // если у пользователя меняется тема в Telegram — обновим сайт
+        tg.onEvent && tg.onEvent('themeChanged', () => {
+          const dark = tg.colorScheme === 'dark';
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        });
+      } catch (e) {}
+    })();
   </script>
 
   <!-- libs -->
