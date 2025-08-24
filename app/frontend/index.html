@@ -35,7 +35,6 @@
       <div class="search-wrap">
         <input id="searchInput" type="text" placeholder="Поиск по тикерам/названию…" />
       </div>
-      <!-- ЕДИНАЯ кнопка свертнуть/развернуть всё -->
       <button class="btn btn-ghost" id="toggleAllBtn" title="Свернуть/развернуть все секции">⤴️ Все</button>
       <div id="authStatus" class="auth-status">Гость</div>
       <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
@@ -53,11 +52,9 @@
     <div class="chart-card animate-in skeleton" id="sk3"><h3>Количество бумаг по тикерам</h3><canvas id="chartByTickerQty"></canvas></div>
   </div>
 
-  <!-- Ярлык: Итоги -->
   <h2 class="zone-title">Итоги</h2>
   <div class="portfolio-summary" id="portfolioSummary"></div>
 
-  <!-- Ярлык: Позиции -->
   <h2 class="zone-title">Позиции</h2>
   <div id="portfolioSections"></div>
 
@@ -114,12 +111,49 @@
 
 <script defer src="assets/js/script.js"></script>
 
-<!-- Modal: управление токеном Тинькофф -->
-<div id="tokenModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); align-items:center; justify-content:center; z-index:1000;">
-  <div style="background:#1b1e39; color:#ecf0ff; padding:20px; border-radius:12px; width:min(520px, 90vw); box-shadow:var(--shadow-lg);">
+<!-- Модалка редактирования позиции -->
+<div id="editModal" class="modal" style="display:none">
+  <div class="modal__dialog">
+    <h3 style="margin:0 0 8px">Изменить позицию</h3>
+
+    <div style="display:grid; gap:10px; grid-template-columns:1fr 1fr;">
+      <div>
+        <div class="muted" style="font-size:12px">Инструмент</div>
+        <div id="editTitle" style="font-weight:800">—</div>
+      </div>
+      <div>
+        <div class="muted" style="font-size:12px">FIGI</div>
+        <div id="editFigi" class="muted">—</div>
+      </div>
+
+      <div>
+        <label for="editDeltaQty" class="muted small-label">Количество (Δ)</label>
+        <input id="editDeltaQty" class="input" type="number" step="1" placeholder="+/- шт. (покупка = +, продажа = -)">
+      </div>
+      <div>
+        <label for="editPrice" class="muted small-label">Цена сделки</label>
+        <input id="editPrice" class="input" type="number" step="0.0001" placeholder="Цена за 1 шт.">
+      </div>
+
+      <div style="grid-column:1 / -1;">
+        <label for="editDate" class="muted small-label">Дата сделки</label>
+        <input id="editDate" class="input" placeholder="дд.мм.гггг">
+      </div>
+    </div>
+
+    <div class="modal__row">
+      <button id="editCancelBtn" class="btn btn-ghost">Отмена</button>
+      <button id="editSaveBtn"  class="btn btn-primary">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка токена Тинькофф -->
+<div id="tokenModal" class="modal" style="display:none">
+  <div class="modal__dialog" style="max-width:520px;">
     <h3 style="margin-top:0">Токен Тинькофф</h3>
     <p class="muted">Токен хранится на сервере в зашифрованном виде. Изменение токена повлияет на доступ к данным рынка.</p>
-    <label for="modalTinkoffToken">Новый токен</label>
+    <label for="modalTinkoffToken" class="muted small-label">Новый токен</label>
     <input id="modalTinkoffToken" type="password" placeholder="t.xxxxx" style="width:100%; padding:10px; margin:8px 0 16px; background:var(--input-bg); color:var(--text); border:1px solid var(--stroke); border-radius:8px;" />
     <div style="display:flex; gap:8px; justify-content:flex-end;">
       <button id="modalCancelBtn" class="btn btn-ghost">Отмена</button>
