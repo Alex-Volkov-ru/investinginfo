@@ -23,6 +23,9 @@ let isRefreshing = false;
 let editCtx = { item:null, type:null, idx:null };
 let editFp = null;
 
+// ====== ADD MODAL MOVE HOST ======
+let addFormHome = null;
+
 // ====== TOAST ======
 function toast(msg, type='ok'){
   const wrap = document.getElementById('toastWrap');
@@ -116,7 +119,7 @@ api.interceptors.request.use(cfg=>{
   return cfg;
 });
 
-/* === НОВОЕ: статус InvestAPI и модалка === */
+/* === InvestAPI статус + модалка токена === */
 async function apiGetMe(){
   try{ const { data } = await api.get('/users/me'); return data; }catch{ return null; }
 }
@@ -139,6 +142,7 @@ function hookTokenModal(){
   const clearBtn = document.getElementById('modalClearBtn');
   const saveBtn = document.getElementById('modalSaveBtn');
   const input = document.getElementById('modalTinkoffToken');
+  const closeX = document.getElementById('modalCancelX');
 
   const open = ()=> tokenModal.classList.add('modal--open');
   const close = ()=> tokenModal.classList.remove('modal--open');
@@ -150,7 +154,7 @@ function hookTokenModal(){
       open();
     });
   }
-  if(cancelBtn){ cancelBtn.addEventListener('click', close); }
+  [cancelBtn, closeX].forEach(b=> b && b.addEventListener('click', close));
   tokenModal.addEventListener('click', (e)=>{ if(e.target.id==='tokenModal') close(); });
 
   if(clearBtn){
@@ -197,12 +201,12 @@ async function apiUpsertPositionByFigi({ portfolio_id, figi, ticker, class_hint,
     figi,
     ticker: (ticker || '').toUpperCase(),
     class_hint: class_hint || null,
-    quantity: Number(qty) || 0,        // Δколичество
-    avg_price: Number(avg) || 0,       // цена сделки/шт
+    quantity: Number(qty) || 0,
+    avg_price: Number(avg) || 0,
     name: name || null,
     currency: currency || null,
     nominal: nominal ?? null,
-    date: date || null                 // YYYY-MM-DD
+    date: date || null
   };
   const { data } = await api.post('/portfolio/positions', payload);
   return data;
@@ -271,8 +275,8 @@ function fmtISOtoRU(iso){ if(!iso) return '—'; const m = /^(\d{4})-(\d{2})-(\d
 function toISOFromAlt(inputVal){
   if(!inputVal) return null;
   const s = inputVal.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;            // уже ISO
-  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);        // dd.mm.yyyy
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
   if(!m) return null;
   return `${m[3]}-${m[2]}-${m[1]}`;
 }
@@ -302,10 +306,7 @@ function totalPL(){
   return {abs, pct};
 }
 function escHtml(s=''){
-  return (s+'')
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;');
+  return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function highlightMatch(text, q){
@@ -314,7 +315,7 @@ function highlightMatch(text, q){
   return escHtml(text||'').replace(re,'<mark>$1</mark>');
 }
 
-// ====== RENDER: SUMMARY ======
+// ====== SUMMARY ======
 function buildClassBreakdownHint(){
   const blocks = [
     ['Накопит', (portfolio.savings||[]).reduce((s,i)=>s+i.value,0)],
@@ -331,7 +332,6 @@ function topInsideHint(arr){
   if(!rows.length) return 'Нет позиций';
   return rows.map(r=> `${r.name}: ${fmt(r.v)} ₽`).join('\n');
 }
-
 function renderSummary(){
   const blocks = [
     { key:'total', title:'Всего', val: totalValue(), hint: buildClassBreakdownHint() },
@@ -349,12 +349,7 @@ function renderSummary(){
   animateNumbers();
 }
 
-function displayLabel(it){
-  if (it.displayName) return it.displayName;
-  if (it.name && it.ticker) return `${it.name} (${it.ticker})`;
-  return it.name || it.ticker || '';
-}
-
+// ====== RENDER: SECTIONS ======
 function destroyPerAssetCharts(){
   Object.keys(charts).forEach(key=>{
     if(key.startsWith('canvas-') && charts[key] && typeof charts[key].destroy==='function'){
@@ -363,8 +358,11 @@ function destroyPerAssetCharts(){
     }
   });
 }
-
-// ====== RENDER: SECTIONS ======
+function displayLabel(it){
+  if (it.displayName) return it.displayName;
+  if (it.name && it.ticker) return `${it.name} (${it.ticker})`;
+  return it.name || it.ticker || '';
+}
 function renderSections(){
   const wrap = document.getElementById('portfolioSections');
   destroyPerAssetCharts();
@@ -466,7 +464,6 @@ function renderSections(){
         </div>
       </section>`);
   }
-
   updateToggleAllBtn();
 }
 
@@ -513,6 +510,7 @@ function renderCharts(){
   const isDark = theme === 'dark';
   const axisGrid = isDark ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.08)';
 
+  // Doughnut
   const classValues = [
     (portfolio.savings||[]).reduce((s,i)=>s+i.value,0),
     (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),
@@ -565,6 +563,7 @@ function renderCharts(){
     el1.addEventListener('mouseleave', () => { charts.c1.setActiveElements([]); charts.c1.update(); });
   }
 
+  // Bars
   const items = [...(portfolio.stocks||[]), ...(portfolio.bonds||[]), ...(portfolio.funds||[])]
     .filter(i => (i.quantity||0)>0);
   const labelsTickers = items.map(i=> displayLabel(i) || i.name);
@@ -740,6 +739,9 @@ async function addAsset(e){
 
   const btn = document.getElementById('addBtn');
   btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
+
+  // если форма была в модалке — закрываем её
+  if(document.getElementById('addModal')?.classList.contains('modal--open')) closeAddModal();
 }
 
 // ====== EDIT MODAL LOGIC ======
@@ -814,10 +816,41 @@ function hookEditModal(){
   const modal = document.getElementById('editModal');
   const saveBtn = document.getElementById('editSaveBtn');
   const cancelBtn = document.getElementById('editCancelBtn');
+  const cancelX = document.getElementById('editCancelX');
 
-  if (cancelBtn) cancelBtn.addEventListener('click', (e)=>{ e.preventDefault(); closeEditModal(); });
+  [cancelBtn, cancelX].forEach(b=> b && b.addEventListener('click', (e)=>{ e.preventDefault(); closeEditModal(); }));
   if (modal) modal.addEventListener('click', (e)=>{ if (e.target.id === 'editModal') closeEditModal(); });
   if (saveBtn) saveBtn.addEventListener('click', (e)=>{ e.preventDefault(); saveEdit(); });
+}
+
+// ====== ADD MODAL (перенос формы) ======
+function openAddModal(){
+  const modal = document.getElementById('addModal');
+  const host = document.getElementById('addModalHost');
+  const wrap = document.getElementById('addFormWrap');
+  if(!modal || !host || !wrap) return;
+  addFormHome = addFormHome || wrap.parentElement;
+  host.appendChild(wrap);
+  modal.classList.add('modal--open');
+}
+function closeAddModal(){
+  const modal = document.getElementById('addModal');
+  const wrap = document.getElementById('addFormWrap');
+  if(addFormHome && wrap && addFormHome !== wrap.parentElement){
+    addFormHome.appendChild(wrap);
+  }
+  modal?.classList.remove('modal--open');
+}
+function hookAddModal(){
+  const openBtn = document.getElementById('openAddBtn');
+  const fabBtn = document.getElementById('fabAddBtn');
+  const closeBtn = document.getElementById('addCloseBtn');
+  const closeX = document.getElementById('addCloseX');
+  const modal = document.getElementById('addModal');
+
+  [openBtn, fabBtn].forEach(b => b && b.addEventListener('click', openAddModal));
+  [closeBtn, closeX].forEach(b => b && b.addEventListener('click', closeAddModal));
+  modal?.addEventListener('click', (e)=>{ if(e.target.id==='addModal') closeAddModal(); });
 }
 
 // ====== CLICK HANDLERS (list) ======
@@ -904,6 +937,7 @@ document.addEventListener('click', async (e)=>{
   }
 });
 
+// ====== HEADER & SEARCH ======
 function onTypeChange(){
   const t = document.getElementById('assetType').value;
   const isSavings = t==='savings';
@@ -916,7 +950,6 @@ function onTypeChange(){
   document.getElementById('assetAvgPrice').required = false;
   document.getElementById('savingsAmount').required = isSavings;
 }
-
 function updateToggleAllBtn(){
   const btn = document.getElementById('toggleAllBtn');
   if(!btn) return;
@@ -933,7 +966,6 @@ function updateToggleAllBtn(){
     btn.setAttribute('aria-label','Развернуть все секции');
   }
 }
-
 function hookHeaderButtons(){
   const toggle = document.getElementById('toggleAllBtn');
   toggle.addEventListener('click', ()=>{
@@ -971,6 +1003,7 @@ async function hardRefresh(){ await recalcQuotes(); }
 document.addEventListener('DOMContentLoaded', async ()=>{
   initTheme();
 
+  /* компактный хедер при скролле */
   const headerEl = document.querySelector('header');
   const applyCompact = () => headerEl.classList.toggle('header--compact', window.scrollY > 8);
   window.addEventListener('scroll', applyCompact, { passive: true });
@@ -1004,6 +1037,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   hookHeaderButtons();
   hookTokenModal();
   hookEditModal();
+  hookAddModal();
   await refreshApiIndicator();
 
   document.getElementById('logoutBtn').addEventListener('click', ()=>{
