@@ -273,3 +273,88 @@ html.tg-app body{ padding-top: calc(env(safe-area-inset-top, 0px) + var(--tg-top
 }
 body, button, .btn, input, select, canvas{ -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 html.tg-app .container{ padding-top: clamp(8px, 2vw, 16px); }
+
+
+header{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+}
+.header-actions{
+  flex:1 1 auto;
+  min-width:220px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:flex-end;
+}
+.search-wrap{ order:0; flex:1 1 260px; max-width:480px; }
+
+/* табы: горизонтальная прокрутка, чтобы не ломались на маленьких экранах */
+.tabs-row{
+  display:flex;
+  gap:10px;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:6px 0;
+}
+.tabs-row .pill{
+  white-space:nowrap;
+  padding:10px 14px;
+  border-radius:999px;
+  border:1px solid var(--stroke);
+  background:var(--card);
+  font-weight:800;
+  user-select:none;
+}
+.tabs-row .pill.active{
+  background:linear-gradient(135deg, var(--brand), var(--brand2));
+  color:#0c0f21;
+  border:none;
+}
+
+/* карточки-графики и секции — чуть меньше отступов на мобилках */
+@media (max-width: 760px){
+  .portfolio-charts{ gap:12px; }
+  .chart-card{ padding:10px; }
+  .section{ padding:12px; }
+  .asset-actions .btn{ padding:6px 9px; }
+}
+
+/* ===== Telegram WebApp режим ===== */
+:root { --tg-topbar: 72px; } /* базовая высота верхней панели TG; JS обновит при необходимости */
+
+/* безопасные отступы, чтобы контент не уезжал под верхнюю панель Telegram */
+html.tg-app body{
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--tg-topbar));
+}
+
+/* в режиме Telegram полностью отключаем "липкую" шапку,
+   потому что у TG уже есть собственная верхняя панель */
+html.tg-app header{
+  position: static !important;
+  border-radius:12px;
+  margin-top:6px;
+}
+
+/* тосты не попадают под нижний жестовый индикатор/вырезы */
+html.tg-app .toast-wrap{
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  right:  calc(12px + env(safe-area-inset-right, 0px));
+}
+
+/* чуть компактнее элементы в TG на очень узких экранах */
+@media (max-width: 560px){
+  html.tg-app .search-wrap{ flex:1 1 100%; max-width:none; }
+  html.tg-app .header-actions{ justify-content:flex-start; }
+  html.tg-app .btn{ padding:8px 10px; }
+  html.tg-app .summary-card{ padding:12px; }
+  html.tg-app .asset-details{ grid-template-columns:1fr; }
+}
+
+/* отключаем синий хайлайт тапов в in-app браузерах */
+body, button, .btn, input, select, canvas{
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}

@@ -1,4 +1,38 @@
 // ====== CONFIG ======
+(function(){
+  const isTG = !!(window.Telegram && window.Telegram.WebApp) || /Telegram/i.test(navigator.userAgent);
+  if (isTG) {
+    document.documentElement.classList.add('tg-app');
+
+    // Попробуем оценить высоту верхней панели TG,
+    // если API доступно — возьмём безопасные отступы, иначе fallback.
+    try {
+      const wa = window.Telegram?.WebApp;
+      // если есть safe area сверху – используем как минимум его
+      const topInset = (wa?.safeAreaInsets?.top || 0);
+      // базовая высота панели (iOS чуть выше), берём консервативно
+      const baseBar = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 86 : 68;
+      const h = Math.max(baseBar, topInset);
+      document.documentElement.style.setProperty('--tg-topbar', h + 'px');
+    } catch(_) {
+      // останемся на CSS значении --tg-topbar: 72px
+    }
+
+    // Пересчёт при повороте/resize
+    let _t = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(_t);
+      _t = setTimeout(()=> {
+        const wa = window.Telegram?.WebApp;
+        const topInset = (wa?.safeAreaInsets?.top || 0);
+        const baseBar = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 86 : 68;
+        const h = Math.max(baseBar, topInset);
+        document.documentElement.style.setProperty('--tg-topbar', h + 'px');
+      }, 150);
+    });
+  }
+})();
+
 const BACKEND =
   (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
     ? 'http://127.0.0.1:8000'
