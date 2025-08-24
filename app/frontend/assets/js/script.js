@@ -69,14 +69,17 @@ function loadSearch(){ try{ const s = localStorage.getItem('pf_search') || ''; s
 
 // ====== UI ======
 function applyTitle(t){
-  document.getElementById('portfolioTitle').textContent = t || '✨ Мой портфель';
-  document.getElementById('pageTitle').textContent = (t || 'Мой инвестиционный портфель');
+  const h1 = document.getElementById('portfolioTitle');
+  if (h1) h1.textContent = t || '✨ Мой портфель';
+  const pt = document.getElementById('pageTitle');
+  if (pt) pt.textContent = (t || 'Инвестиции');
 }
 function loadTitle(){ const t = localStorage.getItem('pf_title') || '✨ Мой портфель'; applyTitle(t); }
 
 function applyAuthUi(){
   const st = document.getElementById('authStatus');
   const btnOut = document.getElementById('logoutBtn');
+  if(!st || !btnOut) return;
   if(auth.token && (auth.tg_username || auth.email)){
     st.textContent = `Привет, ${auth.tg_username || auth.email}`;
     btnOut.style.display = '';
@@ -88,28 +91,7 @@ function applyAuthUi(){
 
 // ====== THEME ======
 function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); renderCharts(); }
-function initTheme(){ const t = localStorage.getItem('pf_theme') || 'light'; setTheme(t); }
-
-// ====== Telegram helpers (новое) ======
-function tgSyncColors(){
-  try{
-    const tg = Telegram.WebApp;
-    const isDark = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark';
-    tg.setBackgroundColor(isDark ? '#0f1224' : '#f5f7ff');
-    tg.setHeaderColor('secondary_bg_color');
-  }catch(_){}
-}
-function initTelegram(){
-  const isTG = !!(window.Telegram && Telegram.WebApp) || /Telegram/i.test(navigator.userAgent);
-  if(!isTG) return;
-  try{
-    const tg = Telegram.WebApp;
-    tg.expand();
-    tg.disableVerticalSwipes && tg.disableVerticalSwipes();
-    tgSyncColors();
-    tg.onEvent && tg.onEvent('themeChanged', tgSyncColors);
-  }catch(_){}
-}
+function initTheme(){ const t = localStorage.getItem('pf_theme') || 'dark'; setTheme(t); }
 
 // ====== DATEPICKER ======
 function initDatePicker(){
@@ -146,7 +128,7 @@ async function refreshApiIndicator(){
   const me = await apiGetMe();
   setApiIndicator(!!(me && me.has_tinkoff));
   const authEl = document.getElementById('authStatus');
-  if(authEl && me) authEl.textContent = me.email || authEl.textContent;
+  if(authEl && me) authEl.textContent = me.email ? `Привет, ${me.email}` : authEl.textContent;
 }
 function hookTokenModal(){
   const tokenModal = document.getElementById('tokenModal');
@@ -163,12 +145,12 @@ function hookTokenModal(){
   if(openBtn){
     openBtn.addEventListener('click', ()=>{
       if(!auth.token){ toast('Сначала войдите', 'err'); return; }
-      input.value = '';
+      if(input) input.value = '';
       open();
     });
   }
   [cancelBtn, closeX].forEach(b=> b && b.addEventListener('click', close));
-  tokenModal.addEventListener('click', (e)=>{ if(e.target.id==='tokenModal') close(); });
+  tokenModal?.addEventListener('click', (e)=>{ if(e.target.id==='tokenModal') close(); });
 
   if(clearBtn){
     clearBtn.addEventListener('click', async ()=>{
@@ -185,7 +167,7 @@ function hookTokenModal(){
   }
   if(saveBtn){
     saveBtn.addEventListener('click', async ()=>{
-      const val = (input.value || '').trim();
+      const val = (input?.value || '').trim();
       if(!val){ toast('Введите токен или нажмите «Очистить»', 'err'); return; }
       if(!/^t\./i.test(val)){
         if(!confirm('Токен не начинается с "t." — сохранить?')) return;
@@ -748,12 +730,14 @@ async function addAsset(e){
   e.target.reset(); if(fp) fp.setDate(new Date()); onTypeChange();
 
   const btn = document.getElementById('addBtn');
-  btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
+  if(btn){
+    btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
+  }
 
   closeAddModal();
 }
 
-// ====== EDIT MODAL ======
+// ====== EDIT MODАЛ ======
 function openEditModal(item, type, idx){
   editCtx = { item, type, idx };
   const modal = document.getElementById('editModal');
@@ -774,7 +758,7 @@ function openEditModal(item, type, idx){
     editFp = flatpickr(dateEl, { locale: flatpickr.l10ns.ru, dateFormat:'Y-m-d', allowInput:true, altInput:true, altFormat:'d.m.Y', defaultDate: item.date || new Date() });
   }
 
-  modal.classList.add('modal--open');
+  modal?.classList.add('modal--open');
 }
 function closeEditModal(){ document.getElementById('editModal')?.classList.remove('modal--open'); editCtx = { item:null, type:null, idx:null }; }
 async function saveEdit(){
@@ -902,7 +886,7 @@ document.addEventListener('click', async (e)=>{
     else{ toast('Нет FIGI для графика — обнови котировки','err'); }
 
     box.querySelectorAll('.chart-tab').forEach(t=> t.classList.remove('active'));
-    box.querySelector('[data-period="1D"]').classList.add('active');
+    box.querySelector('[data-period="1D"]')?.classList.add('active');
     setTimeout(()=>{ box.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
     return;
   }
@@ -964,7 +948,7 @@ function updateToggleAllBtn(){
 }
 function hookHeaderButtons(){
   const toggle = document.getElementById('toggleAllBtn');
-  toggle.addEventListener('click', ()=>{
+  toggle?.addEventListener('click', ()=>{
     toggle.style.setProperty('--rx', '50%'); toggle.style.setProperty('--ry', '50%');
     toggle.classList.remove('rippling'); setTimeout(()=> toggle.classList.add('rippling'), 0); setTimeout(()=> toggle.classList.remove('rippling'), 250);
 
@@ -982,7 +966,7 @@ function hookHeaderButtons(){
   });
 
   const si = document.getElementById('searchInput');
-  si.addEventListener('input', ()=>{
+  si?.addEventListener('input', ()=>{
     searchQuery = si.value || '';
     saveSearch();
     renderSections();
@@ -998,34 +982,35 @@ async function hardRefresh(){ await recalcQuotes(); }
 
 document.addEventListener('DOMContentLoaded', async ()=>{
   initTheme();
-  initTelegram(); // <-- важно для Telegram WebApp
 
   const headerEl = document.querySelector('header');
   const applyCompact = () => headerEl.classList.toggle('header--compact', window.scrollY > 8);
   window.addEventListener('scroll', applyCompact, { passive: true });
   applyCompact();
 
-  document.getElementById('themeToggle').addEventListener('click', (e)=>{
+  document.getElementById('themeToggle')?.addEventListener('click', (e)=>{
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left)/rect.width*100).toFixed(2)+"%";
     const y = ((e.clientY - rect.top)/rect.height*100).toFixed(2)+"%";
     e.currentTarget.style.setProperty('--rx', x); e.currentTarget.style.setProperty('--ry', y);
     e.currentTarget.classList.remove('rippling'); setTimeout(()=> e.currentTarget.classList.add('rippling'), 0); setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250);
     const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark'; setTheme(cur);
-    tgSyncColors(); // <-- синхрон фона в Telegram
   });
 
-  initDatePicker();
+  // title (без кнопки — просто не навешиваем хендлер)
   loadTitle();
-  document.getElementById('editTitleBtn').addEventListener('click', ()=>{
-    const cur = document.getElementById('portfolioTitle').textContent.trim();
-    const v = prompt('Введите новое название портфеля', cur);
-    if(v!==null && v.trim()){
-      localStorage.setItem('pf_title', v.trim());
-      applyTitle(v.trim());
-      toast('Название обновлено');
-    }
-  });
+  const editBtn = document.getElementById('editTitleBtn');
+  if (editBtn){
+    editBtn.addEventListener('click', ()=>{
+      const cur = (document.getElementById('portfolioTitle')?.textContent || 'Мой портфель').trim();
+      const v = prompt('Введите новое название портфеля', cur);
+      if(v!==null && v.trim()){
+        localStorage.setItem('pf_title', v.trim());
+        applyTitle(v.trim());
+        toast('Название обновлено');
+      }
+    });
+  }
 
   loadAuth();
   loadLocal();
@@ -1037,12 +1022,12 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   hookAddModal();
   await refreshApiIndicator();
 
-  document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  document.getElementById('logoutBtn')?.addEventListener('click', ()=>{
     clearAuth(); toast('Вы вышли'); window.location.href='login.html';
   });
 
-  document.getElementById('assetForm').addEventListener('submit', addAsset);
-  document.getElementById('assetType').addEventListener('change', onTypeChange);
+  document.getElementById('assetForm')?.addEventListener('submit', addAsset);
+  document.getElementById('assetType')?.addEventListener('change', onTypeChange);
   onTypeChange();
 
   try{ await loadFromDB(); }catch(e){ console.warn('loadFromDB failed', e); toast('Не удалось загрузить портфель из БД','err'); }
@@ -1050,7 +1035,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   renderSummary(); renderSections(); renderCharts();
   document.querySelectorAll('.chart-card, .summary-card, .section').forEach(el=> io.observe(el));
 
-  document.getElementById('refreshBtn').addEventListener('click', hardRefresh);
+  document.getElementById('refreshBtn')?.addEventListener('click', hardRefresh);
   await hardRefresh();
   if(quotesTimer) clearInterval(quotesTimer);
   quotesTimer = setInterval(async ()=>{

@@ -2,40 +2,13 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <!-- важный meta для Telegram: viewport-fit=cover и max-scale=1 -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-  <title id="pageTitle">Мой инвестиционный портфель</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title id="pageTitle">Инвестиции</title>
 
-  <!-- если нет токена — редирект на логин -->
   <script>
     if (!localStorage.getItem('pf_token')) {
       window.location.replace('login.html');
     }
-  </script>
-
-  <!-- детектор Telegram WebApp + базовая инициализация -->
-  <script>
-    (function () {
-      const isTG =
-        (window.Telegram && Telegram.WebApp) ||
-        /Telegram/i.test(navigator.userAgent);
-      if (!isTG) return;
-
-      document.documentElement.classList.add('tg-app');
-      try {
-        const tg = Telegram.WebApp;
-        tg.expand();                                    // на всю высоту
-        tg.disableVerticalSwipes && tg.disableVerticalSwipes(); // меньше конфликтов со свайпом
-        tg.setBackgroundColor('#0f1224');
-        tg.setHeaderColor('secondary_bg_color');
-
-        // если у пользователя меняется тема в Telegram — обновим сайт
-        tg.onEvent && tg.onEvent('themeChanged', () => {
-          const dark = tg.colorScheme === 'dark';
-          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-        });
-      } catch (e) {}
-    })();
   </script>
 
   <!-- libs -->
@@ -55,16 +28,11 @@
 
   <div class="container">
     <header>
-      <div class="title-wrap">
-        <h1 id="portfolioTitle">✨ Мой портфель</h1>
-        <button id="editTitleBtn" class="title-edit" title="Изменить название">✏️</button>
+      <div class="search-wrap">
+        <input id="searchInput" type="text" placeholder="Поиск по тикерам/названию…" />
       </div>
 
       <div class="header-actions">
-        <div class="search-wrap">
-          <input id="searchInput" type="text" placeholder="Поиск по тикерам/названию…" />
-        </div>
-
         <button class="btn btn-ghost" id="toggleAllBtn" title="Свернуть/развернуть все секции">⤴️ Все</button>
         <div id="authStatus" class="auth-status">Гость</div>
         <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
@@ -76,6 +44,12 @@
       </div>
     </header>
 
+    <!-- Табы: Инвестиции / Бюджетирование -->
+    <nav class="tabs-row">
+      <a class="tab active" href="index.html">Инвестиции</a>
+      <a class="tab" href="budget.html">Бюджетирование</a>
+    </nav>
+
     <div class="portfolio-charts">
       <div class="chart-card animate-in skeleton" id="sk1"><h3>Аллокация по классам</h3><canvas id="chartByClass"></canvas></div>
       <div class="chart-card animate-in skeleton" id="sk2"><h3>Аллокация по тикерам (стоимость)</h3><canvas id="chartByTickerValue"></canvas></div>
@@ -85,7 +59,6 @@
     <h2 class="zone-title">Итоги</h2>
     <div class="portfolio-summary" id="portfolioSummary"></div>
 
-    <!-- Заголовок «Позиции» + кнопка открытия модалки -->
     <div class="title-row">
       <h2 class="zone-title">Позиции</h2>
       <button id="openAddBtn" class="btn btn-primary">Добавить актив</button>

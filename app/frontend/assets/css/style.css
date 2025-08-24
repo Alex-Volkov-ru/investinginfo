@@ -69,9 +69,9 @@ header{
   border:1px solid var(--stroke); border-radius: clamp(10px,1.8vw,14px);
   display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px clamp(10px,1.6vw,14px); margin-bottom:var(--gap); z-index:10;
 }
-.title-wrap{display:flex; gap:8px; align-items:center}
+.title-wrap{display:none} /* титул убрали */
 h1{margin:0; font-weight:800; letter-spacing:-.3px; font-size: clamp(18px, 2.5vw, 28px)}
-.title-edit{cursor:pointer; border:1px solid var(--stroke); background:var(--card); border-radius:10px; padding:6px 10px; font-weight:700}
+.title-edit{display:none}
 
 .header-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
 .auth-status{font-weight:800; color:var(--muted); font-size: clamp(12px, 1.6vw, 14px)}
@@ -92,6 +92,20 @@ h1{margin:0; font-weight:800; letter-spacing:-.3px; font-size: clamp(18px, 2.5vw
 
 .search-wrap{min-width:200px; flex:1 1 260px; max-width:360px}
 .search-wrap input{ width:100%; }
+
+/* табы-плашки */
+.tabs-row{
+  display:flex; gap:8px; margin: 2px 0 var(--gap);
+}
+.tab{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 14px; border-radius:999px;
+  border:1px solid var(--stroke); background:var(--card);
+  font-weight:800; color:var(--text); text-decoration:none;
+  box-shadow:var(--shadow); transition:transform .18s ease, box-shadow .22s ease, background .2s ease;
+}
+.tab:hover{ transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+.tab.active{ background: linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border: none; }
 
 .portfolio-charts{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:var(--gap); margin: 0 0 var(--gap)}
 .chart-card{
@@ -210,7 +224,6 @@ header{ top: env(safe-area-inset-top, 0); }
   padding:6px 10px !important; border-radius:0; margin-bottom:6px;
   background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.04)); box-shadow:0 6px 20px rgba(0,0,0,.25);
 }
-.header--compact h1{ font-size:16px; }
 .header--compact .search-wrap{ display:none; }
 .header--compact #toggleAllBtn{ display:none; }
 .header--compact .auth-status{ display:none; }
@@ -249,35 +262,14 @@ header{ top: env(safe-area-inset-top, 0); }
 .assets-list .asset-card .asset-header{ border-bottom: 1px dashed var(--stroke); padding-bottom: 8px; margin-bottom: 8px; }
 
 /* ===== Telegram WebApp адаптация ===== */
-:root { --tg-topbar: 56px; } /* примерная высота верхней панели Telegram */
-
-html.tg-app body{
-  /* безопасный отступ под верхнюю панель и вырезы */
-  padding-top: calc(env(safe-area-inset-top, 0px) + var(--tg-topbar));
-}
-
-/* На мобиле в TG убираем липкую шапку, чтобы не конфликтовала с панелью Telegram */
+:root { --tg-topbar: 56px; }
+html.tg-app body{ padding-top: calc(env(safe-area-inset-top, 0px) + var(--tg-topbar)); }
 @media (max-width: 560px){
-  html.tg-app header{
-    position: static !important;
-    margin-top: 6px;
-  }
+  html.tg-app header{ position: static !important; margin-top: 6px; }
 }
-
-/* Тосты не уезжают под жестовую панель/вырезы */
 .toast-wrap{
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   right:  calc(12px + env(safe-area-inset-right, 0px));
 }
-
-/* аккуратнее обработки тапов в In-App браузере */
-body, button, .btn, input, select, canvas{
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-/* чуть компактнее общий верхний отступ контейнера в TG */
-html.tg-app .container{
-  padding-top: clamp(8px, 2vw, 16px);
-}
-
+body, button, .btn, input, select, canvas{ -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+html.tg-app .container{ padding-top: clamp(8px, 2vw, 16px); }

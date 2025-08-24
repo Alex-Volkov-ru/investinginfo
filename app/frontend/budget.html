@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Бюджетирование</title>
+
+  <script>
+    if (!localStorage.getItem('pf_token')) {
+      window.location.replace('login.html');
+    }
+  </script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
+
+  <!-- используем те же стили, чтобы верхняя плашка/табы были одинаковые -->
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div class="aurora"></div>
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+
+  <div class="container">
+    <header>
+      <div class="search-wrap">
+        <input type="text" placeholder="Поиск…" disabled />
+      </div>
+      <div class="header-actions">
+        <div id="authStatus" class="auth-status">Гость</div>
+        <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
+        <button id="themeToggle" class="btn" title="Сменить тему">🌓 Тема</button>
+        <button id="apiStatusBtn" class="btn" title="Подключение Tinkoff Invest API">
+          🔌 <span id="apiStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#888;margin-left:6px;"></span>
+        </button>
+      </div>
+    </header>
+
+    <nav class="tabs-row">
+      <a class="tab" href="index.html">Инвестиции</a>
+      <a class="tab active" href="budget.html">Бюджетирование</a>
+    </nav>
+
+    <section class="section open">
+      <div class="section-header">
+        <div class="section-toggle" aria-expanded="true">Бюджетирование</div>
+      </div>
+      <div class="section-body">
+        <div class="assets-list">
+          <div class="asset-card">
+            <div class="asset-header">
+              <div class="asset-name">Пустая страница. Позже тут появятся доходы/расходы и отчёты.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Модалка Токена (та же, что и на главной) -->
+  <div id="tokenModal" class="modal" aria-hidden="true">
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Токен Тинькофф</h3>
+        <button class="modal__close" id="modalCancelX" aria-label="Закрыть">✕</button>
+      </div>
+      <p class="muted">Токен хранится на сервере в зашифрованном виде. Изменение токена повлияет на доступ к данным рынка.</p>
+      <label for="modalTinkoffToken">Новый токен</label>
+      <input id="modalTinkoffToken" type="password" placeholder="t.xxxxx" />
+      <div class="modal__footer">
+        <button id="modalCancelBtn" class="btn btn-ghost">Отмена</button>
+        <button id="modalClearBtn" class="btn btn-danger">Очистить</button>
+        <button id="modalSaveBtn" class="btn btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <script defer src="assets/js/budget.js"></script>
+</body>
+</html>
