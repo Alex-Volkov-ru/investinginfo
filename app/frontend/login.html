@@ -26,7 +26,7 @@
           <label for="loginPassword">Пароль</label>
           <input id="loginPassword" type="password" placeholder="••••••••" required />
           <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
-            <button type="submit" class="btn btn-primary">Войти</button>
+            <button type="submit" class="btn btn-primary" id="loginBtn">Войти</button>
           </div>
           <div class="err" id="loginErr">Неверный email или пароль</div>
         </form>
@@ -47,7 +47,7 @@
           <input id="regTinkoff" type="password" placeholder="t.xxxxxx" autocomplete="off" />
           <div class="muted" style="margin-top:6px">Можно ввести позже в личном кабинете.</div>
           <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
-            <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+            <button type="submit" class="btn btn-primary" id="regBtn">Зарегистрироваться</button>
           </div>
           <div class="err" id="regErr">Проверьте введённые данные</div>
         </form>
@@ -65,7 +65,20 @@
     </div>
   </div>
 
-<!-- ВНЕСЕНО: внешний JS вместо inline <script> -->
-<script defer src="assets/js/login.js"></script>
+  <!-- Toasts -->
+  <div id="toastWrap" class="toast-wrap"></div>
+
+  <!-- Screen loader -->
+  <div id="screenLoader" class="screen-loader" aria-hidden="true">
+    <div class="loader-card">
+      <div class="spinner"></div>
+      <div class="loader-title" id="loaderTitle">Входим…</div>
+      <div class="loader-sub" id="loaderSub">Проверяем данные</div>
+      <div class="progress"><div class="bar" id="loaderBar"></div></div>
+    </div>
+    <div class="bg-pulse"></div>
+  </div>
+
+  <script defer src="assets/js/login.js"></script>
 </body>
 </html>
