@@ -1,105 +1,124 @@
 from __future__ import annotations
 
-from datetime import datetime
-from decimal import Decimal
-from typing import Optional
-
-from sqlalchemy import (
-    DateTime, Text, String, Boolean, ForeignKey, Numeric, CheckConstraint
-)
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+import sqlalchemy as sa
+from sqlalchemy import Column, Text, String, DateTime, Boolean, ForeignKey, Numeric, Date
+from sqlalchemy.orm import relationship
 
 from app.backend.db.base import Base
 
 
-# ============ Accounts ============
-
 class BudgetAccount(Base):
     __tablename__ = "budget_accounts"
+    __table_args__ = {"schema": "pf"}
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    title: Mapped[str] = mapped_column(Text, nullable=False)
-    currency: Mapped[str] = mapped_column(String(3), default="RUB")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    id = Column(sa.BigInteger, primary_key=True)
+    user_id = Column(
+        sa.BigInteger,
+        ForeignKey("pf.users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
-    # ВАЖНО: две раздельные связи
-    transactions_out: Mapped[list["BudgetTransaction"]] = relationship(
+    title = Column(String(100), nullable=False)
+    currency = Column(String(3), nullable=False, server_default="RUB")
+    is_savings = Column(Boolean, nullable=False, server_default=sa.text("false"))
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now())
+
+    # relations
+    transactions = relationship(
         "BudgetTransaction",
         back_populates="account",
         foreign_keys="BudgetTransaction.account_id",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
-    transactions_in: Mapped[list["BudgetTransaction"]] = relationship(
+    contra_transactions = relationship(
         "BudgetTransaction",
         back_populates="contra_account",
         foreign_keys="BudgetTransaction.contra_account_id",
+        passive_deletes=True,
     )
 
-
-# ============ Categories ============
 
 class BudgetCategory(Base):
     __tablename__ = "budget_categories"
-    __table_args__ = (
-        CheckConstraint("kind IN ('income','expense')", name="budget_categories_kind_chk"),
+    __table_args__ = {"schema": "pf"}
+
+    id = Column(sa.BigInteger, primary_key=True)
+    user_id = Column(
+        sa.BigInteger,
+        ForeignKey("pf.users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    kind: Mapped[str] = mapped_column(String(7))  # 'income' | 'expense'
-    name: Mapped[str] = mapped_column(Text, nullable=False)
-    parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("budget_categories.id", ondelete="SET NULL"))
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    kind = Column(String(10), nullable=False)          # 'income' | 'expense'
+    name = Column(String(100), nullable=False)
 
-    parent: Mapped[Optional["BudgetCategory"]] = relationship(remote_side="BudgetCategory.id")
+    parent_id = Column(sa.BigInteger, ForeignKey("pf.budget_categories.id", ondelete="SET NULL"), nullable=True)
+    is_active = Column(Boolean, nullable=False, server_default=sa.text("true"))
 
-    transactions: Mapped[list["BudgetTransaction"]] = relationship(
-        "BudgetTransaction", back_populates="category"
-    )
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now())
 
+    parent = relationship("BudgetCategory", remote_side="BudgetCategory.id")
 
-# ============ Transactions ============
 
 class BudgetTransaction(Base):
     __tablename__ = "budget_transactions"
-    __table_args__ = (
-        CheckConstraint("type IN ('income','expense','transfer')", name="budget_transactions_type_chk"),
-        CheckConstraint("amount >= 0", name="budget_transactions_amount_nonneg"),
+    __table_args__ = {"schema": "pf"}
+
+    id = Column(sa.BigInteger, primary_key=True)
+    user_id = Column(
+        sa.BigInteger,
+        ForeignKey("pf.users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    type = Column(String(10), nullable=False)          # 'income' | 'expense' | 'transfer'
+    occurred_at = Column(DateTime(timezone=True), nullable=False)
 
-    account_id: Mapped[int] = mapped_column(ForeignKey("budget_accounts.id", ondelete="CASCADE"), index=True)
-    category_id: Mapped[Optional[int]] = mapped_column(ForeignKey("budget_categories.id", ondelete="SET NULL"), index=True)
+    account_id = Column(sa.BigInteger, ForeignKey("pf.budget_accounts.id", ondelete="CASCADE"), nullable=False)
+    contra_account_id = Column(sa.BigInteger, ForeignKey("pf.budget_accounts.id", ondelete="SET NULL"), nullable=True)
+    category_id = Column(sa.BigInteger, ForeignKey("pf.budget_categories.id", ondelete="SET NULL"), nullable=True)
 
-    type: Mapped[str] = mapped_column(String(8))   # income | expense | transfer
-    amount: Mapped[Decimal] = mapped_column(Numeric(20, 2))
-    currency: Mapped[str] = mapped_column(String(3), default="RUB")
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    amount = Column(Numeric(20, 2), nullable=False)
+    currency = Column(String(3), nullable=False, server_default="RUB")
+    description = Column(Text, nullable=True)
 
-    # для transfer
-    contra_account_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("budget_accounts.id", ondelete="SET NULL"), nullable=True
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now())
+
+    account = relationship("BudgetAccount", foreign_keys=[account_id], back_populates="transactions", passive_deletes=True)
+    contra_account = relationship("BudgetAccount", foreign_keys=[contra_account_id], back_populates="contra_transactions", passive_deletes=True)
+    category = relationship("BudgetCategory")
+
+
+
+class BudgetObligation(Base):
+    __tablename__ = "budget_obligations"
+    __table_args__ = {"schema": "pf"}
+
+    id = Column(sa.BigInteger, primary_key=True, index=True)
+    user_id = Column(
+        sa.BigInteger,
+        ForeignKey("pf.users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    title = Column(Text, nullable=False)
+    due_date = Column(Date, nullable=False, index=True)
+    amount = Column(Numeric(20, 2), nullable=False)
+    currency = Column(String(3), nullable=False, server_default="RUB")
+    is_done = Column(Boolean, nullable=False, server_default=sa.text("false"))
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+        onupdate=sa.func.now(),
     )
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-
-    # связи (явно указываем foreign_keys!)
-    account: Mapped["BudgetAccount"] = relationship(
-        "BudgetAccount",
-        foreign_keys=[account_id],
-        back_populates="transactions_out",
-    )
-    contra_account: Mapped[Optional["BudgetAccount"]] = relationship(
-        "BudgetAccount",
-        foreign_keys=[contra_account_id],
-        back_populates="transactions_in",
-    )
-    category: Mapped[Optional["BudgetCategory"]] = relationship(
-        "BudgetCategory", back_populates="transactions"
-    )
+    def __repr__(self) -> str:
+        return f"<BudgetObligation id={self.id} title={self.title!r} due={self.due_date} done={self.is_done}>"

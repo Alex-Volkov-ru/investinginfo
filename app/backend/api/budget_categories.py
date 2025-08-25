@@ -1,19 +1,21 @@
 from __future__ import annotations
 
-from typing import Optional, List
+from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
-from sqlalchemy import and_
+from pydantic import BaseModel, StringConstraints
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user
 from app.backend.db.session import get_db
 from app.backend.models.user import User
-from app.backend.models.budget import BudgetCategory, BudgetTransaction
+from app.backend.models.budget import BudgetCategory
 
-router = APIRouter(prefix="/budget/categories", tags=["budget"])
+router = APIRouter(prefix="/budget/categories", tags=["budget: categories"])
 
+NameStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+KindStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=6, max_length=7)]  # income/expense
 
 class CategoryOut(BaseModel):
     id: int
@@ -22,144 +24,71 @@ class CategoryOut(BaseModel):
     parent_id: Optional[int] = None
     is_active: bool
 
-    class Config:
-        from_attributes = True
-
-
-class CategoryCreateIn(BaseModel):
-    kind: str = Field(pattern="^(income|expense)$")
-    name: str = Field(min_length=1)
+class CategoryCreate(BaseModel):
+    kind: KindStr   # "income" | "expense"
+    name: NameStr
     parent_id: Optional[int] = None
-
-
-class CategoryPatchIn(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1)
-    parent_id: Optional[int] = None
-    is_active: Optional[bool] = None
-
 
 @router.get("", response_model=List[CategoryOut])
 def list_categories(
-    kind: Optional[str] = Query(default=None, pattern="^(income|expense)$"),
-    only_active: bool = Query(default=False),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    only_active: bool = Query(True),
 ):
-    q = db.query(BudgetCategory).filter(BudgetCategory.user_id == user.id)
-    if kind:
-        q = q.filter(BudgetCategory.kind == kind)
+    q = select(BudgetCategory).where(BudgetCategory.user_id == user.id)
     if only_active:
-        q = q.filter(BudgetCategory.is_active.is_(True))
-    return q.order_by(BudgetCategory.kind, BudgetCategory.name).all()
+        q = q.where(BudgetCategory.is_active.is_(True))
+    rows = db.execute(q.order_by(BudgetCategory.kind, BudgetCategory.name)).scalars().all()
+    return [
+        CategoryOut(
+            id=r.id, kind=r.kind, name=r.name, parent_id=r.parent_id, is_active=r.is_active
+        ) for r in rows
+    ]
 
 
-@router.post("", response_model=CategoryOut)
+@router.post("", response_model=CategoryOut, status_code=201)
 def create_category(
-    payload: CategoryCreateIn,
+    payload: CategoryCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    # уникальность внутри пользователя
-    exists = db.query(BudgetCategory).filter(
-        BudgetCategory.user_id == user.id,
-        BudgetCategory.kind == payload.kind,
-        BudgetCategory.name == payload.name.strip(),
+    # не дублировать имя в рамках пользователя и kind
+    exists = db.execute(
+        select(BudgetCategory)
+        .where(
+            BudgetCategory.user_id == user.id,
+            BudgetCategory.kind == payload.kind,
+            BudgetCategory.name == payload.name,
+        )
+        .limit(1)
     ).first()
     if exists:
-        raise HTTPException(409, "Такая категория уже существует")
-
-    parent_id = payload.parent_id
-    if parent_id is not None:
-        parent = db.query(BudgetCategory).filter(
-            BudgetCategory.id == parent_id, BudgetCategory.user_id == user.id
-        ).first()
-        if not parent:
-            raise HTTPException(400, "parent_id не найден/чужой")
+        raise HTTPException(status_code=409, detail="category already exists")
 
     cat = BudgetCategory(
         user_id=user.id,
         kind=payload.kind,
-        name=payload.name.strip(),
-        parent_id=parent_id,
+        name=payload.name,
+        parent_id=payload.parent_id,
         is_active=True,
     )
     db.add(cat)
     db.commit()
     db.refresh(cat)
-    return cat
+    return CategoryOut(id=cat.id, kind=cat.kind, name=cat.name, parent_id=cat.parent_id, is_active=cat.is_active)
 
 
-@router.patch("/{category_id}", response_model=CategoryOut)
-def patch_category(
-    category_id: int,
-    payload: CategoryPatchIn,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    cat = db.query(BudgetCategory).filter(
-        BudgetCategory.id == category_id,
-        BudgetCategory.user_id == user.id,
-    ).first()
-    if not cat:
-        raise HTTPException(404, "Категория не найдена")
-
-    if payload.name is not None:
-        # проверка дубля
-        dup = db.query(BudgetCategory).filter(
-            BudgetCategory.user_id == user.id,
-            BudgetCategory.kind == cat.kind,
-            BudgetCategory.name == payload.name.strip(),
-            BudgetCategory.id != category_id,
-        ).first()
-        if dup:
-            raise HTTPException(409, "Категория с таким именем уже есть")
-        cat.name = payload.name.strip()
-
-    if payload.parent_id is not None:
-        if payload.parent_id == category_id:
-            raise HTTPException(400, "parent_id не может указывать на себя")
-        parent = db.query(BudgetCategory).filter(
-            BudgetCategory.id == payload.parent_id,
-            BudgetCategory.user_id == user.id
-        ).first()
-        if not parent:
-            raise HTTPException(400, "parent_id не найден/чужой")
-        if parent.kind != cat.kind:
-            raise HTTPException(400, "parent_id должен быть того же типа (income/expense)")
-        cat.parent_id = payload.parent_id
-
-    if payload.is_active is not None:
-        cat.is_active = payload.is_active
-
-    db.add(cat)
-    db.commit()
-    db.refresh(cat)
-    return cat
-
-
-@router.delete("/{category_id}")
+@router.delete("/{category_id}", status_code=204)
 def delete_category(
     category_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    cat = db.query(BudgetCategory).filter(
-        BudgetCategory.id == category_id,
-        BudgetCategory.user_id == user.id,
-    ).first()
-    if not cat:
-        raise HTTPException(404, "Категория не найдена")
+    cat = db.get(BudgetCategory, category_id)
+    if not cat or cat.user_id != user.id:
+        raise HTTPException(status_code=404, detail="category not found")
 
-    # запретим удалять, если есть операции с ней
-    used = db.query(BudgetTransaction).filter(
-        and_(
-            BudgetTransaction.user_id == user.id,
-            BudgetTransaction.category_id == category_id,
-        )
-    ).first()
-    if used:
-        raise HTTPException(409, "Нельзя удалить: есть операции с этой категорией")
-
-    db.delete(cat)
+    # мягко — просто деактивируем, чтобы не ломать существующие транзакции
+    cat.is_active = False
     db.commit()
-    return {"ok": True}
+    return None

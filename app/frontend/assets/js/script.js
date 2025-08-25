@@ -1075,5 +1075,5 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   quotesTimer = setInterval(async ()=>{
     await hardRefresh();
     await refreshApiIndicator();
-  }, 30 * 1000);
+  }, 60 * 1000);
 });

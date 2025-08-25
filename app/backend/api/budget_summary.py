@@ -1,95 +1,173 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Optional, List
+from datetime import date, timedelta  # datetime не нужен
+from decimal import Decimal
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import func, case
+
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user
 from app.backend.db.session import get_db
 from app.backend.models.user import User
-from app.backend.models.budget import BudgetAccount, BudgetTransaction
+from app.backend.models.budget import BudgetTransaction, BudgetAccount, BudgetCategory
 
-router = APIRouter(prefix="/budget/summary", tags=["budget"])
-
-
-class AccountBalance(BaseModel):
-    account_id: int
-    account_title: str
-    currency: str
-    balance_delta: float
+router = APIRouter(prefix="/budget/summary", tags=["budget: summary"])
 
 
-class TotalsOut(BaseModel):
+# ===== Schemas =====
+
+class MonthSummaryOut(BaseModel):
     income_total: float
     expense_total: float
     net_total: float
-    accounts: List[AccountBalance]
+    savings_transferred: float
 
 
-@router.get("", response_model=TotalsOut)
-def summary(
-    date_from: Optional[datetime] = None,
-    date_to: Optional[datetime] = None,
+class ChartSlice(BaseModel):
+    name: str
+    amount: float
+
+
+class ChartsOut(BaseModel):
+    income_by_category: List[ChartSlice]
+    expense_by_category: List[ChartSlice]
+    expense_by_day: List[ChartSlice]
+
+
+# ===== Helpers =====
+
+def _dates(from_: Optional[str], to: Optional[str]):
+    """
+    Возвращает (d1, d2) — обе даты включительно.
+    Если date_to не задан, d2 = последний день месяца d1.
+    """
+    if from_:
+        d1 = date.fromisoformat(from_)
+    else:
+        today = date.today()
+        d1 = today.replace(day=1)
+
+    if to:
+        d2 = date.fromisoformat(to)
+    else:
+        # последний день месяца d1:
+        # берём 1-е число следующего месяца и минус один день
+        next_month_first = (d1.replace(day=28) + timedelta(days=4)).replace(day=1)
+        d2 = next_month_first - timedelta(days=1)
+
+    return d1, d2
+
+
+# ===== Routes =====
+
+@router.get("/month", response_model=MonthSummaryOut)
+def month_summary(
+    date_from: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="YYYY-MM-DD"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    # итоги пользователя (без transfer)
-    q = db.query(
-        func.coalesce(func.sum(case((BudgetTransaction.type == "income", BudgetTransaction.amount), else_=0)), 0),
-        func.coalesce(func.sum(case((BudgetTransaction.type == "expense", BudgetTransaction.amount), else_=0)), 0),
-    ).filter(BudgetTransaction.user_id == user.id)
+    d1, d2 = _dates(date_from, date_to)
 
-    if date_from:
-        q = q.filter(BudgetTransaction.occurred_at >= date_from)
-    if date_to:
-        q = q.filter(BudgetTransaction.occurred_at < date_to)
+    # income
+    income = db.scalar(
+        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "income",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+    ) or Decimal(0)
 
-    income, expense = q.first() or (0, 0)
-    net = float(income) - float(expense)
+    # expense
+    expense = db.scalar(
+        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "expense",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+    ) or Decimal(0)
 
-    # остаток по счетам (доходы - расходы; transfer не влияет)
-    aq = db.query(
-        BudgetAccount.id,
-        BudgetAccount.title,
-        BudgetAccount.currency,
-        func.coalesce(func.sum(
-            case(
-                (BudgetTransaction.type == "income", BudgetTransaction.amount),
-                (BudgetTransaction.type == "expense", -BudgetTransaction.amount),
-                else_=0
-            )
-        ), 0)
-    ).outerjoin(
-        BudgetTransaction, BudgetTransaction.account_id == BudgetAccount.id
-    ).filter(
-        BudgetAccount.user_id == user.id,
-        BudgetAccount.archived_at.is_(None)
+    # savings: transfers whose contra_account.is_savings = true
+    savings = db.scalar(
+        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .join(BudgetAccount, BudgetAccount.id == BudgetTransaction.contra_account_id)
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "transfer",
+            BudgetAccount.is_savings.is_(True),
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+    ) or Decimal(0)
+
+    return MonthSummaryOut(
+        income_total=float(income),
+        expense_total=float(expense),
+        net_total=float(income - expense),
+        savings_transferred=float(savings),
     )
 
-    if date_from:
-        aq = aq.filter((BudgetTransaction.occurred_at.is_(None)) | (BudgetTransaction.occurred_at >= date_from))
-    if date_to:
-        aq = aq.filter((BudgetTransaction.occurred_at.is_(None)) | (BudgetTransaction.occurred_at < date_to))
 
-    aq = aq.group_by(BudgetAccount.id, BudgetAccount.title, BudgetAccount.currency).order_by(BudgetAccount.id)
+@router.get("/charts", response_model=ChartsOut)
+def charts(
+    date_from: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    d1, d2 = _dates(date_from, date_to)
 
-    accounts = [
-        AccountBalance(
-            account_id=aid,
-            account_title=title,
-            currency=cur,
-            balance_delta=float(bal or 0),
+    # income by category
+    rs_inc = db.execute(
+        select(BudgetCategory.name, func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "income",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
         )
-        for (aid, title, cur, bal) in aq.all()
-    ]
+        .group_by(BudgetCategory.name)
+        .order_by(BudgetCategory.name)
+    ).all()
 
-    return TotalsOut(
-        income_total=float(income or 0),
-        expense_total=float(expense or 0),
-        net_total=net,
-        accounts=accounts
+    # expense by category
+    rs_exp = db.execute(
+        select(BudgetCategory.name, func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "expense",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+        .group_by(BudgetCategory.name)
+        .order_by(BudgetCategory.name)
+    ).all()
+
+    # expense by day
+    rs_day = db.execute(
+        select(BudgetTransaction.occurred_at, func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "expense",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+        .group_by(BudgetTransaction.occurred_at)
+        .order_by(BudgetTransaction.occurred_at.asc())
+    ).all()
+
+    return ChartsOut(
+        income_by_category=[{"name": n, "amount": float(v)} for (n, v) in rs_inc],
+        expense_by_category=[{"name": n, "amount": float(v)} for (n, v) in rs_exp],
+        expense_by_day=[{"name": d.isoformat(), "amount": float(v)} for (d, v) in rs_day],
     )
