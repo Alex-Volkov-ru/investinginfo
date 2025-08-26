@@ -7,6 +7,12 @@
   --chart-h: 280px;
 }
 
+html{
+  /* iOS не должен сам «растягивать» шрифты */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 .budget-page{
   display:grid; gap:16px;
   font-variant-numeric: tabular-nums lining-nums;
@@ -16,13 +22,15 @@
 /* базовые фиксы для webview/ios */
 html, body{ min-height:100%; }
 body{
-  min-height:100svh;                 /* видимая высота на мобайле */
+  min-height:100dvh;                 /* корректная высота на мобайле */
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
 }
 
-/* чтобы контент не попадал под верхнюю телеграм-панель */
+/* общий контейнер как в «Инвестах» */
 .container{
+  max-width: 1120px;
+  margin: 0 auto;
   padding-top: max(8px, var(--safe-top));
   padding-bottom: max(8px, var(--safe-bottom));
 }
@@ -86,8 +94,6 @@ body{
 .budget-page input::placeholder{ color:#7681a1 }
 .budget-page .btn{ font-weight:800 }
 .budget-page .btn-primary{ background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent }
-
-/* Глобально, чтобы скрывало и в модалках */
 .hidden{ display:none !important; }
 
 /* табы */
@@ -139,9 +145,9 @@ body{
 .budget-page .ob-row.done    td:first-child{ color:var(--ok) }
 
 /* ===== MODAL ===== */
-.modal[hidden]{ display:none !important; }          /* при hidden — точно скрыта */
+.modal[hidden]{ display:none !important; }
 .modal{
-  display:block !important;                         /* перебиваем возможные .modal{display:none} */
+  display:block !important;
   position:fixed !important; inset:0 !important;
   z-index:2147483647 !important;
   pointer-events:auto !important;
@@ -164,23 +170,37 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .seg-btn{ border:0; padding:8px 12px; border-radius:999px; font-weight:800; cursor:pointer; background:transparent; color:var(--text); opacity:.8 }
 .seg-btn.is-active{ opacity:1; color:#0c0f21; background:linear-gradient(135deg, var(--brand), var(--brand2)) }
 
-/* мобилка/Telegram WebApp */
+/* мобилка/Telegram WebApp — как в «Инвестах» */
 @media (max-width: 560px){
+  :root{ --chart-h: 220px; }
+
   .budget-page .kpis{ grid-template-columns:1fr 1fr }
   .budget-page .grid--2{ grid-template-columns:1fr }
   .budget-page .btn, .btn-add{ width:100% }
 
+  /* iOS авто-зум на инпутах < 16px — отключаем */
+  .budget-page input, .budget-page select{ font-size:16px; }
+
+  /* модалка — не на весь экран, с отступами (как в инвестициях) */
   .modal__dialog{
-    margin:0; max-width:100%; width:100%;
-    min-height:100svh;                          /* корректная видимая высота в iOS/Telegram */
-    padding-top: calc(16px + var(--safe-top));
-    padding-bottom: calc(16px + var(--safe-bottom));
-    border-radius:12px;
-    display:flex; flex-direction:column;
+    margin: 6vh 12px;
+    max-width: 100%;
+    width: calc(100% - 24px);
+    max-height: calc(100dvh - 12vh);
+    overflow: auto;
+    border-radius: 16px;
+    padding-top: calc(16px + var(--safe-top)/2);
+    padding-bottom: calc(16px + var(--safe-bottom)/2);
   }
+
   .modal__footer{
     position:sticky; bottom:0;
-    padding-bottom: calc(8px + var(--safe-bottom));
+    padding-bottom: calc(8px + var(--safe-bottom)/2);
     background:var(--dialog-bg, #11182f);
   }
+}
+
+/* очень узкие устройства */
+@media (max-width: 380px){
+  :root{ --chart-h: 200px; }
 }
