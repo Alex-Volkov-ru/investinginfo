@@ -50,7 +50,7 @@
   const token = localStorage.getItem('pf_token');
   if (!token) { window.location.href = 'login.html'; return; }
 
-  // ЛОКАЛЬНО ходим на 127.0.0.1:8000, в проде — через /api (nginx проксирует в backend)
+  // локально — на 127.0.0.1:8000, в проде — через /api (nginx проксирует в backend)
   const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
   const baseURL = isLocal ? 'http://127.0.0.1:8000' : '/api';
 
@@ -196,6 +196,11 @@
       acc.add(new Option(title, a.id));
       contra.add(new Option(title, a.id));
     }
+    if (ACCOUNTS.length){
+      const first = String(ACCOUNTS[0].id);
+      acc.value = first;
+      contra.value = first;
+    }
   }
   const acctTitle = id => (MAP_ACC[id]?.title ? `${MAP_ACC[id].title}${MAP_ACC[id].is_savings?' (накоп.)':''}` : '—');
   const catName   = id => (MAP_CAT[id]?.name || '');
@@ -283,7 +288,7 @@
   function openModal(sel, e){
     e?.preventDefault(); e?.stopPropagation();
     const m = $(sel); if(!m) return;
-    m.removeAttribute('hidden');            // <-- критично для WebView/старых движков
+    m.removeAttribute('hidden');            // критично для WebView/старых движков
     m.style.removeProperty('display');
     m.style.removeProperty('visibility');
     m.style.removeProperty('opacity');
@@ -291,22 +296,30 @@
   }
   function closeModal(sel){
     const m = $(sel); if(!m) return;
-    m.setAttribute('hidden','');            // <-- обратно через атрибут
+    m.setAttribute('hidden','');            // обратно через атрибут
     m.style.removeProperty('display');
     m.style.removeProperty('visibility');
     m.style.removeProperty('opacity');
     document.body.style.overflow = '';
   }
 
-  // кнопки открытия модалок (прямые обработчики)
-  $('#openOpModal')?.addEventListener('click', (e)=>{
+  // кнопки открытия модалок (прямые обработчики + подстраховка)
+  $('#openOpModal')?.addEventListener('click', async (e)=>{
+    if (!ACCOUNTS.length || (!CATS_IN.length && !CATS_EX.length)) {
+      try { await loadAccountsAndCats(activeAbort?.signal); } catch {}
+    }
     fillAccountSelects(); fillCategoriesForModal();
     const mDate = document.getElementById('m_date'); if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
     openModal('#opModal', e);
   });
-  $('#openCatModal')?.addEventListener('click', (e)=> openModal('#catModal', e));
+  $('#openCatModal')?.addEventListener('click', async (e)=>{
+    if (!CATS_IN.length && !CATS_EX.length) {
+      try { await loadAccountsAndCats(activeAbort?.signal); } catch {}
+    }
+    openModal('#catModal', e);
+  });
 
-  // страхующее делегирование на документ (на случай, если прямые обработчики не повесились)
+  // страхующее делегирование на документ
   document.addEventListener('click', (e) => {
     const t = e.target instanceof HTMLElement ? e.target : null; if (!t) return;
     if (t.closest('#openOpModal')) { e.preventDefault(); e.stopPropagation(); fillAccountSelects(); fillCategoriesForModal(); openModal('#opModal'); }
@@ -330,6 +343,7 @@
   $('#opmTabs')?.addEventListener('click', (e)=>{ const t=e.target; if(!(t instanceof HTMLElement) || !t.classList.contains('seg-btn')) return; setModalType(t.dataset.type); });
   function fillCategoriesForModal(){
     const sel = $('#m_cat'); if(!sel) return; sel.innerHTML=''; const list = modalType==='income' ? CATS_IN : CATS_EX; list.forEach(c=> sel.add(new Option(c.name, c.id)));
+    if (list.length) sel.value = String(list[0].id);
   }
   $('#opmForm')?.addEventListener('submit', async (e)=>{
     e.preventDefault();

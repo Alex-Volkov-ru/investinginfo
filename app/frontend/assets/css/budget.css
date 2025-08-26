@@ -1,8 +1,30 @@
 /* Бюджет — визуал и поведение под стиль портфеля */
+:root{
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+  --safe-left: env(safe-area-inset-left);
+  --safe-right: env(safe-area-inset-right);
+  --chart-h: 280px;
+}
+
 .budget-page{
   display:grid; gap:16px;
   font-variant-numeric: tabular-nums lining-nums;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+
+/* базовые фиксы для webview/ios */
+html, body{ min-height:100%; }
+body{
+  min-height:100svh;                 /* видимая высота на мобайле */
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+
+/* чтобы контент не попадал под верхнюю телеграм-панель */
+.container{
+  padding-top: max(8px, var(--safe-top));
+  padding-bottom: max(8px, var(--safe-bottom));
 }
 
 /* НЕ перекрывать клики декоративными слоями */
@@ -64,7 +86,9 @@
 .budget-page input::placeholder{ color:#7681a1 }
 .budget-page .btn{ font-weight:800 }
 .budget-page .btn-primary{ background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent }
-.budget-page .hidden{ display:none }
+
+/* Глобально, чтобы скрывало и в модалках */
+.hidden{ display:none !important; }
 
 /* табы */
 .budget-page .tabs{ display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 14px }
@@ -89,7 +113,6 @@
 .budget-page .pill--tr{ background:#20385b; color:#cfe2ff; border:1px solid #162a46 }
 
 /* графики */
-:root{ --chart-h: 280px; }
 .budget-page .chart-box{ background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; padding:6px }
 .budget-page .chart-box canvas{ display:block; width:100%; height:var(--chart-h) }
 
@@ -143,18 +166,21 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 
 /* мобилка/Telegram WebApp */
 @media (max-width: 560px){
-  :root{ --chart-h: 220px; }
   .budget-page .kpis{ grid-template-columns:1fr 1fr }
   .budget-page .grid--2{ grid-template-columns:1fr }
   .budget-page .btn, .btn-add{ width:100% }
+
   .modal__dialog{
     margin:0; max-width:100%; width:100%;
-    min-height:100dvh; border-radius:12px;
+    min-height:100svh;                          /* корректная видимая высота в iOS/Telegram */
+    padding-top: calc(16px + var(--safe-top));
+    padding-bottom: calc(16px + var(--safe-bottom));
+    border-radius:12px;
     display:flex; flex-direction:column;
   }
   .modal__footer{
     position:sticky; bottom:0;
-    padding-bottom:calc(env(safe-area-inset-bottom) + 8px);
+    padding-bottom: calc(8px + var(--safe-bottom));
     background:var(--dialog-bg, #11182f);
   }
 }
