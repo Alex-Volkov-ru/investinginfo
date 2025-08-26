@@ -49,9 +49,17 @@
   // ====== AXIOS ======
   const token = localStorage.getItem('pf_token');
   if (!token) { window.location.href = 'login.html'; return; }
-  const baseURL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://127.0.0.1:8000' : '';
+
+  // ЛОКАЛЬНО ходим на 127.0.0.1:8000, в проде — через /api (nginx проксирует в backend)
+  const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const baseURL = isLocal ? 'http://127.0.0.1:8000' : '/api';
+
   const api = axios.create({ baseURL, timeout: 20000 });
-  api.interceptors.request.use(cfg=>{ cfg.headers = cfg.headers || {}; cfg.headers.Authorization=`Bearer ${token}`; return cfg; });
+  api.interceptors.request.use(cfg => {
+    cfg.headers = cfg.headers || {};
+    cfg.headers.Authorization = `Bearer ${token}`;
+    return cfg;
+  });
 
   // ====== даты ======
   function fmtDate(val){
