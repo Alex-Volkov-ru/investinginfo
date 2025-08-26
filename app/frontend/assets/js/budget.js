@@ -4,52 +4,49 @@
   if (window.__BUDGET_APP_INITIALIZED__) return;
   window.__BUDGET_APP_INITIALIZED__ = true;
 
-  // ====== Chart.js defaults ======
+  // ===== Chart.js =====
   Chart.defaults.font.family = 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
   Chart.defaults.responsive = true;
   Chart.defaults.maintainAspectRatio = false;
   Chart.defaults.resizeDelay = 120;
 
-  // ====== helpers ======
+  // ===== helpers =====
   const $ = s => document.querySelector(s);
   const setText = (el, v) => { if (el) el.textContent = v; };
   const fmtMoney = (v, cur='RUB') => new Intl.NumberFormat('ru-RU', { style:'currency', currency:cur, maximumFractionDigits:2 }).format(Number(v||0));
   const nfPct = new Intl.NumberFormat('ru-RU', { maximumFractionDigits:2 });
 
-  // ====== Тема ======
+  // ===== Theme =====
   function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); }
   (function initTheme(){ setTheme(localStorage.getItem('pf_theme') || 'dark'); })();
+
   function onThemeChanged(){ requestAnimationFrame(()=> loadCharts(activeAbort?.signal)); }
-  document.getElementById('themeToggle')?.addEventListener('click', ()=> {
+  $('#themeToggle')?.addEventListener('click', ()=> {
     const next = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
     setTheme(next); onThemeChanged();
   });
   new MutationObserver(m=>{ if (m.some(x=>x.attributeName==='data-theme')) onThemeChanged(); })
     .observe(document.documentElement, { attributes:true });
 
-  // ====== Приветствие ======
+  // ===== Greeting / Logout =====
   (function applyAuthUi(){
-    const st = document.getElementById('authStatus');
+    const st = $('#authStatus');
     const name = localStorage.getItem('pf_tg_username') || localStorage.getItem('pf_email');
-    st.textContent = name ? `Привет, ${name}` : 'Гость';
+    if (st) st.textContent = name ? `Привет, ${name}` : 'Гость';
   })();
-
-  // ====== Кнопка «Выйти» ======
-  document.getElementById('logoutBtn')?.addEventListener('click', () => {
+  $('#logoutBtn')?.addEventListener('click', () => {
     localStorage.removeItem('pf_token'); localStorage.removeItem('pf_email'); localStorage.removeItem('pf_tg_username');
     window.location.replace('login.html');
   });
 
-  // шапка при скролле
+  // header compact on scroll
   const headerEl = document.querySelector('header');
   const applyCompact = () => headerEl?.classList.toggle('header--compact', window.scrollY > 8);
   window.addEventListener('scroll', applyCompact, { passive:true }); applyCompact();
 
-  // ====== AXIOS ======
+  // ===== AXIOS =====
   const token = localStorage.getItem('pf_token');
   if (!token) { window.location.href = 'login.html'; return; }
-
-  // локально: 127.0.0.1:8000, в проде — через /api (nginx → backend)
   const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
   const baseURL = isLocal ? 'http://127.0.0.1:8000' : '/api';
 
@@ -60,7 +57,7 @@
     return cfg;
   });
 
-  // ====== даты ======
+  // ===== date helpers =====
   function fmtDate(val){
     if (!val) return '—';
     const d = new Date(val);
@@ -80,17 +77,17 @@
     return { from, to, year:y, month:m, days:last };
   }
 
-  // ====== API ping ======
-  function setApiIndicator(on){ const dot = document.getElementById('apiStatusDot'); if (dot) dot.style.background = on ? 'var(--ok)' : '#888'; }
+  // ===== API ping indicator =====
+  function setApiIndicator(on){ const dot = $('#apiStatusDot'); if (dot) dot.style.background = on ? 'var(--ok)' : '#888'; }
   async function ping(signal){ try{ await api.get('/health/ping',{signal}); setApiIndicator(true); }catch{ setApiIndicator(false); } }
 
-  // ====== STATE ======
+  // ===== STATE =====
   let ACCOUNTS=[], CATS_IN=[], CATS_EX=[], MAP_ACC={}, MAP_CAT={}, MONTH_TX=[];
   let modalType = 'income', modalKind = 'income';
   let isRefreshing = false, timerId = null, activeAbort = null;
   const REFRESH_MS = 60*1000;
 
-  // ====== Графики ======
+  // ===== Charts =====
   const donutCenter = (getInfo) => ({
     id:'donutCenter',
     beforeDraw(chart){
@@ -131,7 +128,7 @@
     return new Chart(ctx,{ type:'line', data:{ labels, datasets:[{ data:values, fill:true, backgroundColor:g, borderColor:line, borderWidth:2.5, pointRadius:0, tension:.25 }] }, options:{ plugins:{ legend:{ display:false }, tooltip:{ mode:'index', intersect:false, callbacks:{ title(items){ const d=Number(items[0].label||'0'); const mm=String(month).padStart(2,'0'); const dd=String(d).padStart(2,'0'); return `${dd}.${mm}.${year}`; }, label(c){ return fmtMoney(c.parsed.y); } } } }, interaction:{ intersect:false, mode:'nearest' }, scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0 } }, y:{ ticks:{ callback:(v)=> new Intl.NumberFormat('ru-RU').format(v) }, grid:{ color: theme.getPropertyValue('--stroke') || 'rgba(0,0,0,.1)' } } }, animation:{ duration:700 } } });
   }
 
-  // ====== SUMMARY ======
+  // ===== Summary =====
   async function loadSummary(signal){
     const {from,to} = monthRange();
     const { data } = await api.get('/budget/summary/month', { params:{ date_from:from, date_to:to }, signal });
@@ -141,7 +138,7 @@
     setText($('#kpiSavings'), fmtMoney(data.savings_transferred));
   }
 
-  // ====== CHARTS ======
+  // ===== Charts =====
   async function loadCharts(signal){
     const { from, to, days, year, month } = monthRange();
     const { data } = await api.get('/budget/summary/charts', { params:{ date_from:from, date_to:to }, signal });
@@ -246,14 +243,14 @@
     else{ $('#ledgerExpense')?.classList.add('visible'); $('#ledgerIncome')?.classList.remove('visible'); setText($('#tabTotal'), fmtMoney(s2)); }
   }
 
-  // вкладки регистра
+  // ledger tabs
   $('#ledgerTabs')?.addEventListener('click', (e)=>{
     const t = e.target; if(!(t instanceof HTMLElement) || !t.classList.contains('tab-btn')) return;
     document.querySelectorAll('#ledgerTabs .tab-btn').forEach(b=>b.classList.remove('tab-btn--active'));
     t.classList.add('tab-btn--active'); renderLedger();
   });
 
-  // ====== КАТЕГОРИИ (карточка) ======
+  // ===== Categories (card) =====
   let currentKind = 'income';
   $('#catTabs')?.addEventListener('click', (e)=>{
     const t = e.target; if(!(t instanceof HTMLElement) || !t.classList.contains('tab-btn')) return;
@@ -278,7 +275,7 @@
     }
   });
 
-  // ====== MODAL helpers ======
+  // ===== Modal helpers =====
   function openModal(sel, e){
     e?.preventDefault(); e?.stopPropagation();
     const m = $(sel); if(!m) return;
@@ -293,28 +290,28 @@
     document.body.style.overflow = '';
   }
 
-  // кнопки открытия модалок
+  // open buttons
   $('#openOpModal')?.addEventListener('click', (e)=>{
     fillAccountSelects(); fillCategoriesForModal();
-    const mDate = document.getElementById('m_date'); if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
+    const mDate = $('#m_date'); if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
     openModal('#opModal', e);
   });
   $('#openCatModal')?.addEventListener('click', (e)=> openModal('#catModal', e));
 
-  // страхующее делегирование (на случай, если прямые обработчики не повесились)
+  // safety delegation (если вдруг прямой обработчик не повесился)
   document.addEventListener('click', (e) => {
     const t = e.target instanceof HTMLElement ? e.target : null; if (!t) return;
     if (t.closest('#openOpModal')) { e.preventDefault(); e.stopPropagation(); fillAccountSelects(); fillCategoriesForModal(); openModal('#opModal'); }
     if (t.closest('#openCatModal')){ e.preventDefault(); e.stopPropagation(); openModal('#catModal'); }
   });
 
-  // закрытие модалок
+  // close buttons + ESC
   document.querySelectorAll('.modal [data-close]')?.forEach(btn=>{
     btn.addEventListener('click', (ev)=>{ const root = ev.currentTarget.closest('.modal'); if(root){ root.setAttribute('hidden',''); document.body.style.overflow=''; } });
   });
   window.addEventListener('keydown', (ev)=>{ if (ev.key === 'Escape'){ document.querySelectorAll('.modal:not([hidden])').forEach(m => m.setAttribute('hidden','')); document.body.style.overflow = ''; } });
 
-  // ====== МОДАЛКА: Операция ======
+  // ===== Modal: Operation =====
   function setModalType(t){
     modalType = t;
     document.querySelectorAll('#opmTabs .seg-btn').forEach(b=> b.classList.toggle('is-active', b.dataset.type===t));
@@ -341,7 +338,7 @@
     catch(err){ alert(err?.response?.data?.detail || 'Ошибка при добавлении операции'); }
   });
 
-  // ====== МОДАЛКА: Категория ======
+  // ===== Modal: Category =====
   function setModalKind(k){ modalKind = k; document.querySelectorAll('#catmTabs .seg-btn').forEach(b=> b.classList.toggle('is-active', b.dataset.kind===k)); }
   $('#catmTabs')?.addEventListener('click', (e)=>{ const t=e.target; if(!(t instanceof HTMLElement) || !t.classList.contains('seg-btn')) return; setModalKind(t.dataset.kind); });
   $('#catmForm')?.addEventListener('submit', async (e)=>{
@@ -351,7 +348,7 @@
     catch(err){ alert(err?.response?.data?.detail || 'Ошибка при добавлении категории'); }
   });
 
-  // ====== Обязательные платежи: Добавить/удалить/готово ======
+  // ===== Obligations: add/del/done =====
   async function addObligation(){
     const title = $('#obTitle')?.value.trim();
     const due_date = $('#obDate')?.value || null;
@@ -364,35 +361,35 @@
       await loadObligations(activeAbort?.signal);
     }catch(err){ alert(err?.response?.data?.detail || 'Не удалось добавить платёж'); }
   }
-  document.getElementById('addObBtn')?.addEventListener('click', addObligation);
-  document.getElementById('obTable')?.addEventListener('click', async (e)=>{
+  $('#addObBtn')?.addEventListener('click', addObligation);
+  $('#obTable')?.addEventListener('click', async (e)=>{
     const btn = (e.target instanceof HTMLElement) ? e.target.closest('[data-act="del"]') : null; if (!btn) return;
     const id = btn.getAttribute('data-id'); if (!id) return;
     if (!confirm('Удалить платёж?')) return;
     try{ await api.delete(`/budget/obligations/${id}`); await loadObligations(activeAbort?.signal); }
     catch(err){ alert(err?.response?.data?.detail || 'Не удалось удалить платёж'); }
   });
-  document.getElementById('obTable')?.addEventListener('change', async (e)=>{
+  $('#obTable')?.addEventListener('change', async (e)=>{
     const chk = e.target; if (!(chk instanceof HTMLInputElement) || !chk.classList.contains('ob-done')) return;
     const id = chk.getAttribute('data-id'); const date = chk.getAttribute('data-date') || null;
     try{ await api.patch(`/budget/obligations/${id}`, { is_done: chk.checked, date }); await loadObligations(activeAbort?.signal); }
     catch(err){ alert(err?.response?.data?.detail || 'Не удалось изменить статус'); chk.checked = !chk.checked; }
   });
 
-  // ====== Секции «Все» ======
-  const toggleAllBtn = document.getElementById('toggleAllBtn');
+  // ===== Sections "Все" =====
+  const toggleAllBtn = $('#toggleAllBtn');
   function anyOpen(){ return Array.from(document.querySelectorAll('details.collapsible')).some(d=>d.open); }
   function updateToggleAllBtn(){ if (!toggleAllBtn) return; const open = anyOpen(); toggleAllBtn.textContent = open ? '⤵️ Все' : '⤴️ Все'; toggleAllBtn.title = open ? 'Свернуть все секции' : 'Развернуть все секции'; toggleAllBtn.disabled = false; }
   toggleAllBtn?.addEventListener('click', ()=>{ const open = anyOpen(); document.querySelectorAll('details.collapsible').forEach(d=> d.open = !open); updateToggleAllBtn(); });
   updateToggleAllBtn();
 
-  // ====== Refresh ======
+  // ===== Refresh =====
   function scheduleNext(){ clearTimeout(timerId); timerId = setTimeout(()=> refreshAll('timer'), REFRESH_MS); }
   async function refreshAll(_reason='manual'){
     if (isRefreshing) return; isRefreshing = true;
     if (activeAbort) activeAbort.abort(); activeAbort = new AbortController();
     const { signal } = activeAbort;
-    const btn = document.getElementById('refreshBtn'); if(btn){ btn.disabled=true; btn.textContent='Обновляю...'; }
+    const btn = $('#refreshBtn'); if(btn){ btn.disabled=true; btn.textContent='Обновляю...'; }
     try{
       await ping(signal);
       await loadAccountsAndCats(signal);
@@ -400,12 +397,12 @@
     }catch(err){ if(!axios.isCancel(err)) console.error('refresh error', err); }
     finally{ if(btn){ btn.disabled=false; btn.textContent='Обновить'; } isRefreshing=false; scheduleNext(); }
   }
-  document.getElementById('refreshBtn')?.addEventListener('click', ()=>refreshAll('button'));
-  document.getElementById('periodInput')?.addEventListener('change', ()=>refreshAll('period-change'));
+  $('#refreshBtn')?.addEventListener('click', ()=>refreshAll('button'));
+  $('#periodInput')?.addEventListener('change', ()=>refreshAll('period-change'));
 
-  // ====== init ======
+  // ===== init =====
   (async ()=>{
-    const mDate = document.getElementById('m_date');
+    const mDate = $('#m_date');
     if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
     setModalType('income'); setModalKind('income');
     await refreshAll('init');
