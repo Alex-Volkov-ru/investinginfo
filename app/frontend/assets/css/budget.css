@@ -1,4 +1,4 @@
-/* Бюджет — визуал и поведение под стиль портфеля */
+/* ===== base + safe areas ===== */
 :root{
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
@@ -7,37 +7,43 @@
   --chart-h: 280px;
 }
 
+*{ box-sizing:border-box; }
+
 html{
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
 }
 
-html, body{ min-height:100%; }
+html,body{ min-height:100%; width:100%; }
 body{
   min-height:100dvh;
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
-  overflow-x:hidden;                    /* чтобы не было «среза» справа */
+  overflow-x:hidden;                 /* убираем горизонтальный скролл */
 }
 
+/* общий контейнер как в инвестах */
+.container{
+  width:100%;
+  max-width:1120px;
+  margin:0 auto;
+  padding-top:max(8px, var(--safe-top));
+  padding-bottom:max(8px, var(--safe-bottom));
+}
+
+/* декоративные фоны НЕ должны раздувать ширину */
+.aurora, .blob{
+  pointer-events:none !important;
+  position:fixed; inset:0;
+  max-width:100vw; overflow:clip;     /* не влияют на layout */
+}
+
+/* ===== карточки/секции ===== */
 .budget-page{
   display:grid; gap:16px;
   font-variant-numeric: tabular-nums lining-nums;
-  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
 }
-
-/* общий контейнер, как в Инвестах */
-.container{
-  max-width: 1120px;
-  margin: 0 auto;
-  padding-top: max(8px, var(--safe-top));
-  padding-bottom: max(8px, var(--safe-bottom));
-}
-
-/* НЕ перекрывать клики декоративными слоями */
-.aurora, .blob{ pointer-events:none !important; }
-
-/* карточки */
 .budget-page .card{
   background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
   border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:var(--shadow);
@@ -48,7 +54,7 @@ body{
 .card-head{ display:flex; align-items:center; justify-content:space-between; gap:12px }
 .head-between{ display:flex; justify-content:space-between; align-items:center; gap:12px }
 
-/* панель действий внутри секции (НЕ в summary) */
+/* панель действий внутри секции */
 .section-toolbar{ display:flex; justify-content:flex-end; margin:4px 0 12px; gap:10px }
 
 /* +Добавить */
@@ -117,9 +123,9 @@ body{
 .budget-page .pill--exp{ background:#5a1a1a; color:#ffd6d6; border:1px solid #3d1010 }
 .budget-page .pill--tr{ background:#20385b; color:#cfe2ff; border:1px solid #162a46 }
 
-/* графики */
-.budget-page .chart-box{ background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; padding:6px }
-.budget-page .chart-box canvas{ display:block; width:100%; height:var(--chart-h) }
+/* графики — без переполнения ширины */
+.budget-page .chart-box{ background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; padding:6px; overflow:hidden }
+.budget-page .chart-box canvas{ display:block; width:100% !important; max-width:100% !important; height:var(--chart-h) }
 
 /* регистр вкладок */
 .budget-page .ledger{ display:none } .budget-page .ledger.visible{ display:block }
@@ -144,35 +150,24 @@ body{
 .budget-page .ob-row.done    td:first-child{ color:var(--ok) }
 
 /* ===== MODAL ===== */
-/* слой модалки — центрируем и даём внутренние боковые отступы.
-   Так диалог не упрётся в правый край и не будет «срезан». */
 .modal[hidden]{ display:none !important; }
 .modal{
   display:flex !important;
   position:fixed !important; inset:0 !important;
   z-index:2147483647 !important;
-  pointer-events:auto !important;
-  align-items:flex-start;                 /* старт по вертикали (ниже верхних кнопок) */
+  align-items:flex-start;                 /* начинаем ниже верхних кнопок */
   justify-content:center;
-  padding:0 12px;                         /* безопасные боковые поля */
+  padding:0 12px;                         /* безопасные края */
 }
-
-/* сам диалог */
+.modal__backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.45); backdrop-filter: blur(2px); }
 .modal__dialog{
   position:relative; z-index:1;
   background:var(--dialog-bg, #11182f); border:1px solid var(--stroke);
   color:var(--text); border-radius:16px; box-shadow:var(--shadow-xl);
-  padding:20px; width:100%; max-width:560px;      /* фикс. макс-ширина, центр */
-  box-sizing:border-box;
-  margin-top: calc(clamp(56px, 10vh, 96px) + var(--safe-top)); /* ОПУСТИЛ НИЖЕ */
+  padding:20px; width:100%; max-width:560px;
+  margin-top: calc(clamp(56px, 10vh, 96px) + var(--safe-top)); /* опускаем ниже Telegram-кнопок */
   margin-bottom: max(12px, var(--safe-bottom));
 }
-
-/* на десктопе оставим чуть выше — как было */
-@media (min-width: 961px){
-  .modal__dialog{ margin-top:6vh; max-width:960px; }
-}
-
 html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .modal__header{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px }
 .modal__header h3{ margin:0; font-size:22px }
@@ -184,9 +179,15 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .seg-btn{ border:0; padding:8px 12px; border-radius:999px; font-weight:800; cursor:pointer; background:transparent; color:var(--text); opacity:.8 }
 .seg-btn.is-active{ opacity:1; color:#0c0f21; background:linear-gradient(135deg, var(--brand), var(--brand2)) }
 
-/* мобилка/Telegram WebApp */
+/* ===== mobile / telegram webapp ===== */
 @media (max-width: 560px){
   :root{ --chart-h: 220px; }
+
+  /* ломаем жёсткие минимальные ширины в шапке */
+  header .header-actions{ flex-wrap:wrap; gap:8px; }
+  header .select-wrap{ min-width:0 !important; width:auto; flex:0 1 auto; }
+  header .search-wrap{ flex:1 1 200px; min-width:0; }
+  header .search-wrap input{ width:100%; }
 
   .budget-page .kpis{ grid-template-columns:1fr 1fr }
   .budget-page .grid--2{ grid-template-columns:1fr }
@@ -203,6 +204,6 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 }
 
 /* очень узкие устройства */
-@media (max-width: 380px){
-  :root{ --chart-h: 200px; }
+@media (max-width:380px){
+  :root{ --chart-h:200px; }
 }
