@@ -11,12 +11,10 @@
     }
   </script>
 
-  <!-- fonts & libs -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 
-  <!-- общий стиль «портфеля» + бюджет-надстройка -->
   <link rel="stylesheet" href="assets/css/style.css" />
   <link rel="stylesheet" href="assets/css/budget.css" />
 </head>
@@ -26,208 +24,111 @@
   <div class="blob two"></div>
 
   <div class="container">
-    <!-- ШАПКА как в портфеле -->
     <header>
       <div class="search-wrap">
         <input id="searchInput" type="text" placeholder="Поиск по тикерам/названию…" />
       </div>
       <div class="header-actions">
         <button class="btn btn-ghost" id="toggleAllBtn" title="Свернуть/развернуть все секции">⤴️ Все</button>
-
         <div id="authStatus" class="auth-status">Гость</div>
         <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
-
-        <!-- Период прямо в шапке -->
-        <div class="select-wrap" style="min-width:170px">
-          <input id="periodInput" type="month" />
-        </div>
-
+        <div class="select-wrap" style="min-width:170px"><input id="periodInput" type="month" /></div>
         <button id="refreshBtn" class="btn" title="Обновить данные">🔄 Обновить</button>
         <button id="themeToggle" class="btn" title="Сменить тему">🌓 Тема</button>
-        </button>
       </div>
     </header>
 
-    <!-- Табы -->
     <nav class="tabs-row">
       <a class="tab" href="index.html">Инвестиции</a>
       <a class="tab active" href="budget.html">Бюджетирование</a>
     </nav>
 
-    <!-- КОНТЕНТ -->
     <main class="budget-page">
 
       <!-- Итоги -->
       <details open class="card collapsible">
-        <summary>
-          <h2><span class="chev">▸</span> Итоги месяца</h2>
-        </summary>
+        <summary class="card-head"><h2><span class="chev">▸</span> Итоги месяца</h2></summary>
         <div class="kpis">
-          <div class="kpi">
-            <div class="kpi__label">Доходы</div>
-            <div class="kpi__value" id="kpiIncome">0 ₽</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi__label">Расходы</div>
-            <div class="kpi__value" id="kpiExpense">0 ₽</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi__label">Остаток</div>
-            <div class="kpi__value" id="kpiNet">0 ₽</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi__label">Сбережения (отложено)</div>
-            <div class="kpi__value" id="kpiSavings">0 ₽</div>
-          </div>
+          <div class="kpi"><div class="kpi__label">Доходы</div><div class="kpi__value" id="kpiIncome">0 ₽</div></div>
+          <div class="kpi"><div class="kpi__label">Расходы</div><div class="kpi__value" id="kpiExpense">0 ₽</div></div>
+          <div class="kpi"><div class="kpi__label">Остаток</div><div class="kpi__value" id="kpiNet">0 ₽</div></div>
+          <div class="kpi"><div class="kpi__label">Сбережения (отложено)</div><div class="kpi__value" id="kpiSavings">0 ₽</div></div>
         </div>
       </details>
 
-      <!-- Операции + Категории -->
-      <section class="grid grid--2">
-        <details open class="card collapsible">
-          <summary><h2><span class="chev">▸</span> Операции</h2></summary>
-
-          <div class="tabs" id="opTabs">
-            <button class="tab-btn tab-btn--active" data-type="income">Доход</button>
-            <button class="tab-btn" data-type="expense">Расход</button>
-            <button class="tab-btn" data-type="transfer">Перевод</button>
-          </div>
-
-          <form id="opForm" class="form">
-            <div class="form__row">
-              <label>Дата
-                <input type="date" id="opDate" required>
-              </label>
-              <label>Счёт
-                <select id="opAccount" required></select>
-              </label>
-              <label id="opContraWrap" class="hidden">На счёт
-                <select id="opContra"></select>
-              </label>
-              <label>Сумма
-                <input type="number" step="0.01" id="opAmount" placeholder="0.00" required>
-              </label>
-            </div>
-            <div class="form__row" id="opCatRow">
-              <label>Категория
-                <select id="opCategory"></select>
-              </label>
-              <label>Описание
-                <input type="text" id="opDesc" placeholder="Комментарий (необязательно)">
-              </label>
-            </div>
-            <div class="form__actions">
-              <button class="btn btn-primary" type="submit">Добавить</button>
-              <span class="muted" id="opHint"></span>
-            </div>
-          </form>
-        </details>
-
-        <details open class="card collapsible">
-          <summary><h2><span class="chev">▸</span> Категории</h2></summary>
-
-          <div class="tabs" id="catTabs">
-            <button class="tab-btn tab-btn--active" data-kind="income">Доходы</button>
-            <button class="tab-btn" data-kind="expense">Расходы</button>
-          </div>
-
-          <form id="catForm" class="form">
-            <div class="form__row">
-              <label>Название
-                <input type="text" id="catName" placeholder="Напр. Зарплата" required>
-              </label>
-              <button class="btn btn-soft btn-sm" type="submit">Добавить категорию</button>
-            </div>
-          </form>
-
-          <table class="table">
-            <thead><tr><th>Категория</th><th class="t-right">Действия</th></tr></thead>
-            <tbody id="catTable"></tbody>
-          </table>
-        </details>
-      </section>
+      <!-- Диаграммы -->
+      <details open class="card collapsible">
+        <summary class="card-head"><h2><span class="chev">▸</span> Диаграммы</h2></summary>
+        <div class="grid grid--2">
+          <div><h3 class="muted">Источники дохода</h3><div class="chart-box"><canvas id="incChart"></canvas></div></div>
+          <div><h3 class="muted">Категории расходов</h3><div class="chart-box"><canvas id="expChart"></canvas></div></div>
+        </div>
+        <div style="margin-top:16px"><h3 class="muted">Расход по дням</h3><div class="chart-box"><canvas id="expByDayChart"></canvas></div></div>
+      </details>
 
       <!-- Обязательные платежи -->
       <details class="card collapsible">
-        <summary><h2><span class="chev">▸</span> Обязательные платежи</h2></summary>
-
+        <summary class="card-head"><h2><span class="chev">▸</span> Обязательные платежи</h2></summary>
         <div class="form">
           <div class="form__row">
-            <label>Название
-              <input type="text" id="obTitle" placeholder="Напр. Кредит">
-            </label>
-            <label>Дата
-              <input type="date" id="obDate">
-            </label>
-            <label>Сумма
-              <input type="number" step="0.01" id="obAmount" placeholder="0.00">
-            </label>
-            <label>Валюта
-              <select id="obCurrency">
-                <option>RUB</option><option>USD</option><option>EUR</option>
-              </select>
-            </label>
+            <label>Название <input type="text" id="obTitle" placeholder="Напр. Кредит"></label>
+            <label>Дата     <input type="date" id="obDate"></label>
+            <label>Сумма    <input type="number" step="0.01" id="obAmount" placeholder="0.00"></label>
+            <label>Валюта   <select id="obCurrency"><option>RUB</option><option>USD</option><option>EUR</option></select></label>
             <button id="addObBtn" class="btn btn-primary" type="button" style="align-self:end">Добавить</button>
           </div>
         </div>
-
         <table class="table">
           <thead><tr><th>Дата</th><th>Название</th><th class="t-right">Сумма</th><th class="t-center">Готово</th><th></th></tr></thead>
           <tbody id="obTable"></tbody>
         </table>
       </details>
 
-      <!-- Диаграммы -->
+      <!-- Операции -->
       <details open class="card collapsible">
-        <summary><h2><span class="chev">▸</span> Диаграммы</h2></summary>
+        <summary class="card-head"><h2><span class="chev">▸</span> Операции</h2></summary>
+        <div class="section-toolbar">
+          <button id="openOpModal" class="btn-add"><span class="plus">+</span> Добавить</button>
+        </div>
+        <p class="muted">Создайте доход, расход или перевод через кнопку «Добавить».</p>
+      </details>
 
-        <div class="grid grid--2">
-          <div>
-            <h3 class="muted">Источники дохода</h3>
-            <div class="chart-box"><canvas id="incChart"></canvas></div>
-          </div>
-          <div>
-            <h3 class="muted">Категории расходов</h3>
-            <div class="chart-box"><canvas id="expChart"></canvas></div>
-          </div>
+      <!-- Категории -->
+      <details open class="card collapsible">
+        <summary class="card-head"><h2><span class="chev">▸</span> Категории</h2></summary>
+        <div class="section-toolbar">
+          <button id="openCatModal" class="btn-add"><span class="plus">+</span> Добавить</button>
         </div>
-        <div style="margin-top:16px">
-          <h3 class="muted">Расход по дням</h3>
-          <div class="chart-box"><canvas id="expByDayChart"></canvas></div>
+
+        <div class="tabs" id="catTabs">
+          <button class="tab-btn tab-btn--active" data-kind="income">Доходы</button>
+          <button class="tab-btn" data-kind="expense">Расходы</button>
         </div>
+
+        <table class="table">
+          <thead><tr><th>Категория</th><th class="t-right">Действия</th></tr></thead>
+          <tbody id="catTable"></tbody>
+        </table>
       </details>
 
       <!-- Регистр -->
       <details open class="card collapsible">
-        <summary>
-          <div class="head-between">
-            <h2><span class="chev">▸</span> Регистр операций за месяц</h2>
-            <div class="muted">Итого: <b id="tabTotal">0 ₽</b></div>
-          </div>
-        </summary>
-
+        <summary><div class="head-between"><h2><span class="chev">▸</span> Регистр операций за месяц</h2><div class="muted">Итого: <b id="tabTotal">0 ₽</b></div></div></summary>
         <div class="tabs" id="ledgerTabs">
           <button class="tab-btn tab-btn--active" data-tab="income">Доходы</button>
           <button class="tab-btn" data-tab="expense">Расходы</button>
         </div>
-
         <div id="ledgerIncome" class="ledger visible">
-          <table class="table">
-            <thead><tr><th>Дата</th><th>Счёт</th><th>Категория</th><th class="t-right">Сумма</th><th>Описание</th></tr></thead>
-            <tbody id="incTable"></tbody>
-          </table>
+          <table class="table"><thead><tr><th>Дата</th><th>Счёт</th><th>Категория</th><th class="t-right">Сумма</th><th>Описание</th></tr></thead><tbody id="incTable"></tbody></table>
         </div>
         <div id="ledgerExpense" class="ledger">
-          <table class="table">
-            <thead><tr><th>Дата</th><th>Счёт</th><th>Категория</th><th class="t-right">Сумма</th><th>Описание</th></tr></thead>
-            <tbody id="expTable"></tbody>
-          </table>
+          <table class="table"><thead><tr><th>Дата</th><th>Счёт</th><th>Категория</th><th class="t-right">Сумма</th><th>Описание</th></tr></thead><tbody id="expTable"></tbody></table>
         </div>
       </details>
 
       <!-- Последние операции -->
       <details open class="card collapsible">
-        <summary><h2><span class="chev">▸</span> Последние операции</h2></summary>
+        <summary class="card-head"><h2><span class="chev">▸</span> Последние операции</h2></summary>
         <table class="table">
           <thead><tr><th>Дата</th><th>Тип</th><th>Счёт</th><th>Категория</th><th class="t-right">Сумма</th><th>Описание</th></tr></thead>
           <tbody id="txTable"></tbody>
@@ -235,6 +136,55 @@
       </details>
 
     </main>
+  </div>
+
+  <!-- ===== MODALS ===== -->
+  <!-- Операция -->
+  <div id="opModal" class="modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Добавить операцию</h3>
+        <button class="modal__close" data-close>&times;</button>
+      </div>
+
+      <div class="seg" id="opmTabs">
+        <button type="button" class="seg-btn is-active" data-type="income">Доход</button>
+        <button type="button" class="seg-btn" data-type="expense">Расход</button>
+        <button type="button" class="seg-btn" data-type="transfer">Перевод</button>
+      </div>
+
+      <form id="opmForm" class="form">
+        <label>Дата <input type="date" id="m_date" required></label>
+        <label>Счёт <select id="m_acc" required></select></label>
+        <label id="m_contra_wrap" class="hidden">На счёт <select id="m_contra"></select></label>
+        <label>Сумма <input type="number" step="0.01" id="m_amount" placeholder="0.00" required></label>
+        <label id="m_cat_wrap">Категория <select id="m_cat"></select></label>
+        <label>Описание <input type="text" id="m_desc" placeholder="Комментарий (необязательно)"></label>
+        <div class="modal__footer"><button type="submit" class="btn btn-primary">Сохранить</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Категория -->
+  <div id="catModal" class="modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Добавить категорию</h3>
+        <button class="modal__close" data-close>&times;</button>
+      </div>
+
+      <div class="seg" id="catmTabs">
+        <button type="button" class="seg-btn is-active" data-kind="income">Доходы</button>
+        <button type="button" class="seg-btn" data-kind="expense">Расходы</button>
+      </div>
+
+      <form id="catmForm" class="form">
+        <label>Название <input type="text" id="catmName" placeholder="Напр. Зарплата" required></label>
+        <div class="modal__footer"><button type="submit" class="btn btn-primary">Добавить</button></div>
+      </form>
+    </div>
   </div>
 
   <script defer src="assets/js/budget.js"></script>
