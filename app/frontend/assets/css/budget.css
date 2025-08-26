@@ -1,68 +1,58 @@
-/* ===== Safe areas / базовые переменные ===== */
+/* ===== Бюджет — визуал и поведение под стиль портфеля ===== */
+
+/* базовые переменные безопасных зон (iOS/Telegram WebApp) */
 :root{
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
   --safe-left: env(safe-area-inset-left);
   --safe-right: env(safe-area-inset-right);
+
+  /* высота графиков (можем переопределять в медиа) */
   --chart-h: 280px;
+
+  /* максимальная ширина контента как в «Инвестициях» */
+  --content-max: 1180px;
 }
 
-*{ box-sizing:border-box; }
-
-html{
-  -webkit-text-size-adjust:100%;
-  text-size-adjust:100%;
-  max-width:100%;
-  overflow-x:clip;                 /* глобально отрезаем горизонтальный «вынос» */
-}
-
-html, body{ min-height:100%; width:100%; }
+/* общие фиксы от переполнений на мобилках */
+*,
+*::before,
+*::after{ box-sizing: border-box; }
+html, body{ min-height:100%; overflow-x:hidden; }
 body{
-  min-height:100dvh;
-  padding-inline: max(0px, var(--safe-left)) max(0px, var(--safe-right));
-  max-width:100%;
-  overflow-x:clip;                 /* важнее, чем hidden, в iOS/Safari */
+  min-height:100svh;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
 }
 
-/* ===== Контейнер страницы (как в инвестах) ===== */
-.container{
-  width:100%;
-  max-width:1120px;
-  margin:0 auto;
-  padding-top:max(8px, var(--safe-top));
-  padding-bottom:max(8px, var(--safe-bottom));
-  max-inline-size:100%;
-  overflow-x:clip;
+/* контейнеры: держим ширину как у портфеля */
+main.budget-page{
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding-top: max(8px, var(--safe-top));
+  padding-bottom: max(8px, var(--safe-bottom));
 }
 
-/* Декоративные слои не участвуют в лэйауте и не раздувают ширину */
-.aurora, .blob{
-  pointer-events:none !important;
-  position:fixed; inset:0;
-  max-width:100vw; overflow:clip;
-}
+/* НЕ перекрывать клики декоративными слоями */
+.aurora, .blob{ pointer-events:none !important; }
 
-/* ===== Секции / карточки ===== */
+/* карточки */
 .budget-page{
   display:grid; gap:16px;
   font-variant-numeric: tabular-nums lining-nums;
-  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
-  max-width:100%;
-  overflow-x:clip;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
 .budget-page .card{
   background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
   border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:var(--shadow);
-  max-width:100%;
-  overflow-x:clip;
 }
 .budget-page .card h2{ margin:0; font-size:18px }
 
-/* Заголовок карточки */
+/* заголовок карточки */
 .card-head{ display:flex; align-items:center; justify-content:space-between; gap:12px }
 .head-between{ display:flex; justify-content:space-between; align-items:center; gap:12px }
 
-/* Панель действий внутри секции */
+/* панель действий внутри секции (НЕ в summary) */
 .section-toolbar{ display:flex; justify-content:flex-end; margin:4px 0 12px; gap:10px }
 
 /* +Добавить */
@@ -84,41 +74,33 @@ body{
 .budget-page .collapsible[open] .chev{ transform:rotate(90deg) }
 
 /* KPI */
-.budget-page .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; max-width:100% }
+.budget-page .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px }
 .budget-page .kpi{ background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; padding:12px }
 .budget-page .kpi__label{ font-size:12px; color:var(--muted) }
 .budget-page .kpi__value{ font-size:22px; font-weight:800; margin-top:6px }
 
-/* Сетки */
-.budget-page .grid{ display:grid; gap:16px; max-width:100% }
+/* сетки */
+.budget-page .grid{ display:grid; gap:16px }
 .budget-page .grid--2{ grid-template-columns:1fr }
 @media (min-width:960px){ .budget-page .grid--2{ grid-template-columns:1fr 1fr } }
 
-/* Формы / элементы */
-.budget-page .form{ display:grid; gap:12px; max-width:100% }
-.budget-page .form__row{ display:grid; gap:12px; margin-bottom:12px; max-width:100% }
+/* формы/элементы */
+.budget-page .form{ display:grid; gap:12px }
+.budget-page .form__row{ display:grid; gap:12px; margin-bottom:12px }
 @media (min-width:860px){ .budget-page .form__row{ grid-template-columns:repeat(4,1fr) } }
-.budget-page .form__actions{ display:flex; align-items:center; gap:10px; max-width:100% }
+.budget-page .form__actions{ display:flex; align-items:center; gap:10px }
 .budget-page label{ display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--muted) }
 .budget-page input, .budget-page select{
   background:var(--input-bg); border:1px solid var(--stroke); color:var(--text);
   border-radius:12px; padding:10px; font-size:14px; width:100%;
-  min-width:0;                       /* критично для iOS, чтобы не раздувать строку */
 }
 .budget-page input::placeholder{ color:#7681a1 }
 .budget-page .btn{ font-weight:800 }
 .budget-page .btn-primary{ background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent }
 .hidden{ display:none !important; }
 
-/* Табы вверху страницы (на случай жёстких стилей из общего style.css) */
-.tabs-row{
-  display:flex; gap:10px; flex-wrap:wrap;
-  max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;
-}
-.tabs-row .tab{ flex:0 0 auto }
-
-/* Табы внутри карточек */
-.budget-page .tabs{ display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 14px; max-width:100% }
+/* табы */
+.budget-page .tabs{ display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 14px }
 .budget-page .tab-btn{
   background:var(--input-bg); border:1px solid var(--stroke); color:var(--text);
   padding:8px 12px; border-radius:999px; cursor:pointer; font-weight:800
@@ -127,39 +109,34 @@ body{
   background:linear-gradient(135deg, var(--brand), var(--brand2)); border:none; color:#0c0f21
 }
 
-/* Таблицы — чтобы не раздувать ширину */
+/* таблицы (фикс узких экранов) */
 .budget-page .table{
-  width:100%; max-width:100%;
-  border-collapse:collapse;
-  table-layout: fixed;             /* фиксированная раскладка */
-  display:table;
+  width:100%; border-collapse:collapse;
+  table-layout: fixed;              /* чтобы работали многоточия */
 }
-.budget-page .table th,.budget-page .table td{
-  border-bottom:1px solid var(--stroke); padding:10px; font-size:14px;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;   /* не даём расширяться */
+.budget-page .table th,
+.budget-page .table td{
+  border-bottom:1px solid var(--stroke);
+  padding:10px; font-size:14px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .budget-page .table th{ color:var(--muted); font-weight:800 }
 .budget-page .t-right{text-align:right} .budget-page .t-center{text-align:center}
 
-/* Бейджи типов */
+/* бейджи типов */
 .budget-page .pill{ display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; font-weight:800; font-size:12px }
 .budget-page .pill--inc{ background:#0f5132; color:#b6f7d2; border:1px solid #0b3b24 }
 .budget-page .pill--exp{ background:#5a1a1a; color:#ffd6d6; border:1px solid #3d1010 }
 .budget-page .pill--tr{ background:#20385b; color:#cfe2ff; border:1px solid #162a46 }
 
-/* Графики — без переполнения */
-.budget-page .chart-box{
-  background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; padding:6px;
-  overflow:hidden; max-width:100%;
-}
-.budget-page .chart-box canvas{
-  display:block; width:100% !important; max-width:100% !important; height:var(--chart-h);
-}
+/* графики */
+.budget-page .chart-box{ background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; padding:6px }
+.budget-page .chart-box canvas{ display:block; width:100%; height:var(--chart-h) }
 
-/* Регистр вкладок */
+/* регистр вкладок */
 .budget-page .ledger{ display:none } .budget-page .ledger.visible{ display:block }
 
-/* Обязательные платежи — тумблер */
+/* обязательные платежи — тумблер */
 .budget-page .chk{
   appearance:none; -webkit-appearance:none; width:38px; height:20px; border-radius:999px;
   background:rgba(255,255,255,.06); border:1px solid var(--stroke); position:relative; cursor:pointer;
@@ -181,22 +158,16 @@ body{
 /* ===== MODAL ===== */
 .modal[hidden]{ display:none !important; }
 .modal{
-  display:flex !important;
+  display:block !important;
   position:fixed !important; inset:0 !important;
-  z-index:2147483647 !important;
-  align-items:flex-start;                 /* начинаем ниже верхних кнопок */
-  justify-content:center;
-  padding-inline:12px;
+  z-index:2147483647 !important; pointer-events:auto !important;
 }
 .modal__backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.45); backdrop-filter: blur(2px); }
 .modal__dialog{
-  position:relative; z-index:1;
+  position:relative; z-index:1; margin:6vh auto; max-width:960px;
   background:var(--dialog-bg, #11182f); border:1px solid var(--stroke);
   color:var(--text); border-radius:16px; box-shadow:var(--shadow-xl);
-  padding:20px; width:100%; max-width:560px;
-  margin-top: calc(clamp(56px, 10vh, 96px) + var(--safe-top));
-  margin-bottom: max(12px, var(--safe-bottom));
-  max-inline-size:100%;
+  padding:20px; width:calc(100% - 32px);
 }
 html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .modal__header{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px }
@@ -204,35 +175,40 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .modal__close{ border:1px solid var(--stroke); width:34px; height:34px; border-radius:10px; background:var(--input-bg); color:var(--text) }
 .modal__footer{ display:flex; justify-content:flex-end; margin-top:8px }
 
-/* Сегменты в модалках */
+/* сегменты в модалках */
 .seg{ display:inline-flex; gap:8px; padding:6px; background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; margin-bottom:12px }
 .seg-btn{ border:0; padding:8px 12px; border-radius:999px; font-weight:800; cursor:pointer; background:transparent; color:var(--text); opacity:.8 }
 .seg-btn.is-active{ opacity:1; color:#0c0f21; background:linear-gradient(135deg, var(--brand), var(--brand2)) }
 
-/* ===== Mobile / Telegram WebApp ===== */
-@media (max-width:560px){
-  :root{ --chart-h:220px; }
+/* ===== Мобилка/Telegram WebApp ===== */
+@media (max-width: 560px){
+  :root{ --chart-h: 220px; }
 
-  /* «шапка» — не даём жёстким min-width раздувать строку */
-  header .header-actions{ flex-wrap:wrap; gap:8px; max-width:100% }
-  header .search-wrap{ flex:1 1 200px; min-width:0 }
-  header .select-wrap{ min-width:0 !important; width:auto; flex:0 1 auto }
+  /* уменьшаем типографику */
+  .budget-page .kpi__value{ font-size:18px }
+  .budget-page .kpi__label{ font-size:11px }
+  .budget-page .table th,.budget-page .table td{ font-size:12px; padding:8px }
+  .budget-page .pill{ font-size:11px; padding:3px 6px }
 
-  .budget-page .kpis{ grid-template-columns:1fr 1fr }
-  .budget-page .grid--2{ grid-template-columns:1fr }
+  /* кнопки во всю ширину */
   .budget-page .btn, .btn-add{ width:100% }
 
-  /* чтобы iOS не приближала при фокусе */
-  .budget-page input, .budget-page select{ font-size:16px; }
-
+  /* модалка: ниже телеграм-плашки + фиксированная шапка модалки */
+  .modal__dialog{
+    margin:0 auto;
+    max-width:100%; width:100%;
+    min-height:100dvh; border-radius:12px;
+    display:flex; flex-direction:column;
+    padding-top: calc(var(--safe-top) + 56px); /* опускаем под «Закрыть» */
+  }
+  .modal__header{
+    position:sticky; top:0;
+    padding-top:8px; padding-bottom:8px;
+    background:var(--dialog-bg, #11182f); z-index:2;
+  }
   .modal__footer{
     position:sticky; bottom:0;
-    padding-bottom: calc(8px + var(--safe-bottom)/2);
+    padding-bottom:calc(env(safe-area-inset-bottom) + 8px);
     background:var(--dialog-bg, #11182f);
   }
-}
-
-/* Очень узкие устройства */
-@media (max-width:380px){
-  :root{ --chart-h:200px; }
 }
