@@ -6,9 +6,7 @@
   <title>Бюджетирование</title>
 
   <script>
-    if (!localStorage.getItem('pf_token')) {
-      window.location.replace('login.html');
-    }
+    if (!localStorage.getItem('pf_token')) window.location.replace('login.html');
   </script>
 
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
@@ -79,7 +77,15 @@
           </div>
         </div>
         <table class="table">
-          <thead><tr><th>Дата</th><th>Название</th><th class="t-right">Сумма</th><th class="t-center">Готово</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th class="col-date">Дата</th>
+              <th>Название</th>
+              <th class="t-right col-sum">Сумма</th>
+              <th class="t-center">Готово</th>
+              <th class="t-right"></th>
+            </tr>
+          </thead>
           <tbody id="obTable"></tbody>
         </table>
       </details>
@@ -113,16 +119,43 @@
 
       <!-- Регистр -->
       <details open class="card collapsible">
-        <summary><div class="head-between"><h2><span class="chev">▸</span> Регистр операций за месяц</h2><div class="muted">Итого: <b id="tabTotal">0 ₽</b></div></div></summary>
+        <summary>
+          <div class="head-between">
+            <h2><span class="chev">▸</span> Регистр операций за месяц</h2>
+            <div class="muted">Итого: <b id="tabTotal">0 ₽</b></div>
+          </div>
+        </summary>
         <div class="tabs" id="ledgerTabs">
           <button class="tab-btn tab-btn--active" data-tab="income">Доходы</button>
           <button class="tab-btn" data-tab="expense">Расходы</button>
         </div>
+
         <div id="ledgerIncome" class="ledger visible">
-          <table class="table"><thead><tr><th>Дата</th><th>Счёт</th><th>Категория</th><th class="t-right">Сумма</th><th>Описание</th></tr></thead><tbody id="incTable"></tbody></table>
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="col-date">Дата</th>
+                <th class="col-cat">Категория</th>
+                <th class="t-right col-sum">Сумма</th>
+                <th class="col-desc t-hide-sm">Описание</th>
+              </tr>
+            </thead>
+            <tbody id="incTable"></tbody>
+          </table>
         </div>
+
         <div id="ledgerExpense" class="ledger">
-          <table class="table"><thead><tr><th>Дата</th><th>Счёт</th><th>Категория</th><th class="t-right">Сумма</th><th>Описание</th></tr></thead><tbody id="expTable"></tbody></table>
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="col-date">Дата</th>
+                <th class="col-cat">Категория</th>
+                <th class="t-right col-sum">Сумма</th>
+                <th class="col-desc t-hide-sm">Описание</th>
+              </tr>
+            </thead>
+            <tbody id="expTable"></tbody>
+          </table>
         </div>
       </details>
 
@@ -130,7 +163,14 @@
       <details open class="card collapsible">
         <summary class="card-head"><h2><span class="chev">▸</span> Последние операции</h2></summary>
         <table class="table">
-          <thead><tr><th>Дата</th><th>Тип</th><th>Счёт</th><th>Категория</th><th class="t-right">Сумма</th><th>Описание</th></tr></thead>
+          <thead>
+            <tr>
+              <th class="col-date">Дата</th>
+              <th class="col-cat">Категория</th>
+              <th class="t-right col-sum">Сумма</th>
+              <th class="col-desc t-hide-sm">Описание</th>
+            </tr>
+          </thead>
           <tbody id="txTable"></tbody>
         </table>
       </details>
