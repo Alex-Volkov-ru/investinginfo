@@ -165,6 +165,25 @@
         </td>`;
       tbody.appendChild(tr);
     }
+
+    // ==== ДОБАВЛЕНО: расчёт итогов для футера ====
+    try {
+      const totalsAll = {};   // все платежи за период
+      const totalsLeft = {};  // только НЕ выполненные (что осталось оплатить)
+
+      for (const r of data) {
+        const cur = r.currency || 'RUB';
+        const amt = Number(r.amount || 0) || 0;
+        totalsAll[cur]  = (totalsAll[cur]  || 0) + amt;
+        if (!r.is_done) totalsLeft[cur] = (totalsLeft[cur] || 0) + amt;
+      }
+      const fmtTotals = obj => {
+        const parts = Object.entries(obj).map(([cur, sum]) => fmtMoney(sum, cur));
+        return parts.length ? parts.join(' • ') : fmtMoney(0, 'RUB');
+      };
+      setText(document.getElementById('obTotalAll'),  fmtTotals(totalsAll));
+      setText(document.getElementById('obTotalLeft'), fmtTotals(totalsLeft));
+    } catch(_) {/* no-op */}
   }
 
   // ===== Accounts & Categories =====

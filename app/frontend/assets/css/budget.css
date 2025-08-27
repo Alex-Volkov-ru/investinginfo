@@ -233,3 +233,28 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 
 /* доп. стиль красной кнопки (в таблицах) */
 .btn-danger, .budget-page .btn-danger{ background:#e6536b; border-color:#e6536b; color:#0c0f21; }
+
+/* --- Obligations totals: align in one line (desktop & mobile) --- */
+.table tfoot{ display: table-footer-group !important; }
+.table tfoot .row-total td{
+  padding: 12px 16px;
+  border-top: 1px solid var(--stroke);
+  line-height: 1.4;
+}
+.table tfoot .totals-cell{
+  text-align: center;             /* на ПК по центру, всё в одной строке */
+  color: var(--muted);
+  font-size: 14px;
+}
+.table tfoot .totals-cell strong{
+  color: var(--text);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.table tfoot .totals-cell .sep{ margin: 0 10px; opacity: .5; }
+
+/* на узких экранах выравниваем влево и можно переносить строки */
+@media (max-width: 480px){
+  .table tfoot .totals-cell{ text-align: left; }
+  .table tfoot .totals-cell .sep{ display:none; }
+}
