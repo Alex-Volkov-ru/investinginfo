@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark" style="--tg-top: 0px; --budget-topbar-h: 80px">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="assets/css/style.css" />
   <link rel="stylesheet" href="assets/css/budget.css" />
 </head>
-<body>
+<body class="budget-body">
   <div class="aurora"></div>
   <div class="blob one"></div>
   <div class="blob two"></div>
@@ -41,15 +41,13 @@
 
     <main class="budget-page">
 
-      <!-- Итоги -->
       <details open class="card collapsible">
         <summary class="card-head"><h2><span class="chev">▸</span> Итоги месяца</h2></summary>
         <div class="kpis">
-          <div class="kpi"><div class="kpi__label">Доходы</div><div class="kpi__value" id="kpiIncome">0 ₽</div></div>
-          <div class="kpi"><div class="kpi__label">Расходы</div><div class="kpi__value" id="kpiExpense">0 ₽</div></div>
-          <div class="kpi"><div class="kpi__label">Остаток</div><div class="kpi__value" id="kpiNet">0 ₽</div></div>
-          <div class="kpi"><div class="kpi__label">Накопительный счёт</div><div class="kpi__value" id="kpiSavings">0 ₽</div></div>
-          <!-- из инвестиций; скрыта, пока нет данных -->
+          <div class="kpi"><div class="kpi__label">Доходы</div><div class="kpi__value" id="kpiIncome">—</div></div>
+          <div class="kpi"><div class="kpi__label">Расходы</div><div class="kpi__value" id="kpiExpense">—</div></div>
+          <div class="kpi"><div class="kpi__label">Остаток</div><div class="kpi__value" id="kpiNet">—</div></div>
+          <div class="kpi"><div class="kpi__label">Накопительный счёт</div><div class="kpi__value" id="kpiSavings">—</div></div>
           <div class="kpi" id="kpiPortfolioCard" hidden>
             <div class="kpi__label">Портфель всего</div>
             <div class="kpi__value" id="kpiPortfolioTotal">—</div>
@@ -57,28 +55,16 @@
         </div>
       </details>
 
-      <!-- Диаграммы -->
       <details open class="card collapsible">
         <summary class="card-head"><h2><span class="chev">▸</span> Диаграммы</h2></summary>
         <div class="grid grid--2">
           <div><h3 class="muted">Источники дохода</h3><div class="chart-box"><canvas id="incChart"></canvas></div></div>
           <div><h3 class="muted">Категории расходов</h3><div class="chart-box"><canvas id="expChart"></canvas></div></div>
         </div>
-        <div style="margin-top:16px"><h3 class="muted">Расход по дням</h3><div class="chart-box"><canvas id="expByDayChart"></canvas></div></div>
       </details>
 
-      <!-- Обязательные платежи -->
-      <details class="card collapsible">
+      <details open class="card collapsible">
         <summary class="card-head"><h2><span class="chev">▸</span> Обязательные платежи</h2></summary>
-        <div class="form">
-          <div class="form__row">
-            <label>Название <input type="text" id="obTitle" placeholder="Напр. Кредит"></label>
-            <label>Дата     <input type="date" id="obDate"></label>
-            <label>Сумма    <input type="number" step="0.01" id="obAmount" placeholder="0.00"></label>
-            <label>Валюта   <select id="obCurrency"><option>RUB</option><option>USD</option><option>EUR</option></select></label>
-            <button id="addObBtn" class="btn btn-primary" type="button" style="align-self:end">Добавить</button>
-          </div>
-        </div>
         <table class="table">
           <thead>
             <tr>
@@ -93,7 +79,6 @@
         </table>
       </details>
 
-      <!-- Операции -->
       <details open class="card collapsible">
         <summary class="card-head"><h2><span class="chev">▸</span> Операции</h2></summary>
         <div class="section-toolbar">
@@ -102,7 +87,6 @@
         <p class="muted">Создайте доход, расход или перевод через кнопку «Добавить».</p>
       </details>
 
-      <!-- Категории -->
       <details open class="card collapsible">
         <summary class="card-head"><h2><span class="chev">▸</span> Категории</h2></summary>
         <div class="section-toolbar">
@@ -117,7 +101,8 @@
         <table class="table table--cats">
           <thead>
             <tr>
-              <th class="col-cat">Категория</th>
+              <th>Название</th>
+              <th class="t-center">Тип</th>
               <th class="t-right col-actions">Действия</th>
             </tr>
           </thead>
@@ -125,87 +110,30 @@
         </table>
       </details>
 
-      <!-- Регистр -->
-      <details open class="card collapsible">
-        <summary>
-          <div class="head-between">
-            <h2><span class="chev">▸</span>Операции за месяц</h2>
-            <div class="muted">Итого: <b id="tabTotal">0 ₽</b></div>
-          </div>
-        </summary>
-        <div class="tabs" id="ledgerTabs">
-          <button class="tab-btn tab-btn--active" data-tab="income">Доходы</button>
-          <button class="tab-btn" data-tab="expense">Расходы</button>
-        </div>
-
-        <div id="ledgerIncome" class="ledger visible">
-          <table class="table">
-            <thead>
-              <tr>
-                <th class="col-date">Дата</th>
-                <th class="col-cat">Категория</th>
-                <th class="t-right col-sum">Сумма</th>
-                <th class="t-hide-sm col-desc">Описание</th>
-              </tr>
-            </thead>
-            <tbody id="incTable"></tbody>
-          </table>
-        </div>
-
-        <div id="ledgerExpense" class="ledger">
-          <table class="table">
-            <thead>
-              <tr>
-                <th class="col-date">Дата</th>
-                <th class="col-cat">Категория</th>
-                <th class="t-right col-sum">Сумма</th>
-                <th class="t-hide-sm col-desc">Описание</th>
-              </tr>
-            </thead>
-            <tbody id="expTable"></tbody>
-          </table>
-        </div>
-      </details>
-
-      <!-- Последние операции -->
-      <details open class="card collapsible">
-        <summary class="card-head"><h2><span class="chev">▸</span> Последние операции</h2></summary>
-        <table class="table">
-          <thead>
-            <tr>
-              <th class="col-date">Дата</th>
-              <th class="col-cat">Категория</th>
-              <th class="t-right col-sum">Сумма</th>
-              <th class="t-hide-sm col-desc">Описание</th>
-            </tr>
-          </thead>
-          <tbody id="txTable"></tbody>
-        </table>
-      </details>
-
     </main>
   </div>
 
-  <!-- ===== MODALS ===== -->
-  <!-- Операция -->
+  <!-- Модалки -->
   <div id="opModal" class="modal" hidden>
     <div class="modal__backdrop" data-close></div>
     <div class="modal__dialog">
       <div class="modal__header">
-        <h3>Добавить операцию</h3>
+        <h3>Новая операция</h3>
         <button class="modal__close" data-close>&times;</button>
       </div>
-
-      <div class="seg" id="opmTabs">
-        <button type="button" class="seg-btn is-active" data-type="income">Доход</button>
-        <button type="button" class="seg-btn" data-type="expense">Расход</button>
-        <button type="button" class="seg-btn" data-type="transfer">Перевод</button>
-      </div>
-
-      <form id="opmForm" class="form">
-        <label>Дата <input type="date" id="m_date" required></label>
-        <label>Счёт <select id="m_acc" required></select></label>
-        <label id="m_contra_wrap" class="hidden">На счёт <select id="m_contra"></select></label>
+      <form id="opForm" class="form">
+        <div class="form__row">
+          <label>Тип
+            <select id="m_type">
+              <option value="income">Доход</option>
+              <option value="expense">Расход</option>
+              <option value="transfer">Перевод</option>
+            </select>
+          </label>
+          <label id="m_acc_wrap">Счёт <select id="m_account"></select></label>
+          <label id="m_acc_to_wrap" class="hidden">На счёт <select id="m_account_to"></select></label>
+          <label>Дата <input type="date" id="m_date" required></label>
+        </div>
         <label>Сумма <input type="number" step="0.01" id="m_amount" placeholder="0.00" required></label>
         <label id="m_cat_wrap">Категория <select id="m_cat"></select></label>
         <label>Описание <input type="text" id="m_desc" placeholder="Комментарий (необязательно)"></label>
@@ -214,7 +142,6 @@
     </div>
   </div>
 
-  <!-- Категория -->
   <div id="catModal" class="modal" hidden>
     <div class="modal__backdrop" data-close></div>
     <div class="modal__dialog">

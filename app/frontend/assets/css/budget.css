@@ -211,7 +211,7 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 
 /* ====== ТАБЛИЦА КАТЕГОРИЙ ====== */
 .table--cats{ table-layout:fixed; }
-.table--cats .col-actions{ width:120px; } /* ПК: хватает и заголовку, и кнопке */
+.table--cats .col-actions{ width:120px; }
 .table--cats td:last-child,
 .table--cats th:last-child{
   overflow:visible;
@@ -222,14 +222,39 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 @media (max-width: 420px){
   :root{ --chart-h: 220px; }
   .budget-page .grid--2{ grid-template-columns:1fr }
-  .t-hide-sm{ display:none }                 /* прячем колонку «Описание» */
+  .t-hide-sm{ display:none }
   .budget-page .table th,.budget-page .table td{ font-size:13px; padding:8px }
-
-  /* «Действия» видно и на узком экране */
   .table--cats .col-actions{ width:84px; }
   .btn-del{ width:36px; height:36px; padding:6px; justify-content:center; }
-  .btn-del .txt{ display:none; }            /* на мобилке — только иконка */
+  .btn-del .txt{ display:none; }
 }
 
 /* доп. стиль красной кнопки (в таблицах) */
 .btn-danger, .budget-page .btn-danger{ background:#e6536b; border-color:#e6536b; color:#0c0f21; }
+
+/* === [BUDGET TOPBAR FIX] — шапка всегда сверху на странице бюджета === */
+
+/* убираем верхний padding у контейнера на этой странице */
+body.budget-body .container{ padding-top: 0 !important; }
+
+/* фиксируем шапку строго у верха окна; ширина = ширине контейнера */
+:root{ --budget-topbar-h: 80px; } /* дефолт; точное значение выставит JS */
+body.budget-body > .container > header{
+  position: fixed !important;
+  top: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%);
+  width: min(100%, 1200px);
+  margin: 0 !important;
+  z-index: 120; /* модалки выше */
+}
+
+/* Telegram: учитываем верхнюю панель TG */
+html.tg-app body.budget-body > .container > header{
+  top: calc(env(safe-area-inset-top, 0px) + var(--tg-topbar)) !important;
+}
+
+/* контенту даём отступ = фактическая высота шапки */
+body.budget-body .container{
+  padding-top: var(--budget-topbar-h) !important;
+}
