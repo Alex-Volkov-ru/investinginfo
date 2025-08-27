@@ -625,6 +625,12 @@ function renderCharts(){
     }
   });
 
+  // --- Сохраняем сумму портфеля для budget.js ---
+  try {
+    localStorage.setItem('pf_portfolio_total', String(total));
+    localStorage.setItem('pf_portfolio_currency', 'RUB');
+  } catch(_) { /* no-op */ }
+
   removeSkeleton();
 }
 

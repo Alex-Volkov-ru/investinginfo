@@ -48,8 +48,6 @@
     window.location.replace('login.html');
   });
 
-  // (убрана «компактизация» шапки на скролле)
-
   // ===== AXIOS =====
   const token = localStorage.getItem('pf_token');
   if (!token) { window.location.href = 'login.html'; return; }
@@ -87,9 +85,9 @@
   let ACCOUNTS=[], CATS_IN=[], CATS_EX=[], MAP_ACC={}, MAP_CAT={}, MONTH_TX=[];
   let modalType='income', modalKind='income';
   let isRefreshing=false, timerId=null, activeAbort=null;
-  const REFRESH_MS = 60*1000;
+  const REFRESH_MS = 360*1000;
 
-  // ===== Charts =====
+  // ===== Charts helpers =====
   const donutCenter = (getInfo)=>({
     id:'donutCenter',
     beforeDraw(chart){
@@ -166,7 +164,7 @@
       tbody.appendChild(tr);
     }
 
-    // ==== ДОБАВЛЕНО: расчёт итогов для футера ====
+    // ==== ИТОГИ ДЛЯ ФУТЕРА ТАБЛИЦЫ ОБЯЗАТЕЛЬНЫХ ПЛАТЕЖЕЙ ====
     try {
       const totalsAll = {};   // все платежи за период
       const totalsLeft = {};  // только НЕ выполненные (что осталось оплатить)
@@ -447,7 +445,7 @@
   document.getElementById('refreshBtn')?.addEventListener('click', ()=>refreshAll());
   document.getElementById('periodInput')?.addEventListener('change', ()=>refreshAll());
 
-  // ===== Summary =====
+  // ===== Summary (KPI) =====
   async function loadSummary(signal){
     const {from,to} = monthRange();
     const { data } = await api.get('/budget/summary/month', { params:{ date_from:from, date_to:to }, signal });
@@ -455,6 +453,19 @@
     setText($('#kpiExpense'), fmtMoney(data.expense_total));
     setText($('#kpiNet'),     fmtMoney(data.net_total));
     setText($('#kpiSavings'), fmtMoney(data.savings_transferred)); // «Накопительный счёт»
+
+    // --- Портфель всего: берём из localStorage, если есть
+    try {
+      const pt  = Number(localStorage.getItem('pf_portfolio_total') || '');
+      const cur = localStorage.getItem('pf_portfolio_currency') || 'RUB';
+      const card = document.getElementById('kpiPortfolioCard');
+      if (pt && isFinite(pt)) {
+        setText(document.getElementById('kpiPortfolioTotal'), fmtMoney(pt, cur));
+        card?.removeAttribute('hidden');
+      } else {
+        card?.setAttribute('hidden','');
+      }
+    } catch(_) { /* no-op */ }
   }
 
   // ===== Charts load =====
