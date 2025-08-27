@@ -1,5 +1,4 @@
 /* ======= БЮДЖЕТ (финальная версия) ======= */
-
 *,
 *::before,
 *::after{ box-sizing: border-box; }
@@ -18,7 +17,6 @@
   --tg-top: 0px; /* если открыто в Telegram на iOS — проставляется из JS */
 }
 
-/* базовые фиксы */
 html, body{ min-height:100%; }
 body{
   min-height:100svh;
@@ -27,17 +25,14 @@ body{
   margin: 0;
 }
 
-/* контейнер: симметричные поля по бокам, учёт safe-area и панели TG сверху */
 .container{
   width: 100%;
   max-width: 1280px;
   margin-inline: auto;
-  padding-inline: clamp(12px, 4vw, 24px);
-  padding-top: calc(clamp(8px, var(--safe-top), 16px) + var(--tg-top));
+  padding-top: calc(clamp(8px, var(--safe-top), 16px) + var(--tg-top, 0px));
   padding-bottom: clamp(8px, var(--safe-bottom), 16px);
 }
 
-/* шапка — обычный поток (не fixed/sticky), чтобы не перекрывать контент */
 .container > header,
 .container > header.header--compact{
   position: static !important;
@@ -47,7 +42,6 @@ body{
   z-index: auto !important;
 }
 
-/* таб-бар под шапкой не тянет ширину страницы */
 .tabs-row{
   display:flex; gap:10px; align-items:center;
   overflow-x:auto; -webkit-overflow-scrolling:touch;
@@ -56,7 +50,6 @@ body{
 }
 .tabs-row::-webkit-scrollbar{ display:none; }
 
-/* не перекрывать клики декоративными слоями */
 .aurora, .blob{ pointer-events:none !important; }
 
 /* карточки */
@@ -64,24 +57,17 @@ body{
   background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
   border:1px solid var(--stroke); border-radius:16px; padding:16px;
   box-shadow:var(--shadow);
-  max-width: 100%;             /* важно: не шире контейнера */
-  overflow: hidden;             /* глоу/тени не создают горизонтального скролла */
+  max-width: 100%;
+  overflow: hidden;
 }
 .budget-page .card h2{ margin:0; font-size:18px }
-
-/* на узких экранах ужимаем внутренние поля карточек */
-@media (max-width: 420px){
-  .budget-page .card{ padding:12px; }
-}
 
 /* заголовок карточки */
 .card-head{ display:flex; align-items:center; justify-content:space-between; gap:12px }
 .head-between{ display:flex; justify-content:space-between; align-items:center; gap:12px }
 
-/* панель действий внутри секции */
 .section-toolbar{ display:flex; justify-content:flex-end; margin:4px 0 12px; gap:10px }
 
-/* +Добавить */
 .btn-add{
   display:inline-flex; align-items:center; gap:8px;
   padding:10px 14px; border-radius:14px; font-weight:800;
@@ -91,7 +77,6 @@ body{
 .btn-add .plus{ font-size:18px; line-height:1 }
 .btn-sm{ padding:6px 10px; font-size:12px; border-radius:10px; }
 
-/* collapsible */
 .budget-page .collapsible>summary{
   list-style:none; cursor:pointer; display:flex; align-items:center;
   margin:-4px 0 10px;
@@ -100,11 +85,26 @@ body{
 .budget-page .chev{ display:inline-block; width:1em; height:1em; margin-right:8px; transform-origin:center; transition:transform .25s ease; font-weight:900; color:var(--muted) }
 .budget-page .collapsible[open] .chev{ transform:rotate(90deg) }
 
-/* KPI */
-.budget-page .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; max-width:100%; }
-.budget-page .kpi{ background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; padding:12px }
+/* ===== KPI ===== */
+/* авто-грид, чтобы ничего не обрезалось; на ДЕСКТОПЕ — по рядам, на мобилке — столбцом */
+.budget-page .kpis{
+  display:grid; gap:12px; max-width:100%;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.budget-page .kpi{
+  background:var(--input-bg); border:1px solid var(--stroke);
+  border-radius:12px; padding:12px; max-width:100%;
+}
 .budget-page .kpi__label{ font-size:12px; color:var(--muted) }
 .budget-page .kpi__value{ font-size:22px; font-weight:800; margin-top:6px }
+
+/* — мобильный вид: плашки одна под другой, поменьше и по центру — */
+@media (max-width: 420px){
+  .budget-page .card{ padding:12px; }
+  .budget-page .kpis{ grid-template-columns: 1fr; }
+  .budget-page .kpi{ text-align:center; padding:10px; }
+  .budget-page .kpi__value{ font-size:20px; }
+}
 
 /* сетки */
 .budget-page .grid{ display:grid; gap:16px; max-width:100%; }
@@ -129,7 +129,7 @@ body{
 }
 .hidden{ display:none !important; }
 
-/* табы внутри карточек */
+/* табы */
 .budget-page .tabs{ display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 14px; max-width:100%; }
 .budget-page .tab-btn{
   background:var(--input-bg); border:1px solid var(--stroke); color:var(--text);
@@ -149,14 +149,9 @@ body{
 .budget-page .t-right{text-align:right} .budget-page .t-center{text-align:center}
 .col-date{ width:92px }
 .col-sum{ width:130px }
-
-/* Категория слева */
 .col-cat, .budget-page th.col-cat{ text-align:left; }
-
 .col-desc{ width:auto }
 .cell-clip{ display:block; max-width: clamp(120px, 35vw, 420px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-/* строки кликабельны */
 .table tbody tr[data-clickrow]{ cursor:pointer; }
 
 /* раскрывашка */
@@ -222,44 +217,27 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .modal__close{ border:1px solid var(--stroke); width:34px; height:34px; border-radius:10px; background:var(--input-bg); color:var(--text) }
 .modal__footer{ display:flex; justify-content:flex-end; margin-top:8px }
 
-/* сегменты в модалках */
 .seg{ display:inline-flex; gap:8px; padding:6px; background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; margin-bottom:12px }
 .seg-btn{ border:0; padding:8px 12px; border-radius:999px; font-weight:800; cursor:pointer; background:transparent; color:var(--text); opacity:.8 }
 .seg-btn.is-active{ opacity:1; color:#0c0f21; background:linear-gradient(135deg, var(--brand), var(--brand2)) }
 
-/* ====== ТАБЛИЦА КАТЕГОРИЙ (фикс колонки действий) ====== */
+/* ====== КАТЕГОРИИ (фикс колонки действий) ====== */
 .table--cats{ table-layout:fixed; }
-.table--cats .col-actions{ width:120px; }              /* ПК: нормальная ширина под кнопку */
-.table--cats td:last-child,
-.table--cats th:last-child{
-  overflow:visible;                                     /* не прячем кнопку */
-  white-space:nowrap;
-}
-
-/* кнопка удаления */
-.table--cats .btn-del{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:8px 12px;
-  border-radius:10px;
-}
+.table--cats .col-actions{ width:120px; }  /* ПК */
+.table--cats td:last-child, .table--cats th:last-child{ overflow:visible; white-space:nowrap; }
+.table--cats .btn-del{ display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; }
 
 /* Мобильные (iPhone 12 Pro и др.) */
 @media (max-width: 420px){
   :root{ --chart-h: 220px; }
-  .budget-page .kpis{ grid-template-columns:1fr 1fr }
   .budget-page .grid--2{ grid-template-columns:1fr }
   .budget-page .btn, .btn-add{ width:100% }
-  .t-hide-sm{ display:none }                 /* прячем колонку «Описание» */
+  .t-hide-sm{ display:none }
   .budget-page .table th,.budget-page .table td{ font-size:13px; padding:8px }
-  .table--cats .col-actions{ width:56px; }   /* достаточно места под иконку */
-  .table--cats .btn-del{
-    width:36px; height:36px; padding:6px;
-    justify-content:center;
-  }
-  .table--cats .btn-del .txt{ display:none; }/* прячем текст, остаётся 🗑 */
+  .table--cats .col-actions{ width:56px; }
+  .table--cats .btn-del{ width:36px; height:36px; padding:6px; justify-content:center; }
+  .table--cats .btn-del .txt{ display:none; }
 }
 
-/* доп. стиль красной кнопки (в таблицах) */
+/* доп. стиль красной кнопки */
 .btn-danger, .budget-page .btn-danger{ background:#e6536b; border-color:#e6536b; color:#0c0f21; }

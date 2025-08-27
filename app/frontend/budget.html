@@ -48,7 +48,12 @@
           <div class="kpi"><div class="kpi__label">Доходы</div><div class="kpi__value" id="kpiIncome">0 ₽</div></div>
           <div class="kpi"><div class="kpi__label">Расходы</div><div class="kpi__value" id="kpiExpense">0 ₽</div></div>
           <div class="kpi"><div class="kpi__label">Остаток</div><div class="kpi__value" id="kpiNet">0 ₽</div></div>
-          <div class="kpi"><div class="kpi__label">Сбережения (отложено)</div><div class="kpi__value" id="kpiSavings">0 ₽</div></div>
+          <div class="kpi"><div class="kpi__label">Накопительный счёт</div><div class="kpi__value" id="kpiSavings">0 ₽</div></div>
+          <!-- из инвестиций; скрыта, пока нет данных -->
+          <div class="kpi" id="kpiPortfolioCard" hidden>
+            <div class="kpi__label">Портфель всего</div>
+            <div class="kpi__value" id="kpiPortfolioTotal">—</div>
+          </div>
         </div>
       </details>
 
@@ -109,7 +114,6 @@
           <button class="tab-btn" data-kind="expense">Расходы</button>
         </div>
 
-        <!-- ВАЖНО: добавлен class="table--cats" -->
         <table class="table table--cats">
           <thead>
             <tr>
@@ -171,7 +175,7 @@
             <tr>
               <th class="col-date">Дата</th>
               <th class="col-cat">Категория</th>
-              <th class="t-right col-sум">Сумма</th>
+              <th class="t-right col-sum">Сумма</th>
               <th class="t-hide-sm col-desc">Описание</th>
             </tr>
           </thead>

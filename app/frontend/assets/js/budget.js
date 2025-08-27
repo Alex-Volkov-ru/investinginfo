@@ -17,7 +17,7 @@
   const nfPct = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
   const humanType = row => row.type==='income' ? 'Доход' : (row.type==='expense' ? 'Расход' : 'Перевод');
 
-  // ===== Telegram/iOS top bar offset (чтобы верхняя панель Телеги не наезжала) =====
+  // ===== Telegram/iOS top bar offset =====
   (function setTelegramTopOffset(){
     const ua = navigator.userAgent.toLowerCase();
     const isTg  = /telegram/i.test(navigator.userAgent);
@@ -47,9 +47,6 @@
     localStorage.removeItem('pf_token'); localStorage.removeItem('pf_email'); localStorage.removeItem('pf_tg_username');
     window.location.replace('login.html');
   });
-
-  // ===== ВАЖНО: убираем «компактизацию» шапки на скролле (она ломала позиционирование) =====
-  // (удалены три строки: querySelector('header'), toggle('header--compact', ...), addEventListener('scroll', ...))
 
   // ===== AXIOS =====
   const token = localStorage.getItem('pf_token');
@@ -230,7 +227,7 @@
         tr.innerHTML = `
           <td class="col-date">${fmtDate(t.occurred_at)}</td>
           <td class="col-cat" title="${cat || ''}"><span class="cell-clip">${cat || '—'}</span></td>
-          <td class="t-right col-сум">${fmtMoney(t.amount, t.currency ?? (MAP_ACC[t.account_id]?.currency ?? 'RUB'))}</td>
+          <td class="t-right col-sum">${fmtMoney(t.amount, t.currency ?? (MAP_ACC[t.account_id]?.currency ?? 'RUB'))}</td>
           <td class="t-hide-sm col-desc" title="${t.description ?? ''}"><span class="cell-clip">${t.description ?? ''}</span></td>`;
         tbody.appendChild(tr);
       }
@@ -406,6 +403,40 @@
   toggleAllBtn?.addEventListener('click', ()=>{ const open=anyOpen(); document.querySelectorAll('details.collapsible').forEach(d=> d.open=!open); updateToggleAllBtn(); });
   updateToggleAllBtn();
 
+  // ===== Portfolio total (from Investments) =====
+  async function loadPortfolioTotal(signal){
+    const card = document.getElementById('kpiPortfolioCard');
+    const out  = document.getElementById('kpiPortfolioTotal');
+    if (!card || !out) return;
+
+    let total = null;
+    const endpoints = [
+      '/portfolio/summary', // ожидается { total_value }
+      '/invest/summary',    // ожидается { total } или { total_value }
+      '/portfolio/totals'   // запасной вариант
+    ];
+
+    for (const ep of endpoints){
+      try {
+        const { data } = await api.get(ep, { signal });
+        total = data?.total_value ?? data?.total ?? null;
+        if (total != null) break;
+      } catch {}
+    }
+
+    if (total == null){
+      const ls = localStorage.getItem('pf_portfolio_total');
+      if (ls) total = Number(ls);
+    }
+
+    if (total != null){
+      out.textContent = fmtMoney(total);
+      card.hidden = false;
+    } else {
+      card.hidden = true;
+    }
+  }
+
   // ===== Refresh =====
   function scheduleNext(){ clearTimeout(timerId); timerId=setTimeout(()=>refreshAll('timer'), REFRESH_MS); }
   async function refreshAll(){
@@ -416,7 +447,13 @@
     try{
       await ping(signal);
       await loadAccountsAndCats(signal);
-      await Promise.all([loadSummary(signal), loadCharts(signal), loadObligations(signal), loadMonthTransactions(signal)]);
+      await Promise.all([
+        loadSummary(signal),
+        loadCharts(signal),
+        loadObligations(signal),
+        loadMonthTransactions(signal),
+        loadPortfolioTotal(signal) // << добавлено
+      ]);
     }catch(err){ if(!axios.isCancel(err)) console.error('refresh error', err); }
     finally{ if(btn){ btn.disabled=false; btn.textContent='Обновить'; } isRefreshing=false; scheduleNext(); }
   }
