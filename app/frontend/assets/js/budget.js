@@ -205,6 +205,103 @@
   const acctTitle = id => (MAP_ACC[id]?.title ? `${MAP_ACC[id].title}${MAP_ACC[id].is_savings?' (накоп.)':''}` : '—');
   const catName   = id => (MAP_CAT[id]?.name || '');
 
+  async function createAccountFlow(markSavings=false){
+    const defTitle = markSavings ? 'Накопительный' : 'Основной';
+    const title = (prompt('Название счёта', defTitle) || '').trim();
+    if(!title) return;
+    const cur = ((prompt('Валюта (RUB/USD/EUR)', 'RUB') || 'RUB').trim().toUpperCase());
+    try{
+      await api.post('/budget/accounts', { title, currency: cur, is_savings: !!markSavings });
+      await loadAccountsAndCats(activeAbort?.signal);
+      fillAccountSelects();
+      alert('Счёт создан');
+    }catch(err){
+      alert(err?.response?.data?.detail || 'Не удалось создать счёт');
+    }
+  }
+
+  // --- удалить счёт (используется кнопкой "– Счёт")
+  async function deleteAccountFlow(){
+    if (!ACCOUNTS.length) { alert('Нет счетов'); return; }
+    const list = ACCOUNTS.map(a => `${a.id}: ${a.title}${a.is_savings ? ' (накоп.)' : ''}`).join('\n');
+    const id = prompt('Удалить какой счёт? Укажи ID:\n\n' + list);
+    if (!id) return;
+    try{
+      await api.delete(`/budget/accounts/${id}`);
+      await loadAccountsAndCats(activeAbort?.signal);
+      fillAccountSelects();
+      alert('Счёт удалён');
+    }catch(err){
+      alert(err?.response?.data?.detail || 'Не удалось удалить счёт');
+    }
+  }
+
+  // --- кнопки рядом с select'ом счёта: "+ Счёт" и "– Счёт"
+  function injectAccountButtons(selectEl, baseId){
+    if(!selectEl) return;
+
+    // + Счёт
+    if(!document.getElementById(baseId + '_add')){
+      const btnAdd = document.createElement('button');
+      btnAdd.id = baseId + '_add';
+      btnAdd.type = 'button';
+      btnAdd.className = 'btn btn-sm';
+      btnAdd.style.marginLeft = '8px';
+      btnAdd.textContent = '+ Счёт';
+      selectEl.insertAdjacentElement('afterend', btnAdd);
+      btnAdd.addEventListener('click', ()=> createAccountFlow(false));
+    }
+
+    // – Счёт
+    if(!document.getElementById(baseId + '_del')){
+      const btnDel = document.createElement('button');
+      btnDel.id = baseId + '_del';
+      btnDel.type = 'button';
+      btnDel.className = 'btn btn-sm btn-danger';
+      btnDel.style.marginLeft = '4px';
+      btnDel.textContent = '– Счёт';
+      selectEl.insertAdjacentElement('afterend', btnDel);
+      btnDel.addEventListener('click', ()=> deleteAccountFlow());
+    }
+  }
+
+  // быстрая кнопка "Пополнить" у KPI "Накопительный счёт"
+  function injectTopUpButton(){
+    const valEl = document.getElementById('kpiSavings'); if(!valEl) return;
+    const card = valEl.closest('.kpi'); if(!card) return;
+    if (document.getElementById('btnTopUpSavings')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'btnTopUpSavings';
+    btn.className = 'btn btn-sm';
+    btn.style.marginTop = '8px';
+    btn.textContent = 'Пополнить';
+    card.appendChild(btn);
+
+    btn.addEventListener('click', ()=>{
+      // если нет накопительного счёта — предложим создать
+      const savingsAcc = ACCOUNTS.find(a=>a.is_savings);
+      if(!savingsAcc){
+        if(confirm('Нет накопительного счёта. Создать?')){
+          createAccountFlow(true).then(()=> openTopUpModalPreset());
+        }
+        return;
+      }
+      openTopUpModalPreset();
+    });
+
+    function openTopUpModalPreset(){
+      // подставим перевод: с обычного на накопительный
+      setModalType('transfer');
+      openModal('#opModal');
+      const mainAcc = ACCOUNTS.find(a=>!a.is_savings) || ACCOUNTS[0];
+      const savingsAcc2 = ACCOUNTS.find(a=>a.is_savings) || ACCOUNTS[0];
+      if (mainAcc)   document.getElementById('m_acc').value = String(mainAcc.id);
+      if (savingsAcc2) document.getElementById('m_contra').value = String(savingsAcc2.id);
+      const amt = document.getElementById('m_amount'); if(amt) amt.focus();
+    }
+  }
+
   // ===== Month transactions =====
   async function loadMonthTransactions(signal){
     const {from,to} = monthRange();
@@ -252,7 +349,7 @@
         tr.innerHTML = `
           <td class="col-date">${fmtDate(t.occurred_at)}</td>
           <td class="col-cat" title="${cat || ''}"><span class="cell-clip">${cat || '—'}</span></td>
-          <td class="t-right col-сум">${fmtMoney(t.amount, t.currency ?? (MAP_ACC[t.account_id]?.currency ?? 'RUB'))}</td>
+          <td class="t-right col-sum">${fmtMoney(t.amount, t.currency ?? (MAP_ACC[t.account_id]?.currency ?? 'RUB'))}</td>
           <td class="t-hide-sm col-desc" title="${t.description ?? ''}"><span class="cell-clip">${t.description ?? ''}</span></td>`;
         tbody.appendChild(tr);
       }
@@ -349,6 +446,12 @@
 
   // ===== Modals =====
   function openModal(sel, e){ e?.preventDefault(); e?.stopPropagation(); const m=$(sel); if(!m) return; m.removeAttribute('hidden'); m.style.removeProperty('display'); m.style.removeProperty('visibility'); m.style.removeProperty('opacity'); document.body.style.overflow='hidden'; }
+  function ensureAccountButtonsNearSelects(){
+    injectAccountButtons(document.getElementById('m_acc'),    'acc1');
+    injectAccountButtons(document.getElementById('m_contra'), 'acc2');
+  }
+  // при клике "Добавить операцию" подцепим кнопки
+  document.getElementById('openOpModal')?.addEventListener('click', ensureAccountButtonsNearSelects);
   function closeModal(sel){ const m=$(sel); if(!m) return; m.setAttribute('hidden',''); m.style.removeProperty('display'); m.style.removeProperty('visibility'); m.style.removeProperty('opacity'); document.body.style.overflow=''; }
   $('#openOpModal')?.addEventListener('click', (e)=>{ fillAccountSelects(); fillCategoriesForModal(); const mDate=document.getElementById('m_date'); if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000; openModal('#opModal', e); });
   $('#openCatModal')?.addEventListener('click', (e)=> openModal('#catModal', e));
@@ -495,6 +598,7 @@
     if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
     setModalType('income'); setModalKind('income');
     await refreshAll();
+    injectTopUpButton();
   })();
 
   window.addEventListener('beforeunload', ()=>{ clearTimeout(timerId); if(activeAbort) activeAbort.abort(); });
