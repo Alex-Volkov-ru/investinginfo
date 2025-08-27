@@ -10,6 +10,7 @@
   --safe-bottom: env(safe-area-inset-bottom);
   --safe-left: env(safe-area-inset-left);
   --safe-right: env(safe-area-inset-right);
+  --tg-top: 0px; /* JS подменит на 44px в Telegram iOS */
 }
 
 /* базовые фиксы */
@@ -20,10 +21,20 @@ body{
   padding-right: var(--safe-right);
 }
 
-/* чтобы верхний блок не "уплывал" из-за большого safe-area */
+/* сверху учитываем «чёлку»/панель Телеги */
 .container{
-  padding-top: clamp(8px, var(--safe-top), 16px);
+  padding-top: calc(clamp(8px, var(--safe-top), 16px) + var(--tg-top));
   padding-bottom: clamp(8px, var(--safe-bottom), 16px);
+}
+
+/* ВАЖНО: шапка — обычный поток, без фикс/стикки. Переопределяем любые глобальные стили. */
+.container > header,
+.container > header.header--compact{
+  position: static !important;
+  top: auto !important; left: auto !important; right: auto !important;
+  transform: none !important;
+  margin-bottom: 12px;             /* чтобы не задевать вкладки */
+  z-index: auto !important;
 }
 
 /* не перекрывать клики декоративными слоями */
@@ -40,7 +51,7 @@ body{
 .card-head{ display:flex; align-items:center; justify-content:space-between; gap:12px }
 .head-between{ display:flex; justify-content:space-between; align-items:center; gap:12px }
 
-/* панель действий внутри секции */
+/* панель действий */
 .section-toolbar{ display:flex; justify-content:flex-end; margin:4px 0 12px; gap:10px }
 
 /* +Добавить */
@@ -181,47 +192,29 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .modal__close{ border:1px solid var(--stroke); width:34px; height:34px; border-radius:10px; background:var(--input-bg); color:var(--text) }
 .modal__footer{ display:flex; justify-content:flex-end; margin-top:8px }
 
-/* сегменты в модалках */
+/* сегменты */
 .seg{ display:inline-flex; gap:8px; padding:6px; background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; margin-bottom:12px }
 .seg-btn{ border:0; padding:8px 12px; border-radius:999px; font-weight:800; cursor:pointer; background:transparent; color:var(--text); opacity:.8 }
 .seg-btn.is-active{ opacity:1; color:#0c0f21; background:linear-gradient(135deg, var(--brand), var(--brand2)) }
 
-/* ====== ТАБЛИЦА КАТЕГОРИЙ (исправлено) ====== */
-/* ВАЖНО: делаем столбец действий фиксированной ширины и разрезаем overflow */
+/* ====== Категории: фикс ширины под кнопку ====== */
 .table--cats{ table-layout:fixed; }
-.table--cats .col-actions{ width:120px; }              /* ПК: нормальная ширина под кнопку */
-.table--cats td:last-child,
-.table--cats th:last-child{
-  overflow:visible;                                     /* не прячем кнопку */
-  white-space:nowrap;
-}
+.table--cats .col-actions{ width:120px; }  /* ПК */
+.table--cats td:last-child, .table--cats th:last-child{ overflow:visible; white-space:nowrap; }
+.table--cats .btn-del{ display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; }
 
-/* кнопка удаления (ПК) */
-.table--cats .btn-del{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:8px 12px;
-  border-radius:10px;
-}
-
-/* iPhone 12 Pro и похожие (узкие экраны) */
+/* Мобилки (iPhone 12 Pro и т.п.) */
 @media (max-width: 420px){
   :root{ --chart-h: 220px; }
   .budget-page .kpis{ grid-template-columns:1fr 1fr }
   .budget-page .grid--2{ grid-template-columns:1fr }
   .budget-page .btn, .btn-add{ width:100% }
-  .t-hide-sm{ display:none }                 /* прячем колонку «Описание» */
+  .t-hide-sm{ display:none }
   .budget-page .table th,.budget-page .table td{ font-size:13px; padding:8px }
-
-  /* компактная кнопка удаления в таблице категорий */
-  .table--cats .col-actions{ width:56px; }               /* достаточно места под иконку */
-  .table--cats .btn-del{
-    width:36px; height:36px; padding:6px;
-    justify-content:center;
-  }
-  .table--cats .btn-del .txt{ display:none; }            /* прячем текст, остаётся 🗑 */
+  .table--cats .col-actions{ width:56px; }
+  .table--cats .btn-del{ width:36px; height:36px; padding:6px; justify-content:center; }
+  .table--cats .btn-del .txt{ display:none; }
 }
 
-/* доп. стиль красной кнопки (в таблицах) */
+/* доп. стиль красной кнопки */
 .btn-danger, .budget-page .btn-danger{ background:#e6536b; border-color:#e6536b; color:#0c0f21; }

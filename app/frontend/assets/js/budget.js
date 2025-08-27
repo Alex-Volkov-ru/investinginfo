@@ -17,6 +17,15 @@
   const nfPct = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
   const humanType = row => row.type==='income' ? 'Доход' : (row.type==='expense' ? 'Расход' : 'Перевод');
 
+  // ===== Telegram/iOS top bar offset (чтобы верхняя панель Телеги не наезжала) =====
+  (function setTelegramTopOffset(){
+    const ua = navigator.userAgent.toLowerCase();
+    const isTg  = /telegram/i.test(navigator.userAgent);
+    const isIOS = /iphone|ipad|ipod/.test(ua);
+    const extra = (isTg && isIOS) ? 44 : 0; // примерная высота верхней панели Telegram
+    document.documentElement.style.setProperty('--tg-top', extra + 'px');
+  })();
+
   // ===== Theme =====
   function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); }
   (function initTheme(){ setTheme(localStorage.getItem('pf_theme') || 'dark'); })();
@@ -39,10 +48,8 @@
     window.location.replace('login.html');
   });
 
-  // header compact on scroll
-  const headerEl = document.querySelector('header');
-  const applyCompact = () => headerEl?.classList.toggle('header--compact', window.scrollY > 8);
-  window.addEventListener('scroll', applyCompact, { passive:true }); applyCompact();
+  // ===== ВАЖНО: убираем «компактизацию» шапки на скролле (она ломала позиционирование) =====
+  // (удалены три строки: querySelector('header'), toggle('header--compact', ...), addEventListener('scroll', ...))
 
   // ===== AXIOS =====
   const token = localStorage.getItem('pf_token');
@@ -135,8 +142,6 @@
       const overdue = isOverdue(r.due_date, r.is_done);
       const tr = document.createElement('tr');
       tr.className = `ob-row ${r.is_done ? 'done':''} ${overdue ? 'overdue':''}`;
-
-      // делаем строку кликабельной — как в «Последних операциях»
       tr.setAttribute('data-clickrow','1');
       tr.dataset.mode   = 'ob';
       tr.dataset.title  = r.title || '';
@@ -225,7 +230,7 @@
         tr.innerHTML = `
           <td class="col-date">${fmtDate(t.occurred_at)}</td>
           <td class="col-cat" title="${cat || ''}"><span class="cell-clip">${cat || '—'}</span></td>
-          <td class="t-right col-sум">${fmtMoney(t.amount, t.currency ?? (MAP_ACC[t.account_id]?.currency ?? 'RUB'))}</td>
+          <td class="t-right col-сум">${fmtMoney(t.amount, t.currency ?? (MAP_ACC[t.account_id]?.currency ?? 'RUB'))}</td>
           <td class="t-hide-sm col-desc" title="${t.description ?? ''}"><span class="cell-clip">${t.description ?? ''}</span></td>`;
         tbody.appendChild(tr);
       }
@@ -241,29 +246,22 @@
     }
   }
 
-  // ===== row expand (универсально для всех таблиц) =====
+  // ===== row expand =====
   document.addEventListener('click', (e)=>{
     const target = e.target instanceof HTMLElement ? e.target : null;
     if (!target) return;
-
     const tr = target.closest('tr[data-clickrow]');
     if (!tr) return;
-
-    // в обязательных платежах игнорируем клики по тумблеру и кнопке удаления
     const inOb = !!tr.closest('#obTable');
     if (inOb && (target.closest('.ob-done') || target.closest('[data-act="del"]'))) return;
-
     const next = tr.nextElementSibling;
     if (next && next.classList?.contains('row-more')) { next.remove(); return; }
-
     const table = tr.closest('table');
     const ths = Array.from(table.querySelectorAll('thead th'));
     let cols = ths.filter(th => window.getComputedStyle(th).display !== 'none').length;
     if (!cols) cols = ths.length;
-
     const more = document.createElement('tr');
     more.className = 'row-more';
-
     if (inOb || tr.dataset.mode === 'ob'){
       more.innerHTML = `<td colspan="${cols}">
         <div class="row-more__box">
@@ -285,18 +283,17 @@
         </div>
       </td>`;
     }
-
     tr.insertAdjacentElement('afterend', more);
   });
 
-  // ===== Tabs handlers =====
+  // ===== Tabs =====
   $('#ledgerTabs')?.addEventListener('click', (e)=>{
     const t = e.target; if(!(t instanceof HTMLElement) || !t.classList.contains('tab-btn')) return;
     document.querySelectorAll('#ledgerTabs .tab-btn').forEach(b=>b.classList.remove('tab-btn--active'));
     t.classList.add('tab-btn--active'); renderLedger();
   });
 
-  // ===== Categories card =====
+  // ===== Categories =====
   let currentKind='income';
   $('#catTabs')?.addEventListener('click', (e)=>{
     const t = e.target; if(!(t instanceof HTMLElement) || !t.classList.contains('tab-btn')) return;
