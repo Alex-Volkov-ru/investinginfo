@@ -152,8 +152,19 @@ body{
 
 /* графики */
 :root{ --chart-h: 280px; }
-.budget-page .chart-box{ position:relative; overflow:hidden; background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; padding:6px }
-.budget-page .chart-box canvas{ display:block; width:100% !important; height:var(--chart-h) !important; }
+.budget-page .chart-box{
+  position:relative;
+  overflow:visible;
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:0;
+}
+.budget-page .chart-box canvas{
+  display:block;
+  width:100% !important;
+  height:var(--chart-h) !important;
+}
 
 /* регистр вкладок */
 .budget-page .ledger{ display:none } .budget-page .ledger.visible{ display:block }
