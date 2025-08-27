@@ -469,20 +469,3 @@
 
   window.addEventListener('beforeunload', ()=>{ clearTimeout(timerId); if(activeAbort) activeAbort.abort(); });
 })();
-
-/* === [BUDGET TOPBAR FIX] — точная высота шапки для корректного отступа контента === */
-(function () {
-  function setTopbarHeight() {
-    var hdr = document.querySelector('.container > header');
-    if (!hdr) return;
-    var h = hdr.getBoundingClientRect().height;
-    document.documentElement.style.setProperty('--budget-topbar-h', h + 'px');
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setTopbarHeight);
-  } else {
-    setTopbarHeight();
-  }
-  window.addEventListener('load', setTopbarHeight, { passive: true });
-  window.addEventListener('resize', setTopbarHeight, { passive: true });
-})();
