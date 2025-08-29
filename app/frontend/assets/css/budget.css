@@ -278,3 +278,62 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
     display:none;
   }
 }
+
+
+/* ===== KPI: стиль кнопок Пополнить/Снять (темная/светлая темы) ===== */
+.kpi-actions{
+  display:flex;
+  gap:8px;
+  margin-top:10px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+.kpi-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  border-radius:999px;
+  font-weight:800;
+  border:1px solid var(--stroke);
+  background:var(--input-bg);
+  color:var(--text);
+  box-shadow: var(--shadow);
+  transition: transform .08s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease;
+}
+.kpi-btn:hover{ transform: translateY(-1px); box-shadow: var(--shadow-lg, var(--shadow)); }
+.kpi-btn:active{ transform: translateY(0); }
+
+.kpi-btn__ico{
+  display:inline-block;
+  width:1.1em; height:1.1em; line-height:1;
+  font-weight:900;
+  opacity:.9;
+}
+
+/* основной — брендовая заливка */
+.kpi-btn--primary{
+  background:linear-gradient(135deg, var(--brand), var(--brand2));
+  color:#0c0f21;
+  border-color:transparent;
+}
+
+/* «опасная» — акцентная, без сильной заливки (универсальна для обеих тем) */
+.kpi-btn--danger{
+  background:transparent;
+  color:var(--accent);
+  border-color:var(--accent);
+}
+.kpi-btn--danger:hover{
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+@supports not (color-mix: in srgb, white, black){
+  .kpi-btn--danger:hover{ background: rgba(244,63,94,.12); } /* fallback */
+}
+
+/* мобильная подстройка */
+@media (max-width: 420px){
+  .kpi-actions{ gap:6px }
+  .kpi-btn{ padding:8px 12px }
+}

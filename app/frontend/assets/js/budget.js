@@ -262,54 +262,59 @@
     const valEl = document.getElementById('kpiSavings'); if(!valEl) return;
     const card = valEl.closest('.kpi'); if(!card) return;
 
-    // Пополнить
-    if (!document.getElementById('btnTopUpSavings')){
-      const btn = document.createElement('button');
-      btn.id = 'btnTopUpSavings';
-      btn.className = 'btn btn-sm';
-      btn.style.marginTop = '8px';
-      btn.textContent = 'Пополнить';
-      card.appendChild(btn);
-
-      btn.addEventListener('click', ()=>{
-        const savingsAcc = ACCOUNTS.find(a=>a.is_savings);
-        if(!savingsAcc){
-          if(confirm('Нет накопительного счёта. Создать?')){
-            createAccountFlow(true).then(()=> openTransfer(false));
-          }
-          return;
-        }
-        openTransfer(false); // обычный -> накопительный
-      });
+    // общий контейнер под кнопки
+    let actions = document.getElementById('kpiSavingsActions');
+    if (!actions){
+      actions = document.createElement('div');
+      actions.id = 'kpiSavingsActions';
+      actions.className = 'kpi-actions';
+      card.appendChild(actions);
+    } else {
+      actions.innerHTML = '';
     }
 
-    // Снять
-    if (!document.getElementById('btnWithdrawSavings')){
-      const btn2 = document.createElement('button');
-      btn2.id = 'btnWithdrawSavings';
-      btn2.className = 'btn btn-sm btn-danger';
-      btn2.style.marginTop = '8px';
-      btn2.style.marginLeft = '6px';
-      btn2.textContent = 'Снять';
-      card.appendChild(btn2);
+    // «Пополнить»
+    const btnTopUp = document.createElement('button');
+    btnTopUp.id = 'btnTopUpSavings';
+    btnTopUp.type = 'button';
+    btnTopUp.className = 'kpi-btn kpi-btn--primary';
+    btnTopUp.title = 'Перевести с обычного счёта на накопительный';
+    btnTopUp.innerHTML = '<span class="kpi-btn__ico">＋</span><span>Пополнить</span>';
 
-      btn2.addEventListener('click', ()=>{
-        const savingsAcc = ACCOUNTS.find(a=>a.is_savings);
-        if(!savingsAcc){
-          if(confirm('Нет накопительного счёта. Создать?')){
-            createAccountFlow(true).then(()=> openTransfer(true));
-          }
-          return;
+    // «Снять»
+    const btnWithdraw = document.createElement('button');
+    btnWithdraw.id = 'btnWithdrawSavings';
+    btnWithdraw.type = 'button';
+    btnWithdraw.className = 'kpi-btn kpi-btn--danger';
+    btnWithdraw.title = 'Перевести с накопительного счёта на обычный';
+    btnWithdraw.innerHTML = '<span class="kpi-btn__ico">−</span><span>Снять</span>';
+
+    actions.append(btnTopUp, btnWithdraw);
+
+    btnTopUp.addEventListener('click', ()=>{
+      const savingsAcc = ACCOUNTS.find(a=>a.is_savings);
+      if(!savingsAcc){
+        if(confirm('Нет накопительного счёта. Создать?')){
+          createAccountFlow(true).then(()=> openTransfer(false));
         }
-        openTransfer(true);  // накопительный -> обычный
-      });
-    }
+        return;
+      }
+      openTransfer(false); // обычный -> накопительный
+    });
 
-    // Открыть модал перевода с правильным направлением
+    btnWithdraw.addEventListener('click', ()=>{
+      const savingsAcc = ACCOUNTS.find(a=>a.is_savings);
+      if(!savingsAcc){
+        if(confirm('Нет накопительного счёта. Создать?')){
+          createAccountFlow(true).then(()=> openTransfer(true));
+        }
+        return;
+      }
+      openTransfer(true); // накопительный -> обычный
+    });
+
     function openTransfer(withdraw){
-      // обязательно наполним селекты перед установкой значений
       fillAccountSelects();
-      // включим режим «Перевод» и откроем модал
       setModalType('transfer');
       openModal('#opModal');
 
@@ -320,17 +325,17 @@
       const contraSel = document.getElementById('m_contra');
 
       if (withdraw){
-        if (savingsAcc) accSel.value    = String(savingsAcc.id); // с накопительного
-        if (mainAcc)    contraSel.value = String(mainAcc.id);    // на обычный
+        if (savingsAcc) accSel.value    = String(savingsAcc.id);
+        if (mainAcc)    contraSel.value = String(mainAcc.id);
       } else {
-        if (mainAcc)    accSel.value    = String(mainAcc.id);    // с обычного
-        if (savingsAcc) contraSel.value = String(savingsAcc.id); // на накопительный
+        if (mainAcc)    accSel.value    = String(mainAcc.id);
+        if (savingsAcc) contraSel.value = String(savingsAcc.id);
       }
 
       const mDate=document.getElementById('m_date');
       if (mDate && !mDate.value) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
 
-      const amt = document.getElementById('m_amount'); if(amt) amt.focus();
+      document.getElementById('m_amount')?.focus();
     }
   }
 
