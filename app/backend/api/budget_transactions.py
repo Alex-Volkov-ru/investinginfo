@@ -1,151 +1,211 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, timedelta
 from decimal import Decimal
-from typing import Optional, List
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import and_
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user
 from app.backend.db.session import get_db
 from app.backend.models.user import User
-from app.backend.models.budget import BudgetTransaction, BudgetAccount, BudgetCategory
+from app.backend.models.budget import (
+    BudgetTransaction,
+    BudgetAccount,
+    BudgetCategory,
+)
 
-router = APIRouter(prefix="/budget/transactions", tags=["budget"])
+router = APIRouter(prefix="/budget/transactions", tags=["budget: transactions"])
 
 
-class TxOut(BaseModel):
-    id: int
+# ===== Schemas =====
+
+TransactionType = Literal["income", "expense", "transfer"]
+
+
+class TransactionCreate(BaseModel):
+    type: TransactionType
     account_id: int
-    category_id: Optional[int] = None
-    type: str
-    amount: Decimal
-    currency: str
-    occurred_at: datetime
-    description: Optional[str] = None
+    # для transfer обязателен:
     contra_account_id: Optional[int] = None
-
-    class Config:
-        from_attributes = True
-
-
-class TxCreateIn(BaseModel):
-    account_id: int
+    # для income/expense обязателен:
     category_id: Optional[int] = None
-    type: str = Field(pattern="^(income|expense|transfer)$")
-    amount: Decimal = Field(ge=0)
-    currency: str = Field(default="RUB", min_length=3, max_length=3)
-    occurred_at: datetime
-    description: Optional[str] = None
-    contra_account_id: Optional[int] = None
 
-    @field_validator("description")
+    amount: Decimal = Field(..., gt=0)
+    currency: str = "RUB"
+    occurred_at: Optional[str] = None  # ISO date/time
+    description: Optional[str] = None
+
+    @field_validator("currency")
     @classmethod
-    def strip_desc(cls, v):
-        return v.strip() if v else v
+    def _cur(cls, v: str) -> str:
+        return v.upper()
 
 
-@router.get("", response_model=List[TxOut])
+class CategoryOut(BaseModel):
+    id: int
+    name: str
+
+
+class TransactionOut(BaseModel):
+    id: int
+    type: TransactionType
+    account_id: int
+    contra_account_id: Optional[int]
+    category: Optional[CategoryOut] = None
+    amount: float
+    currency: str
+    occurred_at: str
+    description: Optional[str]
+
+
+# ===== Helpers =====
+
+def _dates(from_: Optional[str], to: Optional[str]):
+    if from_:
+        d1 = date.fromisoformat(from_)
+    else:
+        today = date.today()
+        d1 = today.replace(day=1)
+
+    if to:
+        d2 = date.fromisoformat(to)
+    else:
+        next_month_first = (d1.replace(day=28) + timedelta(days=4)).replace(day=1)
+        d2 = next_month_first - timedelta(days=1)
+
+    return d1, d2
+
+
+# ===== Routes =====
+
+@router.get("", response_model=List[TransactionOut])
 def list_transactions(
-    account_id: Optional[int] = None,
-    category_id: Optional[int] = None,
-    type: Optional[str] = Query(default=None, pattern="^(income|expense|transfer)$"),
-    date_from: Optional[datetime] = None,
-    date_to: Optional[datetime] = None,
-    limit: int = Query(200, ge=1, le=2000),
+    date_from: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="YYYY-MM-DD"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    q = db.query(BudgetTransaction).filter(BudgetTransaction.user_id == user.id)
-    if account_id:
-        q = q.filter(BudgetTransaction.account_id == account_id)
-    if category_id:
-        q = q.filter(BudgetTransaction.category_id == category_id)
-    if type:
-        q = q.filter(BudgetTransaction.type == type)
-    if date_from:
-        q = q.filter(BudgetTransaction.occurred_at >= date_from)
-    if date_to:
-        q = q.filter(BudgetTransaction.occurred_at < date_to)
+    d1, d2 = _dates(date_from, date_to)
 
-    return q.order_by(BudgetTransaction.occurred_at.desc(), BudgetTransaction.id.desc()).limit(limit).all()
-
-
-@router.post("", response_model=TxOut)
-def create_transaction(
-    payload: TxCreateIn,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    # проверим счёт
-    acc = db.query(BudgetAccount).filter(
-        BudgetAccount.id == payload.account_id,
-        BudgetAccount.user_id == user.id
-    ).first()
-    if not acc:
-        raise HTTPException(400, "account_id не найден/чужой")
-
-    # проверим категорию (если задана)
-    if payload.category_id is not None:
-        cat = db.query(BudgetCategory).filter(
-            BudgetCategory.id == payload.category_id,
-            BudgetCategory.user_id == user.id
-        ).first()
-        if not cat:
-            raise HTTPException(400, "category_id не найден/чужой")
-        # тип операции должен совпадать с типом категории
-        if payload.type not in ("income", "expense"):
-            raise HTTPException(400, "category_id допустим только для income/expense")
-        if cat.kind != payload.type:
-            raise HTTPException(400, "Тип категории не совпадает с типом операции")
-
-    # transfer — проверим целевой счёт
-    if payload.type == "transfer":
-        if not payload.contra_account_id:
-            raise HTTPException(400, "Для transfer нужен contra_account_id")
-        if payload.contra_account_id == payload.account_id:
-            raise HTTPException(400, "contra_account_id не может совпадать с account_id")
-        acc2 = db.query(BudgetAccount).filter(
-            BudgetAccount.id == payload.contra_account_id,
-            BudgetAccount.user_id == user.id
-        ).first()
-        if not acc2:
-            raise HTTPException(400, "contra_account_id не найден/чужой")
-        if acc.currency != acc2.currency or acc.currency.upper() != payload.currency.upper():
-            # упрощение: пока запрещаем кросс-валютные переводы
-            raise HTTPException(400, "Валюты счетов и операции должны совпадать")
-
-    tx = BudgetTransaction(
-        user_id=user.id,
-        account_id=payload.account_id,
-        category_id=payload.category_id,
-        type=payload.type,
-        amount=payload.amount,
-        currency=payload.currency.upper(),
-        occurred_at=payload.occurred_at,
-        description=payload.description,
-        contra_account_id=payload.contra_account_id,
+    q = (
+        select(BudgetTransaction, BudgetCategory)
+        .outerjoin(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+        .order_by(BudgetTransaction.occurred_at.desc(), BudgetTransaction.id.desc())
     )
-    db.add(tx)
-    db.commit()
-    db.refresh(tx)
-    return tx
+
+    rows = db.execute(q).all()
+    out: List[TransactionOut] = []
+    for bt, cat in rows:
+        out.append(
+            TransactionOut(
+                id=bt.id,
+                type=bt.type,
+                account_id=bt.account_id,
+                contra_account_id=bt.contra_account_id,
+                category=(CategoryOut(id=cat.id, name=cat.name) if cat else None),
+                amount=float(bt.amount),
+                currency=bt.currency,
+                occurred_at=bt.occurred_at.isoformat() if hasattr(bt.occurred_at, "isoformat") else str(bt.occurred_at),
+                description=bt.description,
+            )
+        )
+    return out
 
 
-@router.delete("/{tx_id}")
-def delete_transaction(
-    tx_id: int,
+@router.post("", response_model=TransactionOut, status_code=201)
+def create_transaction(
+    payload: TransactionCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    tx = db.query(BudgetTransaction).filter(
-        and_(BudgetTransaction.id == tx_id, BudgetTransaction.user_id == user.id)
-    ).first()
-    if not tx:
-        raise HTTPException(404, "Операция не найдена")
-    db.delete(tx)
-    db.commit()
-    return {"ok": True}
+    """
+    Создание операции.
+    ВАЖНО: для transfer разрешены оба направления:
+      - обычный -> накопительный (пополнение)
+      - накопительный -> обычный (снятие)
+    Запрещён перевод в тот же самый счёт.
+    Оба счёта должны принадлежать пользователю и быть активными.
+    """
+    # Общие проверки
+    if payload.type == "transfer":
+        if not payload.contra_account_id or payload.contra_account_id == payload.account_id:
+            raise HTTPException(400, detail="Неверные параметры перевода")
+
+        acc_from: BudgetAccount | None = db.get(BudgetAccount, payload.account_id)
+        acc_to: BudgetAccount | None = db.get(BudgetAccount, payload.contra_account_id)
+
+        if not acc_from or not acc_to or acc_from.user_id != user.id or acc_to.user_id != user.id:
+            raise HTTPException(400, detail="Счета недоступны")
+        if getattr(acc_from, "is_active", True) is False or getattr(acc_to, "is_active", True) is False:
+            raise HTTPException(400, detail="Один из счетов неактивен")
+
+        tx = BudgetTransaction(
+            user_id=user.id,
+            type="transfer",
+            account_id=acc_from.id,
+            contra_account_id=acc_to.id,
+            category_id=None,
+            amount=payload.amount,
+            currency=payload.currency,
+            occurred_at=payload.occurred_at or date.today(),
+            description=payload.description or None,
+        )
+        db.add(tx)
+        db.commit()
+        db.refresh(tx)
+
+    elif payload.type in ("income", "expense"):
+        if not payload.category_id:
+            raise HTTPException(400, detail="category_id обязателен для income/expense")
+
+        category: BudgetCategory | None = db.get(BudgetCategory, payload.category_id)
+        account: BudgetAccount | None = db.get(BudgetAccount, payload.account_id)
+
+        if not category or not account or account.user_id != user.id or category.user_id != user.id:
+            raise HTTPException(400, detail="Счёт/категория недоступны")
+
+        tx = BudgetTransaction(
+            user_id=user.id,
+            type=payload.type,
+            account_id=account.id,
+            contra_account_id=None,
+            category_id=category.id,
+            amount=payload.amount,
+            currency=payload.currency,
+            occurred_at=payload.occurred_at or date.today(),
+            description=payload.description or None,
+        )
+        db.add(tx)
+        db.commit()
+        db.refresh(tx)
+
+    else:
+        raise HTTPException(400, detail="Неизвестный тип операции")
+
+    # Сериализация ответа
+    cat = None
+    if tx.category_id:
+        c = db.get(BudgetCategory, tx.category_id)
+        if c:
+            cat = CategoryOut(id=c.id, name=c.name)
+
+    return TransactionOut(
+        id=tx.id,
+        type=tx.type,
+        account_id=tx.account_id,
+        contra_account_id=tx.contra_account_id,
+        category=cat,
+        amount=float(tx.amount),
+        currency=tx.currency,
+        occurred_at=tx.occurred_at.isoformat() if hasattr(tx.occurred_at, "isoformat") else str(tx.occurred_at),
+        description=tx.description,
+    )

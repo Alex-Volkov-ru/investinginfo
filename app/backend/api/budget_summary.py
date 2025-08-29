@@ -1,19 +1,23 @@
 from __future__ import annotations
 
-from datetime import date, timedelta  # datetime не нужен
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from sqlalchemy import select, func
-from sqlalchemy.orm import Session
+from sqlalchemy import select, func, case
+from sqlalchemy.orm import Session, aliased
 
 from app.backend.core.auth import get_current_user
 from app.backend.db.session import get_db
 from app.backend.models.user import User
-from app.backend.models.budget import BudgetTransaction, BudgetAccount, BudgetCategory
+from app.backend.models.budget import (
+    BudgetTransaction,
+    BudgetAccount,
+    BudgetCategory,
+)
 
 router = APIRouter(prefix="/budget/summary", tags=["budget: summary"])
 
@@ -24,7 +28,10 @@ class MonthSummaryOut(BaseModel):
     income_total: float
     expense_total: float
     net_total: float
+    # старое поле (только пополнения на накопительный) — оставляем для совместимости
     savings_transferred: float
+    # новое поле: ЧИСТОЕ движение по накопительным (пополнения − снятия)
+    savings: float
 
 
 class ChartSlice(BaseModel):
@@ -95,8 +102,8 @@ def month_summary(
         )
     ) or Decimal(0)
 
-    # savings: transfers whose contra_account.is_savings = true
-    savings = db.scalar(
+    # ТОЛЬКО пополнения на накопительные (для совместимости со старым фронтом)
+    savings_in = db.scalar(
         select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
         .join(BudgetAccount, BudgetAccount.id == BudgetTransaction.contra_account_id)
         .where(
@@ -108,11 +115,39 @@ def month_summary(
         )
     ) or Decimal(0)
 
+    # ЧИСТОЕ движение по накопительным: + если перевод НА накопительный, − если ИЗ накопительного
+    AccFrom = aliased(BudgetAccount)
+    AccTo = aliased(BudgetAccount)
+
+    savings_net = db.scalar(
+        select(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (AccTo.is_savings.is_(True), BudgetTransaction.amount),    # пополнение
+                        (AccFrom.is_savings.is_(True), -BudgetTransaction.amount), # снятие
+                        else_=0,
+                    )
+                ),
+                0,
+            )
+        )
+        .join(AccFrom, AccFrom.id == BudgetTransaction.account_id)
+        .join(AccTo,   AccTo.id   == BudgetTransaction.contra_account_id)
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "transfer",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+    ) or Decimal(0)
+
     return MonthSummaryOut(
         income_total=float(income),
         expense_total=float(expense),
         net_total=float(income - expense),
-        savings_transferred=float(savings),
+        savings_transferred=float(savings_in),
+        savings=float(savings_net),
     )
 
 

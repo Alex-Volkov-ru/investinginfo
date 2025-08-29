@@ -140,7 +140,6 @@
       const tr = document.createElement('tr');
       tr.className = `ob-row ${r.is_done ? 'done':''} ${overdue ? 'overdue':''}`;
 
-      // раскрывашка
       tr.setAttribute('data-clickrow','1');
       tr.dataset.mode   = 'ob';
       tr.dataset.title  = r.title || '';
@@ -164,11 +163,10 @@
       tbody.appendChild(tr);
     }
 
-    // ==== ИТОГИ ДЛЯ ФУТЕРА ТАБЛИЦЫ ОБЯЗАТЕЛЬНЫХ ПЛАТЕЖЕЙ ====
+    // Totals
     try {
-      const totalsAll = {};   // все платежи за период
-      const totalsLeft = {};  // только НЕ выполненные (что осталось оплатить)
-
+      const totalsAll = {};
+      const totalsLeft = {};
       for (const r of data) {
         const cur = r.currency || 'RUB';
         const amt = Number(r.amount || 0) || 0;
@@ -220,7 +218,6 @@
     }
   }
 
-  // --- удалить счёт (используется кнопкой "– Счёт")
   async function deleteAccountFlow(){
     if (!ACCOUNTS.length) { alert('Нет счетов'); return; }
     const list = ACCOUNTS.map(a => `${a.id}: ${a.title}${a.is_savings ? ' (накоп.)' : ''}`).join('\n');
@@ -236,11 +233,8 @@
     }
   }
 
-  // --- кнопки рядом с select'ом счёта: "+ Счёт" и "– Счёт"
   function injectAccountButtons(selectEl, baseId){
     if(!selectEl) return;
-
-    // + Счёт
     if(!document.getElementById(baseId + '_add')){
       const btnAdd = document.createElement('button');
       btnAdd.id = baseId + '_add';
@@ -251,8 +245,6 @@
       selectEl.insertAdjacentElement('afterend', btnAdd);
       btnAdd.addEventListener('click', ()=> createAccountFlow(false));
     }
-
-    // – Счёт
     if(!document.getElementById(baseId + '_del')){
       const btnDel = document.createElement('button');
       btnDel.id = baseId + '_del';
@@ -265,39 +257,79 @@
     }
   }
 
-  // быстрая кнопка "Пополнить" у KPI "Накопительный счёт"
+  // ===== Кнопки у KPI «Накопительный счёт»: Пополнить + Снять
   function injectTopUpButton(){
     const valEl = document.getElementById('kpiSavings'); if(!valEl) return;
     const card = valEl.closest('.kpi'); if(!card) return;
-    if (document.getElementById('btnTopUpSavings')) return;
 
-    const btn = document.createElement('button');
-    btn.id = 'btnTopUpSavings';
-    btn.className = 'btn btn-sm';
-    btn.style.marginTop = '8px';
-    btn.textContent = 'Пополнить';
-    card.appendChild(btn);
+    // Пополнить
+    if (!document.getElementById('btnTopUpSavings')){
+      const btn = document.createElement('button');
+      btn.id = 'btnTopUpSavings';
+      btn.className = 'btn btn-sm';
+      btn.style.marginTop = '8px';
+      btn.textContent = 'Пополнить';
+      card.appendChild(btn);
 
-    btn.addEventListener('click', ()=>{
-      // если нет накопительного счёта — предложим создать
-      const savingsAcc = ACCOUNTS.find(a=>a.is_savings);
-      if(!savingsAcc){
-        if(confirm('Нет накопительного счёта. Создать?')){
-          createAccountFlow(true).then(()=> openTopUpModalPreset());
+      btn.addEventListener('click', ()=>{
+        const savingsAcc = ACCOUNTS.find(a=>a.is_savings);
+        if(!savingsAcc){
+          if(confirm('Нет накопительного счёта. Создать?')){
+            createAccountFlow(true).then(()=> openTransfer(false));
+          }
+          return;
         }
-        return;
-      }
-      openTopUpModalPreset();
-    });
+        openTransfer(false); // обычный -> накопительный
+      });
+    }
 
-    function openTopUpModalPreset(){
-      // подставим перевод: с обычного на накопительный
+    // Снять
+    if (!document.getElementById('btnWithdrawSavings')){
+      const btn2 = document.createElement('button');
+      btn2.id = 'btnWithdrawSavings';
+      btn2.className = 'btn btn-sm btn-danger';
+      btn2.style.marginTop = '8px';
+      btn2.style.marginLeft = '6px';
+      btn2.textContent = 'Снять';
+      card.appendChild(btn2);
+
+      btn2.addEventListener('click', ()=>{
+        const savingsAcc = ACCOUNTS.find(a=>a.is_savings);
+        if(!savingsAcc){
+          if(confirm('Нет накопительного счёта. Создать?')){
+            createAccountFlow(true).then(()=> openTransfer(true));
+          }
+          return;
+        }
+        openTransfer(true);  // накопительный -> обычный
+      });
+    }
+
+    // Открыть модал перевода с правильным направлением
+    function openTransfer(withdraw){
+      // обязательно наполним селекты перед установкой значений
+      fillAccountSelects();
+      // включим режим «Перевод» и откроем модал
       setModalType('transfer');
       openModal('#opModal');
-      const mainAcc = ACCOUNTS.find(a=>!a.is_savings) || ACCOUNTS[0];
-      const savingsAcc2 = ACCOUNTS.find(a=>a.is_savings) || ACCOUNTS[0];
-      if (mainAcc)   document.getElementById('m_acc').value = String(mainAcc.id);
-      if (savingsAcc2) document.getElementById('m_contra').value = String(savingsAcc2.id);
+
+      const mainAcc    = ACCOUNTS.find(a=>!a.is_savings) || ACCOUNTS[0];
+      const savingsAcc = ACCOUNTS.find(a=> a.is_savings) || ACCOUNTS[0];
+
+      const accSel    = document.getElementById('m_acc');
+      const contraSel = document.getElementById('m_contra');
+
+      if (withdraw){
+        if (savingsAcc) accSel.value    = String(savingsAcc.id); // с накопительного
+        if (mainAcc)    contraSel.value = String(mainAcc.id);    // на обычный
+      } else {
+        if (mainAcc)    accSel.value    = String(mainAcc.id);    // с обычного
+        if (savingsAcc) contraSel.value = String(savingsAcc.id); // на накопительный
+      }
+
+      const mDate=document.getElementById('m_date');
+      if (mDate && !mDate.value) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
+
       const amt = document.getElementById('m_amount'); if(amt) amt.focus();
     }
   }
@@ -310,6 +342,16 @@
   }
 
   // ===== Recent table =====
+  function resolveCategory(t){
+    // максимум совместимости с разными ответами API
+    return (
+      t.category_name ??
+      t.category_title ??
+      (t.category && t.category.name) ??
+      t.category ??
+      (t.category_id != null ? catName(t.category_id) : '')
+    );
+  }
   function renderRecent(){
     const tbody = $('#txTable'); if(!tbody) return; tbody.innerHTML='';
     const rows = [...MONTH_TX].sort((a,b)=> new Date(b.occurred_at) - new Date(a.occurred_at)).slice(0,50);
@@ -319,7 +361,7 @@
       tr.dataset.type = humanType(t);
       tr.dataset.account = t.account_title ?? acctTitle(t.account_id);
       tr.dataset.desc = t.description ?? '';
-      const cat = t.category_name ?? catName(t.category_id);
+      const cat = resolveCategory(t);
       tr.innerHTML = `
         <td class="col-date">${fmtDate(t.occurred_at)}</td>
         <td class="col-cat" title="${cat || ''}"><span class="cell-clip">${cat || '—'}</span></td>
@@ -340,7 +382,7 @@
       tbody.innerHTML=''; let sum=0;
       for (const t of rows){
         sum += Number(t.amount || 0);
-        const cat = t.category_name ?? catName(t.category_id);
+        const cat = resolveCategory(t);
         const tr = document.createElement('tr');
         tr.setAttribute('data-clickrow','1');
         tr.dataset.type = humanType(t);
@@ -450,7 +492,6 @@
     injectAccountButtons(document.getElementById('m_acc'),    'acc1');
     injectAccountButtons(document.getElementById('m_contra'), 'acc2');
   }
-  // при клике "Добавить операцию" подцепим кнопки
   document.getElementById('openOpModal')?.addEventListener('click', ensureAccountButtonsNearSelects);
   function closeModal(sel){ const m=$(sel); if(!m) return; m.setAttribute('hidden',''); m.style.removeProperty('display'); m.style.removeProperty('visibility'); m.style.removeProperty('opacity'); document.body.style.overflow=''; }
   $('#openOpModal')?.addEventListener('click', (e)=>{ fillAccountSelects(); fillCategoriesForModal(); const mDate=document.getElementById('m_date'); if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000; openModal('#opModal', e); });
@@ -555,9 +596,10 @@
     setText($('#kpiIncome'),  fmtMoney(data.income_total));
     setText($('#kpiExpense'), fmtMoney(data.expense_total));
     setText($('#kpiNet'),     fmtMoney(data.net_total));
-    setText($('#kpiSavings'), fmtMoney(data.savings_transferred)); // «Накопительный счёт»
+    // ключевой момент: показываем чистое движение по накопительному (если нет — старое поле)
+    setText($('#kpiSavings'), fmtMoney((data.savings ?? data.savings_transferred) || 0));
 
-    // --- Портфель всего: берём из localStorage, если есть
+    // портфель из localStorage
     try {
       const pt  = Number(localStorage.getItem('pf_portfolio_total') || '');
       const cur = localStorage.getItem('pf_portfolio_currency') || 'RUB';
@@ -598,7 +640,7 @@
     if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
     setModalType('income'); setModalKind('income');
     await refreshAll();
-    injectTopUpButton();
+    injectTopUpButton(); // добавляет «Пополнить» и «Снять»
   })();
 
   window.addEventListener('beforeunload', ()=>{ clearTimeout(timerId); if(activeAbort) activeAbort.abort(); });

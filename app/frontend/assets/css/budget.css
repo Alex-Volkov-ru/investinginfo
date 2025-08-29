@@ -146,7 +146,7 @@ body{
 
 /* бейджи типов */
 .budget-page .pill{ display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; font-weight:800; font-size:12px }
-.budget-page .pill--inc{ background:#0f5132; color:#b6f7d2; border:1px solid #0b3b24 }
+.budget-page .pill--inc{ background:#0f5132; color:#b6f7d2; border:1px solid #0b3b24 } /* <-- фикс: d2, без кириллицы */
 .budget-page .pill--exp{ background:#5a1a1a; color:#ffd6d6; border:1px solid #3d1010 }
 .budget-page .pill--tr{ background:#20385b; color:#cfe2ff; border:1px solid #162a46 }
 
@@ -222,7 +222,7 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 
 /* ====== ТАБЛИЦА КАТЕГОРИЙ ====== */
 .table--cats{ table-layout:fixed; }
-.table--cats .col-actions{ width:120px; } /* ПК: хватает и заголовку, и кнопке */
+.table--cats .col-actions{ width:120px; }
 .table--cats td:last-child,
 .table--cats th:last-child{
   overflow:visible;
@@ -233,13 +233,12 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 @media (max-width: 420px){
   :root{ --chart-h: 220px; }
   .budget-page .grid--2{ grid-template-columns:1fr }
-  .t-hide-sm{ display:none }                 /* прячем колонку «Описание» */
+  .t-hide-sm{ display:none }
   .budget-page .table th,.budget-page .table td{ font-size:13px; padding:8px }
 
-  /* «Действия» видно и на узком экране */
   .table--cats .col-actions{ width:84px; }
   .btn-del{ width:36px; height:36px; padding:6px; justify-content:center; }
-  .btn-del .txt{ display:none; }            /* на мобилке — только иконка */
+  .btn-del .txt{ display:none; }
 }
 
 /* доп. стиль красной кнопки (в таблицах) */
@@ -253,10 +252,10 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
   line-height: 1.4;
 }
 .table tfoot .totals-cell{
-  text-align: center;        /* ПК — по центру */
+  text-align: center;
   color: var(--muted);
   font-size: 14px;
-  white-space: normal;       /* разрешим переносы только тут */
+  white-space: normal;
 }
 .table tfoot .totals-cell strong{
   color: var(--text);
@@ -270,13 +269,12 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 
 @media (max-width: 520px){
   .table tfoot .totals-cell{
-    text-align: left;        /* на телефоне — влево, в две строки */
+    text-align: left;
   }
   .table tfoot .totals-cell .mobile-br{
-    display:block; height:4px; /* визуальный отступ между строками */
+    display:block; height:4px;
   }
   .table tfoot .totals-cell .sep{
-    display:none;            /* точку-разделитель скрываем на мобиле */
+    display:none;
   }
 }
-
