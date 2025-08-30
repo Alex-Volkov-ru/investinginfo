@@ -7,7 +7,6 @@ networks:
 volumes:
   pg_data:
   frontend_volume:
-  static_volume:
 
 services:
   db:
@@ -30,8 +29,13 @@ services:
     ports:
       - "5434:5432"
     networks: [portfolio-net]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # Flyway для автоматических миграций
+  # Автомиграции (выполняется один раз при старте)
   flyway:
     image: flyway/flyway:11-alpine
     container_name: bigs-flyway
@@ -50,6 +54,11 @@ services:
     command: migrate
     restart: "no"
     networks: [portfolio-net]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   backend:
     image: ximikat01/bigs_backend:latest
@@ -64,10 +73,27 @@ services:
       ALGORITHM: ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    # Делаем тише uvicorn (меньше логов)
+    command: >
+      uvicorn app.backend.main:app
+      --host 0.0.0.0 --port 8000
+      --log-level info
+      --no-access-log
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health/ping || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     ports:
       - "8001:8000"
     restart: always
     networks: [portfolio-net]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     image: ximikat01/bigs_frontend:latest
@@ -75,8 +101,13 @@ services:
     volumes:
       - frontend_volume:/frontend-dist
     command: sh -c "cp -r /usr/share/nginx/html/. /frontend-dist && tail -f /dev/null"
-    networks:
-      - portfolio-net
+    restart: unless-stopped
+    networks: [portfolio-net]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   nginx:
     image: nginx:alpine
@@ -87,13 +118,18 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - frontend_volume:/frontend-dist
-      - ./certbot/www:/var/www/certbot      
-      - ./certbot/conf:/etc/letsencrypt  
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
     depends_on:
       - backend
       - frontend
-    networks:
-      - portfolio-net
+    restart: unless-stopped
+    networks: [portfolio-net]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   certbot:
     image: certbot/certbot
@@ -101,5 +137,10 @@ services:
     volumes:
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
-    networks:
-      - portfolio-net
+    networks: [portfolio-net]
+    restart: "no"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
