@@ -7,9 +7,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 class Settings(BaseModel):
-    # FastAPI / CORS
+    # --- SQLAlchemy pool ---
+    SQL_POOL_SIZE: int = int(os.getenv("SQL_POOL_SIZE", "5"))
+    SQL_MAX_OVERFLOW: int = int(os.getenv("SQL_MAX_OVERFLOW", "10"))
+    SQL_POOL_RECYCLE: int = int(os.getenv("SQL_POOL_RECYCLE", "1800"))  # 30 мин
+    SQL_POOL_TIMEOUT: int = int(os.getenv("SQL_POOL_TIMEOUT", "30"))
+
+    # --- App logging/CORS ---
     DEBUG: bool = (os.getenv("DEBUG", "true").lower() == "true")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "DEBUG")
     ALLOWED_ORIGINS: list[str] = Field(
@@ -19,20 +24,24 @@ class Settings(BaseModel):
         ]
     )
 
-    # DB
-    DATABASE_URL: AnyUrl | str = os.getenv("DATABASE_URL", "postgresql+psycopg2://bigs:bigs_pass@db:5432/bigsdb")
+    # --- DB ---
+    DATABASE_URL: AnyUrl | str = os.getenv(
+        "DATABASE_URL",
+        "postgresql+psycopg2://bigs:bigs_pass@db:5432/bigsdb",
+    )
     DB_SCHEMA: str = os.getenv("DB_SCHEMA", "pf")
 
-    # Auth
+    # --- Auth/JWT ---
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev_secret")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
-    # Market
+    # --- Market ---
     TINKOFF_TOKEN: str = os.getenv("TINKOFF_API_TOKEN") or os.getenv("TINKOFF_TOKEN") or ""
 
+    # --- Redis ---
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://bigs-redis:6379/0")
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Возвращает кэшированный объект настроек."""
     return Settings()

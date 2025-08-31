@@ -1,23 +1,21 @@
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.backend.core.config import get_settings
 
-settings = get_settings()
+s = get_settings()
 
 engine = create_engine(
-    str(settings.DATABASE_URL),
+    s.DATABASE_URL,
     pool_pre_ping=True,
+    pool_recycle=s.SQL_POOL_RECYCLE,
+    pool_size=s.SQL_POOL_SIZE,
+    max_overflow=s.SQL_MAX_OVERFLOW,
+    pool_timeout=s.SQL_POOL_TIMEOUT,
     future=True,
 )
 
-@event.listens_for(engine, "connect")
-def _set_search_path(dbapi_connection, connection_record):
-    schema = settings.DB_SCHEMA
-    cur = dbapi_connection.cursor()
-    cur.execute(f"SET search_path TO {schema}, public;")
-    cur.close()
-
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
     db = SessionLocal()

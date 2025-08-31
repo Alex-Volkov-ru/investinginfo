@@ -34,6 +34,8 @@ tenacity==8.5.0
 pydantic-settings==2.4.0
 email-validator==2.2.0
 
+redis>=5.0
+
 # Tinkoff Invest API SDK
 tinkoff-investments==0.2.0b115
 protobuf>=4.25.3,<5.0.0

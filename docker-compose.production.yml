@@ -35,7 +35,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Автомиграции (выполняется один раз при старте)
   flyway:
     image: flyway/flyway:11-alpine
     container_name: bigs-flyway
@@ -60,6 +59,18 @@ services:
         max-size: "5m"
         max-file: "2"
 
+  redis:
+    image: redis:7-alpine
+    container_name: bigs-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    restart: unless-stopped
+    networks: [portfolio-net]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   backend:
     image: ximikat01/bigs_backend:latest
     container_name: bigs-backend
@@ -73,6 +84,7 @@ services:
       ALGORITHM: ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      REDIS_URL: ${REDIS_URL:-redis://bigs-redis:6379/0}
     # Делаем тише uvicorn (меньше логов)
     command: >
       uvicorn app.backend.main:app
