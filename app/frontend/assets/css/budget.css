@@ -34,9 +34,12 @@ body{
   background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
   border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:var(--shadow);
 }
-.budget-page .card h2{ margin:0; font-size:18px }
+html[data-theme="light"] .budget-page .card{
+  background:linear-gradient(180deg, rgba(0,0,0,.03), rgba(0,0,0,.00));
+}
 
 /* заголовок карточки */
+.budget-page .card h2{ margin:0; font-size:18px }
 .card-head{ display:flex; align-items:center; justify-content:space-between; gap:12px }
 .head-between{ display:flex; justify-content:space-between; align-items:center; gap:12px }
 
@@ -62,7 +65,7 @@ body{
 .budget-page .chev{ display:inline-block; width:1em; height:1em; margin-right:8px; transform-origin:center; transition:transform .25s ease; font-weight:900; color:var(--muted) }
 .budget-page .collapsible[open] .chev{ transform:rotate(90deg) }
 
-/* KPI — стиль как в «Инвестициях» */
+/* KPI — стиль */
 .budget-page .kpis{
   display:grid; gap:12px;
   max-width: 860px;
@@ -81,7 +84,7 @@ body{
 .budget-page .kpi__value{ font-size:26px; font-weight:800; line-height:1 }
 
 @media (max-width: 860px){
-  .budget-page .kpis{ grid-template-columns:1fr } /* вниз по порядку на мобилке */
+  .budget-page .kpis{ grid-template-columns:1fr }
 }
 
 /* сетки */
@@ -146,25 +149,14 @@ body{
 
 /* бейджи типов */
 .budget-page .pill{ display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; font-weight:800; font-size:12px }
-.budget-page .pill--inc{ background:#0f5132; color:#b6f7d2; border:1px solid #0b3b24 } /* <-- фикс: d2, без кириллицы */
+.budget-page .pill--inc{ background:#0f5132; color:#b6f7d2; border:1px solid #0b3b24 }
 .budget-page .pill--exp{ background:#5a1a1a; color:#ffd6d6; border:1px solid #3d1010 }
 .budget-page .pill--tr{ background:#20385b; color:#cfe2ff; border:1px solid #162a46 }
 
 /* графики */
 :root{ --chart-h: 280px; }
-.budget-page .chart-box{
-  position:relative;
-  overflow:visible;
-  background:transparent;
-  border:none;
-  border-radius:0;
-  padding:0;
-}
-.budget-page .chart-box canvas{
-  display:block;
-  width:100% !important;
-  height:var(--chart-h) !important;
-}
+.budget-page .chart-box{ position:relative; overflow:visible; background:transparent; border:none; border-radius:0; padding:0; }
+.budget-page .chart-box canvas{ display:block; width:100% !important; height:var(--chart-h) !important; }
 
 /* регистр вкладок */
 .budget-page .ledger{ display:none } .budget-page .ledger.visible{ display:block }
@@ -214,20 +206,14 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .seg-btn.is-active{ opacity:1; color:#0c0f21; background:linear-gradient(135deg, var(--brand), var(--brand2)) }
 
 /* ====== Универсальная «корзина» ====== */
-.btn-del{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:8px 12px; border-radius:10px;
-}
+.btn-del{ display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; }
 .btn-del .ico{ pointer-events:none }
 
 /* ====== ТАБЛИЦА КАТЕГОРИЙ ====== */
 .table--cats{ table-layout:fixed; }
 .table--cats .col-actions{ width:120px; }
 .table--cats td:last-child,
-.table--cats th:last-child{
-  overflow:visible;
-  white-space:nowrap;
-}
+.table--cats th:last-child{ overflow:visible; white-space:nowrap; }
 
 /* iPhone 12 Pro и похожие (узкие экраны) */
 @media (max-width: 420px){
@@ -263,77 +249,70 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
   white-space: nowrap;
 }
 .table tfoot .totals-cell .sep{ margin: 0 10px; opacity: .5; }
-
-/* перенос строки для мобилы */
 .table tfoot .totals-cell .mobile-br{ display:none; }
 
 @media (max-width: 520px){
-  .table tfoot .totals-cell{
-    text-align: left;
-  }
-  .table tfoot .totals-cell .mobile-br{
-    display:block; height:4px;
-  }
-  .table tfoot .totals-cell .sep{
-    display:none;
-  }
+  .table tfoot .totals-cell{ text-align: left; }
+  .table tfoot .totals-cell .mobile-br{ display:block; height:4px; }
+  .table tfoot .totals-cell .sep{ display:none; }
 }
 
-
-/* ===== KPI: стиль кнопок Пополнить/Снять (темная/светлая темы) ===== */
-.kpi-actions{
-  display:flex;
-  gap:8px;
-  margin-top:10px;
-  flex-wrap:wrap;
-  justify-content:center;
-}
-
+/* ===== KPI — кнопки у накопительного ===== */
+.kpi-actions{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; justify-content:center; }
 .kpi-btn{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:8px 14px;
-  border-radius:999px;
-  font-weight:800;
-  border:1px solid var(--stroke);
-  background:var(--input-bg);
-  color:var(--text);
+  display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px;
+  font-weight:800; border:1px solid var(--stroke); background:var(--input-bg); color:var(--text);
   box-shadow: var(--shadow);
   transition: transform .08s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease;
 }
 .kpi-btn:hover{ transform: translateY(-1px); box-shadow: var(--shadow-lg, var(--shadow)); }
 .kpi-btn:active{ transform: translateY(0); }
+.kpi-btn__ico{ display:inline-block; width:1.1em; height:1.1em; line-height:1; font-weight:900; opacity:.9; }
+.kpi-btn--primary{ background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border-color:transparent; }
+.kpi-btn--danger{ background:transparent; color:var(--accent); border-color:var(--accent); }
+.kpi-btn--danger:hover{ background: color-mix(in srgb, var(--accent) 12%, transparent); }
+@supports not (color-mix: in srgb, white, black){ .kpi-btn--danger:hover{ background: rgba(244,63,94,.12); } }
+@media (max-width: 420px){ .kpi-actions{ gap:6px } .kpi-btn{ padding:8px 12px } }
 
-.kpi-btn__ico{
-  display:inline-block;
-  width:1.1em; height:1.1em; line-height:1;
-  font-weight:900;
-  opacity:.9;
+/* ===== Фильтры категорий — красивый дропдаун ===== */
+.filters-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.cat-filter{ position:relative; z-index:10; }
+
+.dd{ position:relative; display:inline-block; }
+.dd[open] .dd__btn{ box-shadow: var(--shadow-lg, var(--shadow)); transform: translateY(-1px); }
+.dd__btn{
+  list-style:none; cursor:pointer;
+  display:inline-flex; align-items:center; gap:10px;
+  padding:8px 14px; border-radius:999px; font-weight:800;
+  border:1px solid var(--stroke); background:var(--input-bg); color:var(--text);
+  box-shadow: var(--shadow);
+  transition: transform .08s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease;
+}
+.dd__btn::-webkit-details-marker{ display:none }
+.dd__btn::after{
+  content:""; width:.55rem; height:.55rem;
+  border-right:2px solid var(--muted); border-bottom:2px solid var(--muted);
+  transform: rotate(45deg); margin-left:2px;
 }
 
-/* основной — брендовая заливка */
-.kpi-btn--primary{
-  background:linear-gradient(135deg, var(--brand), var(--brand2));
-  color:#0c0f21;
-  border-color:transparent;
+.dd__list{
+  position:absolute; top:calc(100% + 8px); left:0;
+  min-width:220px; max-height:320px; overflow:auto;
+  background: var(--dialog-bg, #11182f);
+  border:1px solid var(--stroke); border-radius:14px;
+  box-shadow: var(--shadow-xl); padding:6px;
 }
+html[data-theme="light"] .dd__list{ --dialog-bg:#ffffff; }
 
-/* «опасная» — акцентная, без сильной заливки (универсальна для обеих тем) */
-.kpi-btn--danger{
-  background:transparent;
-  color:var(--accent);
-  border-color:var(--accent);
+.dd__opt{
+  width:100%; text-align:left; background:transparent; color:var(--text);
+  border:0; border-radius:10px; padding:8px 10px; font-weight:700; cursor:pointer;
 }
-.kpi-btn--danger:hover{
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-}
-@supports not (color-mix: in srgb, white, black){
-  .kpi-btn--danger:hover{ background: rgba(244,63,94,.12); } /* fallback */
-}
+.dd__opt:hover{ background: color-mix(in srgb, var(--brand) 14%, transparent); }
+@supports not (color-mix: in srgb, white, black){ .dd__opt:hover{ background: rgba(106,125,255,.14); } }
+.dd__opt.is-active{ background: linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; }
 
-/* мобильная подстройка */
-@media (max-width: 420px){
-  .kpi-actions{ gap:6px }
-  .kpi-btn{ padding:8px 12px }
+/* мобильная улучшайзер: список тянется на ширину экрана */
+@media (max-width:520px){
+  .dd__list{ min-width: clamp(220px, 92vw, 480px); }
 }

@@ -87,28 +87,29 @@
   let isRefreshing=false, timerId=null, activeAbort=null;
   const REFRESH_MS = 360*1000;
 
+  // фильтры
+  let selectedLedgerCat = null; // id категории (или null = все)
+  let selectedRecentCat = null; // id категории (или null = все)
+
   // ===== Charts helpers =====
-  const donutCenter = (getInfo)=>({
-    id:'donutCenter',
-    beforeDraw(chart){
-      const meta = chart.getDatasetMeta(0); if(!meta || !meta.data || !meta.data.length) return;
-      const arc = meta.data[0]; const {x,y} = arc; const innerR = arc.innerRadius;
-      const ctx = chart.ctx; const root = document.documentElement;
-      const box = chart.canvas.closest('.chart-box');
-      const css = (el, v)=> (el ? getComputedStyle(el).getPropertyValue(v).trim() : '');
-      const bg    = css(box,'--input-bg') || css(root,'--input-bg') || css(root,'--card') || '#151935';
-      const text  = css(root,'--text') || '#ecf0ff';
-      const muted = css(root,'--muted') || '#a0a7c9';
-      ctx.save();
-      ctx.beginPath(); ctx.arc(x,y,Math.max(innerR-2,0),0,Math.PI*2); ctx.fillStyle=bg; ctx.fill();
-      const info = getInfo(chart);
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillStyle=muted; ctx.font='700 12px Inter'; if(info.title) ctx.fillText(info.title,x,y-18);
-      ctx.fillStyle=text;  ctx.font='800 16px Inter'; if(info.line1) ctx.fillText(info.line1,x,y+2);
-      if(info.line2){ ctx.fillStyle=info.line2Color || muted; ctx.font='800 12px Inter'; ctx.fillText(info.line2,x,y+20); }
-      ctx.restore();
-    }
-  });
+  const donutCenter = (getInfo)=>({ id:'donutCenter', beforeDraw(chart){
+    const meta = chart.getDatasetMeta(0); if(!meta || !meta.data || !meta.data.length) return;
+    const arc = meta.data[0]; const {x,y} = arc; const innerR = arc.innerRadius;
+    const ctx = chart.ctx; const root = document.documentElement;
+    const box = chart.canvas.closest('.chart-box');
+    const css = (el, v)=> (el ? getComputedStyle(el).getPropertyValue(v).trim() : '');
+    const bg    = css(box,'--input-bg') || css(root,'--input-bg') || css(root,'--card') || '#151935';
+    const text  = css(root,'--text') || '#ecf0ff';
+    const muted = css(root,'--muted') || '#a0a7c9';
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x,y,Math.max(innerR-2,0),0,Math.PI*2); ctx.fillStyle=bg; ctx.fill();
+    const info = getInfo(chart);
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle=muted; ctx.font='700 12px Inter'; if(info.title) ctx.fillText(info.title,x,y-18);
+    ctx.fillStyle=text;  ctx.font='800 16px Inter'; if(info.line1) ctx.fillText(info.line1,x,y+2);
+    if(info.line2){ ctx.fillStyle=info.line2Color || muted; ctx.font='800 12px Inter'; ctx.fillText(info.line2,x,y+20); }
+    ctx.restore();
+  }});
   function hsl(h,s,l,a=1){ return `hsla(${h} ${s}% ${l}% / ${a})`; }
   function catPalette(ctx, labels, kind){
     const n = Math.max(labels.length,1);
@@ -190,6 +191,7 @@
     MAP_ACC = Object.fromEntries(ACCOUNTS.map(a=>[a.id,a]));
     MAP_CAT = Object.fromEntries(cats.map(c=>[c.id,c]));
     fillAccountSelects(); fillCategoriesForModal(); renderCatTable();
+    rebuildCategoryFilters(); // обновим дропдауны после загрузки категорий
   }
   function fillAccountSelects(){
     const acc=$('#m_acc'), contra=$('#m_contra'); if(!acc || !contra) return;
@@ -257,12 +259,11 @@
     }
   }
 
-  // ===== Кнопки у KPI «Накопительный счёт»: Пополнить + Снять
+  // ===== Кнопки у KPI «Накопительный счёт» =====
   function injectTopUpButton(){
     const valEl = document.getElementById('kpiSavings'); if(!valEl) return;
     const card = valEl.closest('.kpi'); if(!card) return;
 
-    // общий контейнер под кнопки
     let actions = document.getElementById('kpiSavingsActions');
     if (!actions){
       actions = document.createElement('div');
@@ -273,7 +274,6 @@
       actions.innerHTML = '';
     }
 
-    // «Пополнить»
     const btnTopUp = document.createElement('button');
     btnTopUp.id = 'btnTopUpSavings';
     btnTopUp.type = 'button';
@@ -281,7 +281,6 @@
     btnTopUp.title = 'Перевести с обычного счёта на накопительный';
     btnTopUp.innerHTML = '<span class="kpi-btn__ico">＋</span><span>Пополнить</span>';
 
-    // «Снять»
     const btnWithdraw = document.createElement('button');
     btnWithdraw.id = 'btnWithdrawSavings';
     btnWithdraw.type = 'button';
@@ -299,7 +298,7 @@
         }
         return;
       }
-      openTransfer(false); // обычный -> накопительный
+      openTransfer(false);
     });
 
     btnWithdraw.addEventListener('click', ()=>{
@@ -310,7 +309,7 @@
         }
         return;
       }
-      openTransfer(true); // накопительный -> обычный
+      openTransfer(true);
     });
 
     function openTransfer(withdraw){
@@ -339,6 +338,57 @@
     }
   }
 
+  // ===== Category dropdown helpers =====
+  function buildCatItemsForLedger(){
+    const tab = document.querySelector('#ledgerTabs .tab-btn--active')?.dataset.tab || 'income';
+    const src = tab === 'income' ? CATS_IN : CATS_EX;
+    return [{ value: '', label: 'Все категории' }, ...src.map(c => ({ value: String(c.id), label: c.name }))];
+  }
+  function buildCatItemsForRecent(){
+    const src = [...CATS_IN, ...CATS_EX];
+    return [{ value: '', label: 'Все категории' }, ...src.map(c => ({ value: String(c.id), label: c.name }))];
+  }
+  function renderDropdown(hostId, items, selectedVal, onChange){
+    const host = document.getElementById(hostId);
+    if (!host) return;
+    const sel = items.find(i => String(i.value) === String(selectedVal)) || items[0];
+
+    host.innerHTML = `
+      <details class="dd">
+        <summary class="dd__btn" role="button">${sel.label}</summary>
+        <div class="dd__list">
+          ${items.map(i => `
+            <button type="button"
+                    class="dd__opt ${String(i.value)===String(selectedVal) ? 'is-active' : ''}"
+                    data-val="${i.value}">${i.label}</button>`).join('')}
+        </div>
+      </details>
+    `;
+
+    host.querySelectorAll('.dd__opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const v = btn.getAttribute('data-val') || '';
+        onChange(v);
+        renderDropdown(hostId, items, v, onChange);
+        const dd = host.querySelector('details'); dd?.removeAttribute('open');
+      });
+    });
+  }
+  function rebuildCategoryFilters(){
+    renderDropdown(
+      'ledgerCatFilter',
+      buildCatItemsForLedger(),
+      selectedLedgerCat ?? '',
+      v => { selectedLedgerCat = v || null; renderLedger(); }
+    );
+    renderDropdown(
+      'recentCatFilter',
+      buildCatItemsForRecent(),
+      selectedRecentCat ?? '',
+      v => { selectedRecentCat = v || null; renderRecent(); }
+    );
+  }
+
   // ===== Month transactions =====
   async function loadMonthTransactions(signal){
     const {from,to} = monthRange();
@@ -348,7 +398,6 @@
 
   // ===== Recent table =====
   function resolveCategory(t){
-    // максимум совместимости с разными ответами API
     return (
       t.category_name ??
       t.category_title ??
@@ -359,7 +408,13 @@
   }
   function renderRecent(){
     const tbody = $('#txTable'); if(!tbody) return; tbody.innerHTML='';
-    const rows = [...MONTH_TX].sort((a,b)=> new Date(b.occurred_at) - new Date(a.occurred_at)).slice(0,50);
+
+    const wanted = selectedRecentCat ? Number(selectedRecentCat) : null;
+    const rows = [...MONTH_TX]
+      .filter(t => !wanted || Number(t.category_id) === wanted || Number(t?.category?.id) === wanted)
+      .sort((a,b)=> new Date(b.occurred_at) - new Date(a.occurred_at))
+      .slice(0,50);
+
     for (const t of rows){
       const tr = document.createElement('tr');
       tr.setAttribute('data-clickrow','1');
@@ -379,8 +434,15 @@
   // ===== Ledger =====
   function renderLedger(){
     const tab = document.querySelector('#ledgerTabs .tab-btn--active')?.dataset.tab || 'income';
-    const incRows = MONTH_TX.filter(t=>t.type==='income');
-    const expRows = MONTH_TX.filter(t=>t.type==='expense');
+    const wanted = selectedLedgerCat ? Number(selectedLedgerCat) : null;
+
+    const incRows = MONTH_TX
+      .filter(t=>t.type==='income')
+      .filter(t => !wanted || Number(t.category_id) === wanted || Number(t?.category?.id) === wanted);
+
+    const expRows = MONTH_TX
+      .filter(t=>t.type==='expense')
+      .filter(t => !wanted || Number(t.category_id) === wanted || Number(t?.category?.id) === wanted);
 
     function fill(sel, rows){
       const tbody = $(sel); if(!tbody) return 0;
@@ -456,7 +518,9 @@
   $('#ledgerTabs')?.addEventListener('click', (e)=>{
     const t = e.target; if(!(t instanceof HTMLElement) || !t.classList.contains('tab-btn')) return;
     document.querySelectorAll('#ledgerTabs .tab-btn').forEach(b=>b.classList.remove('tab-btn--active'));
-    t.classList.add('tab-btn--active'); renderLedger();
+    t.classList.add('tab-btn--active');
+    rebuildCategoryFilters(); // перестроить список категорий под вкладку
+    renderLedger();
   });
 
   // ===== Categories =====
@@ -577,23 +641,6 @@
   toggleAllBtn?.addEventListener('click', ()=>{ const open=anyOpen(); document.querySelectorAll('details.collapsible').forEach(d=> d.open=!open); updateToggleAllBtn(); });
   updateToggleAllBtn();
 
-  // ===== Refresh =====
-  function scheduleNext(){ clearTimeout(timerId); timerId=setTimeout(()=>refreshAll('timer'), REFRESH_MS); }
-  async function refreshAll(){
-    if (isRefreshing) return; isRefreshing=true;
-    if (activeAbort) activeAbort.abort(); activeAbort = new AbortController();
-    const { signal } = activeAbort;
-    const btn = document.getElementById('refreshBtn'); if(btn){ btn.disabled=true; btn.textContent='Обновляю...'; }
-    try{
-      await ping(signal);
-      await loadAccountsAndCats(signal);
-      await Promise.all([loadSummary(signal), loadCharts(signal), loadObligations(signal), loadMonthTransactions(signal)]);
-    }catch(err){ if(!axios.isCancel(err)) console.error('refresh error', err); }
-    finally{ if(btn){ btn.disabled=false; btn.textContent='Обновить'; } isRefreshing=false; scheduleNext(); }
-  }
-  document.getElementById('refreshBtn')?.addEventListener('click', ()=>refreshAll());
-  document.getElementById('periodInput')?.addEventListener('change', ()=>refreshAll());
-
   // ===== Summary (KPI) =====
   async function loadSummary(signal){
     const {from,to} = monthRange();
@@ -601,10 +648,8 @@
     setText($('#kpiIncome'),  fmtMoney(data.income_total));
     setText($('#kpiExpense'), fmtMoney(data.expense_total));
     setText($('#kpiNet'),     fmtMoney(data.net_total));
-    // ключевой момент: показываем чистое движение по накопительному (если нет — старое поле)
     setText($('#kpiSavings'), fmtMoney((data.savings ?? data.savings_transferred) || 0));
 
-    // портфель из localStorage
     try {
       const pt  = Number(localStorage.getItem('pf_portfolio_total') || '');
       const cur = localStorage.getItem('pf_portfolio_currency') || 'RUB';
@@ -639,13 +684,31 @@
     upsertExpenseLine($('#expByDayChart'), labels, series, year, month);
   }
 
+  // ===== Refresh =====
+  function scheduleNext(){ clearTimeout(timerId); timerId=setTimeout(()=>refreshAll('timer'), REFRESH_MS); }
+  async function refreshAll(){
+    if (isRefreshing) return; isRefreshing=true;
+    if (activeAbort) activeAbort.abort(); activeAbort = new AbortController();
+    const { signal } = activeAbort;
+    const btn = document.getElementById('refreshBtn'); if(btn){ btn.disabled=true; btn.textContent='Обновляю...'; }
+    try{
+      await ping(signal);
+      await loadAccountsAndCats(signal);
+      await Promise.all([loadSummary(signal), loadCharts(signal), loadObligations(signal), loadMonthTransactions(signal)]);
+      rebuildCategoryFilters(); // после данных
+    }catch(err){ if(!axios.isCancel(err)) console.error('refresh error', err); }
+    finally{ if(btn){ btn.disabled=false; btn.textContent='Обновить'; } isRefreshing=false; scheduleNext(); }
+  }
+  document.getElementById('refreshBtn')?.addEventListener('click', ()=>refreshAll());
+  document.getElementById('periodInput')?.addEventListener('change', ()=>refreshAll());
+
   // ===== init =====
   (async ()=>{
     const mDate = document.getElementById('m_date');
     if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
     setModalType('income'); setModalKind('income');
     await refreshAll();
-    injectTopUpButton(); // добавляет «Пополнить» и «Снять»
+    injectTopUpButton();
   })();
 
   window.addEventListener('beforeunload', ()=>{ clearTimeout(timerId); if(activeAbort) activeAbort.abort(); });

@@ -49,7 +49,6 @@
           <div class="kpi"><div class="kpi__label">Расходы</div><div class="kpi__value" id="kpiExpense">0 ₽</div></div>
           <div class="kpi"><div class="kpi__label">Остаток</div><div class="kpi__value" id="kpiNet">0 ₽</div></div>
           <div class="kpi"><div class="kpi__label">Накопительный счёт</div><div class="kpi__value" id="kpiSavings">0 ₽</div></div>
-          <!-- из инвестиций; скрыта, пока нет данных -->
           <div class="kpi" id="kpiPortfolioCard" hidden>
             <div class="kpi__label">Портфель всего</div>
             <div class="kpi__value" id="kpiPortfolioTotal">—</div>
@@ -142,9 +141,13 @@
         <summary>
           <div class="head-between">
             <h2><span class="chev">▸</span>Операции за месяц</h2>
-            <div class="muted">Итого: <b id="tabTotal">0 ₽</b></div>
+            <div class="filters-row">
+              <div id="ledgerCatFilter" class="cat-filter"></div>
+              <div class="muted">Итого: <b id="tabTotal">0 ₽</b></div>
+            </div>
           </div>
         </summary>
+
         <div class="tabs" id="ledgerTabs">
           <button class="tab-btn tab-btn--active" data-tab="income">Доходы</button>
           <button class="tab-btn" data-tab="expense">Расходы</button>
@@ -181,7 +184,10 @@
 
       <!-- Последние операции -->
       <details class="card collapsible">
-        <summary class="card-head"><h2><span class="chev">▸</span> Последние операции</h2></summary>
+        <summary class="card-head">
+          <h2><span class="chev">▸</span> Последние операции</h2>
+          <div id="recentCatFilter" class="cat-filter"></div>
+        </summary>
         <table class="table">
           <thead>
             <tr>
