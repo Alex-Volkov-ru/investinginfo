@@ -14,15 +14,15 @@
 
 /* ===== Obligations toggle – responsive sizes ===== */
 :root{
-  --ob-toggle-w: 52px;   /* ширина тумблера (ПК) */
-  --ob-toggle-h: 30px;   /* высота */
-  --ob-toggle-pad: 3px;  /* отступы внутри */
+  --ob-toggle-w: 52px;
+  --ob-toggle-h: 30px;
+  --ob-toggle-pad: 3px;
   --ob-toggle-knob: calc(var(--ob-toggle-h) - var(--ob-toggle-pad)*2);
-  --ob-toggle-shift: calc(var(--ob-toggle-w) - var(--ob-toggle-h)); /* ход бегунка */
+  --ob-toggle-shift: calc(var(--ob-toggle-w) - var(--ob-toggle-h));
 }
 @media (max-width:480px){
   :root{
-    --ob-toggle-w: 44px;   /* компактнее на телефоне */
+    --ob-toggle-w: 44px;
     --ob-toggle-h: 26px;
     --ob-toggle-pad: 3px;
     --ob-toggle-knob: calc(var(--ob-toggle-h) - var(--ob-toggle-pad)*2);
@@ -179,7 +179,7 @@ html[data-theme="light"] .budget-page .card{
 /* регистр вкладок */
 .budget-page .ledger{ display:none } .budget-page .ledger.visible{ display:block }
 
-/* ===== ТУМБЛЕР «ГОТОВО» (новый визуал) ===== */
+/* ===== ТУМБЛЕР «ГОТОВО» ===== */
 .budget-page .chk{
   appearance: none;
   -webkit-appearance: none;
@@ -193,10 +193,8 @@ html[data-theme="light"] .budget-page .card{
   box-shadow: inset 0 1px 2px rgba(0,0,0,.15);
   transition: background .18s ease, border-color .18s ease, box-shadow .18s ease;
   outline: none;
-  margin: 0 auto; /* центрируем в ячейке */
+  margin: 0 auto;
 }
-
-/* бегунок */
 .budget-page .chk::after{
   content:'';
   position:absolute;
@@ -210,87 +208,44 @@ html[data-theme="light"] .budget-page .card{
   transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
   will-change: transform;
 }
-
-/* декоративный слой под галочку */
 .budget-page .chk::before{
   content:'';
-  position:absolute;
-  inset: 0;
+  position:absolute; inset: 0;
   border-radius: 999px;
   display: grid; place-items: center;
-  font-weight: 900;
-  font-size: 14px;
-  color: #0c0f21;
-  opacity: 0;
+  font-weight: 900; font-size: 14px; color: #0c0f21; opacity: 0;
   transition: opacity .18s ease;
 }
-
-/* состояние ON */
 .budget-page .chk:checked{
   background: linear-gradient(135deg, var(--ok), color-mix(in srgb, var(--ok) 50%, white));
   border-color: var(--ok);
   box-shadow: inset 0 1px 1px rgba(0,0,0,.06);
 }
-.budget-page .chk:checked::after{
-  transform: translateX(var(--ob-toggle-shift));
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,.2);
-}
-.budget-page .chk:checked::before{
-  content:'✓';
-  color:#0c0f21;
-  opacity: .95;
-}
-
-/* нажатие — небольшая компрессия */
-.budget-page .chk:active::after{
-  box-shadow: 0 1px 4px rgba(0,0,0,.25);
-  transform: translateX(0) scale(.96);
-}
-.budget-page .chk:checked:active::after{
-  transform: translateX(var(--ob-toggle-shift)) scale(.96);
-}
-
-/* фокус для клавиатуры/скринридеров */
+.budget-page .chk:checked::after{ transform: translateX(var(--ob-toggle-shift)); background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.2) }
+.budget-page .chk:checked::before{ content:'✓'; color:#0c0f21; opacity:.95 }
+.budget-page .chk:active::after{ box-shadow:0 1px 4px rgba(0,0,0,.25); transform:translateX(0) scale(.96) }
+.budget-page .chk:checked:active::after{ transform:translateX(var(--ob-toggle-shift)) scale(.96) }
 .budget-page .chk:focus-visible{
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--ok) 35%, transparent),
-    inset 0 1px 2px rgba(0,0,0,.12);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--ok) 35%, transparent), inset 0 1px 2px rgba(0,0,0,.12)
 }
-
-/* логика состояний строк */
-.budget-page .ob-row.overdue .chk:not(:checked){
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  border-color: var(--accent);
-}
-.budget-page .ob-row.overdue .chk:not(:checked)::after{
-  background: #ffd3e4;
-}
+.budget-page .ob-row.overdue .chk:not(:checked){ background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: var(--accent); }
+.budget-page .ob-row.overdue .chk:not(:checked)::after{ background:#ffd3e4 }
 .budget-page .ob-row.overdue td:first-child{ color:var(--accent); font-weight:800 }
-.budget-page .ob-row.done    td:first-child{ color:var(--ok) }
-
-/* фоллбек, если color-mix не поддерживается */
+.budget-page .ob-row.done td:first-child{ color:var(--ok) }
 @supports not (color-mix: in srgb, white, black){
   .budget-page .chk{ background: rgba(255,255,255,.08); }
-  .budget-page .chk:checked{
-    background: linear-gradient(135deg, var(--ok), #7ff0d1);
-  }
+  .budget-page .chk:checked{ background: linear-gradient(135deg, var(--ok), #7ff0d1); }
   .budget-page .ob-row.overdue .chk:not(:checked){ background: rgba(248,106,164,.18); }
 }
 
 /* ===== MODAL ===== */
 .modal[hidden]{ display:none !important; }
-.modal{
-  display:block !important;
-  position:fixed !important; inset:0 !important;
-  z-index:2147483647 !important; pointer-events:auto !important;
-}
+.modal{ display:block !important; position:fixed !important; inset:0 !important; z-index:2147483647 !important; pointer-events:auto !important; }
 .modal__backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.45); backdrop-filter: blur(2px); }
 .modal__dialog{
   position:relative; z-index:1; margin:10vh auto 6vh; max-width:960px;
-  background:var(--dialog-bg, #11182f); border:1px solid var(--stroke);
-  color:var(--text); border-radius:16px; box-shadow:var(--shadow-xl);
-  padding:20px; width:calc(100% - 32px);
+  background:var(--dialog-bg, #11182f); border:1px solid var(--stroke); color:var(--text);
+  border-radius:16px; box-shadow:var(--shadow-xl); padding:20px; width:calc(100% - 32px);
 }
 html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .modal__header{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px }
@@ -310,8 +265,7 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 /* ====== ТАБЛИЦА КАТЕГОРИЙ ====== */
 .table--cats{ table-layout:fixed; }
 .table--cats .col-actions{ width:120px; }
-.table--cats td:last-child,
-.table--cats th:last-child{ overflow:visible; white-space:nowrap; }
+.table--cats td:last-child, .table--cats th:last-child{ overflow:visible; white-space:nowrap; }
 
 /* iPhone 12 Pro и похожие (узкие экраны) */
 @media (max-width: 420px){
@@ -319,7 +273,6 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
   .budget-page .grid--2{ grid-template-columns:1fr }
   .t-hide-sm{ display:none }
   .budget-page .table th,.budget-page .table td{ font-size:13px; padding:8px }
-
   .table--cats .col-actions{ width:84px; }
   .btn-del{ width:36px; height:36px; padding:6px; justify-content:center; }
   .btn-del .txt{ display:none; }
@@ -328,27 +281,13 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 /* доп. стиль красной кнопки (в таблицах) */
 .btn-danger, .budget-page .btn-danger{ background:#e6536b; border-color:#e6536b; color:#0c0f21; }
 
-/* --- Obligations totals: align & wrap --- */
+/* --- Obligations totals --- */
 .table tfoot{ display: table-footer-group !important; }
-.table tfoot .row-total td{
-  padding: 12px 16px;
-  border-top: 1px solid var(--stroke);
-  line-height: 1.4;
-}
-.table tfoot .totals-cell{
-  text-align: center;
-  color: var(--muted);
-  font-size: 14px;
-  white-space: normal;
-}
-.table tfoot .totals-cell strong{
-  color: var(--text);
-  font-weight: 800;
-  white-space: nowrap;
-}
+.table tfoot .row-total td{ padding: 12px 16px; border-top: 1px solid var(--stroke); line-height: 1.4; }
+.table tfoot .totals-cell{ text-align: center; color: var(--muted); font-size: 14px; white-space: normal; }
+.table tfoot .totals-cell strong{ color: var(--text); font-weight: 800; white-space: nowrap; }
 .table tfoot .totals-cell .sep{ margin: 0 10px; opacity: .5; }
 .table tfoot .totals-cell .mobile-br{ display:none; }
-
 @media (max-width: 520px){
   .table tfoot .totals-cell{ text-align: left; }
   .table tfoot .totals-cell .mobile-br{ display:block; height:4px; }
@@ -372,10 +311,9 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 @supports not (color-mix: in srgb, white, black){ .kpi-btn--danger:hover{ background: rgba(244,63,94,.12); } }
 @media (max-width: 420px){ .kpi-actions{ gap:6px } .kpi-btn{ padding:8px 12px } }
 
-/* ===== Фильтры категорий — красивый дропдаун ===== */
+/* ===== Фильтры категорий — dropdown ===== */
 .filters-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .cat-filter{ position:relative; z-index:10; }
-
 .dd{ position:relative; display:inline-block; }
 .dd[open] .dd__btn{ box-shadow: var(--shadow-lg, var(--shadow)); transform: translateY(-1px); }
 .dd__btn{
@@ -392,7 +330,6 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
   border-right:2px solid var(--muted); border-bottom:2px solid var(--muted);
   transform: rotate(45deg); margin-left:2px;
 }
-
 .dd__list{
   position:absolute; top:calc(100% + 8px); left:0;
   min-width:220px; max-height:320px; overflow:auto;
@@ -401,7 +338,6 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
   box-shadow: var(--shadow-xl); padding:6px;
 }
 html[data-theme="light"] .dd__list{ --dialog-bg:#ffffff; }
-
 .dd__opt{
   width:100%; text-align:left; background:transparent; color:var(--text);
   border:0; border-radius:10px; padding:8px 10px; font-weight:700; cursor:pointer;
@@ -409,65 +345,36 @@ html[data-theme="light"] .dd__list{ --dialog-bg:#ffffff; }
 .dd__opt:hover{ background: color-mix(in srgb, var(--brand) 14%, transparent); }
 @supports not (color-mix: in srgb, white, black){ .dd__opt:hover{ background: rgba(106,125,255,.14); } }
 .dd__opt.is-active{ background: linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; }
+@media (max-width:520px){ .dd__list{ min-width: clamp(220px, 92vw, 480px); } }
 
-/* мобильная улучшайзер: список тянется на ширину экрана */
-@media (max-width:520px){
-  .dd__list{ min-width: clamp(220px, 92vw, 480px); }
-}
-
-/* --- Obligations: fix toggle & actions clipping --- */
+/* --- Obligations column sizes --- */
 .budget-page .table th.col-done,
 .budget-page .table td.col-done,
 .budget-page .table th.col-actions,
-.budget-page .table td.col-actions{
-  overflow: visible; /* не обрезаем тумблер и кнопку */
-}
-
-.budget-page .table th.col-done,
-.budget-page .table td.col-done{
-  width: calc(var(--ob-toggle-w) + 16px); /* ширина колонки на основе тумблера */
-  text-align: center;
-}
-
-.budget-page .table th.col-actions,
-.budget-page .table td.col-actions{
-  width: 74px; /* ПК */
-  text-align: right;
-}
-
-@media (max-width: 480px){
-  .budget-page .table th.col-actions,
-  .budget-page .table td.col-actions{
-    width: 58px; /* компактная кнопка на мобилке */
-  }
-}
-
-
-/* --- Obligations: fix toggle & button clipping on desktop --- */
-.budget-page .table th.col-done,
-.budget-page .table td.col-done,
-.budget-page .table th.col-actions,
-.budget-page .table td.col-actions{
-  overflow: visible; /* тумблер/кнопка не обрезаются */
-}
-
-/* даём больше места под тумблер и кнопку на ПК */
+.budget-page .table td.col-actions{ overflow: visible; }
 .budget-page .table th.col-done,
 .budget-page .table td.col-done{ width: 80px; text-align:center; }
-
 .budget-page .table th.col-actions,
 .budget-page .table td.col-actions{ width: 120px; text-align:right; }
-
-/* кнопка действий — компактней, чтобы точно помещалась */
 .budget-page .table .btn-del{ padding: 6px 10px; white-space: nowrap; }
-
-/* центрируем сам тумблер в ячейке */
 .budget-page .chk{ display:block; margin: 0 auto; }
-
-/* на очень узких экранах — ужимаем обратно (текст у кнопки скрывается стилями выше) */
 @media (max-width: 420px){
   .budget-page .table th.col-done,
   .budget-page .table td.col-done{ width: 56px; }
   .budget-page .table th.col-actions,
   .budget-page .table td.col-actions{ width: 58px; }
+}
+
+/* ===== Toasts ===== */
+.toast-wrap{
+  position:fixed; right:16px; bottom:16px; z-index:2147483647; display:grid; gap:8px;
+}
+.toast{
+  padding:10px 14px; border-radius:12px; font-weight:800;
+  background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21;
+  box-shadow:var(--shadow-xl);
+  transition:opacity .25s ease, transform .25s ease;
+}
+.toast.err{
+  background:linear-gradient(135deg, #ff6b6b, #f43f5e); color:#fff;
 }

@@ -17,6 +17,17 @@
   const nfPct = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
   const humanType = row => row.type==='income' ? 'Доход' : (row.type==='expense' ? 'Расход' : 'Перевод');
 
+  // ===== tiny toast =====
+  function toast(msg, type='ok', ms=2600){
+    let wrap = document.querySelector('.toast-wrap');
+    if(!wrap){ wrap = document.createElement('div'); wrap.className='toast-wrap'; document.body.appendChild(wrap); }
+    const t = document.createElement('div');
+    t.className = 'toast ' + (type==='err' ? 'err' : 'ok');
+    t.textContent = msg;
+    wrap.appendChild(t);
+    setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(6px)'; setTimeout(()=>t.remove(), 380); }, ms);
+  }
+
   // ===== Telegram/iOS top bar offset =====
   (function setTelegramTopOffset(){
     const ua = navigator.userAgent.toLowerCase();
@@ -88,8 +99,8 @@
   const REFRESH_MS = 360*1000;
 
   // фильтры
-  let selectedLedgerCat = null; // id категории (или null = все)
-  let selectedRecentCat = null; // id категории (или null = все)
+  let selectedLedgerCat = null;
+  let selectedRecentCat = null;
 
   // ===== Charts helpers =====
   const donutCenter = (getInfo)=>({ id:'donutCenter', beforeDraw(chart){
@@ -191,7 +202,7 @@
     MAP_ACC = Object.fromEntries(ACCOUNTS.map(a=>[a.id,a]));
     MAP_CAT = Object.fromEntries(cats.map(c=>[c.id,c]));
     fillAccountSelects(); fillCategoriesForModal(); renderCatTable();
-    rebuildCategoryFilters(); // обновим дропдауны после загрузки категорий
+    rebuildCategoryFilters();
   }
   function fillAccountSelects(){
     const acc=$('#m_acc'), contra=$('#m_contra'); if(!acc || !contra) return;
@@ -205,36 +216,7 @@
   const acctTitle = id => (MAP_ACC[id]?.title ? `${MAP_ACC[id].title}${MAP_ACC[id].is_savings?' (накоп.)':''}` : '—');
   const catName   = id => (MAP_CAT[id]?.name || '');
 
-  async function createAccountFlow(markSavings=false){
-    const defTitle = markSavings ? 'Накопительный' : 'Основной';
-    const title = (prompt('Название счёта', defTitle) || '').trim();
-    if(!title) return;
-    const cur = ((prompt('Валюта (RUB/USD/EUR)', 'RUB') || 'RUB').trim().toUpperCase());
-    try{
-      await api.post('/budget/accounts', { title, currency: cur, is_savings: !!markSavings });
-      await loadAccountsAndCats(activeAbort?.signal);
-      fillAccountSelects();
-      alert('Счёт создан');
-    }catch(err){
-      alert(err?.response?.data?.detail || 'Не удалось создать счёт');
-    }
-  }
-
-  async function deleteAccountFlow(){
-    if (!ACCOUNTS.length) { alert('Нет счетов'); return; }
-    const list = ACCOUNTS.map(a => `${a.id}: ${a.title}${a.is_savings ? ' (накоп.)' : ''}`).join('\n');
-    const id = prompt('Удалить какой счёт? Укажи ID:\n\n' + list);
-    if (!id) return;
-    try{
-      await api.delete(`/budget/accounts/${id}`);
-      await loadAccountsAndCats(activeAbort?.signal);
-      fillAccountSelects();
-      alert('Счёт удалён');
-    }catch(err){
-      alert(err?.response?.data?.detail || 'Не удалось удалить счёт');
-    }
-  }
-
+  // ===== UI helpers for small buttons near selects =====
   function injectAccountButtons(selectEl, baseId){
     if(!selectEl) return;
     if(!document.getElementById(baseId + '_add')){
@@ -259,7 +241,76 @@
     }
   }
 
-  // ===== Кнопки у KPI «Накопительный счёт» =====
+  // ===== Перевод (используется KPI-кнопками/мастером накопит.) =====
+  function openTransfer(withdraw){
+    fillAccountSelects();
+    setModalType('transfer');
+    openModal('#opModal');
+
+    const mainAcc    = ACCOUNTS.find(a=>!a.is_savings) || ACCOUNTS[0];
+    const savingsAcc = ACCOUNTS.find(a=> a.is_savings) || ACCOUNTS[0];
+
+    const accSel    = document.getElementById('m_acc');
+    const contraSel = document.getElementById('m_contra');
+
+    if (withdraw){
+      if (savingsAcc) accSel.value    = String(savingsAcc.id);
+      if (mainAcc)    contraSel.value = String(mainAcc.id);
+    } else {
+      if (mainAcc)    accSel.value    = String(mainAcc.id);
+      if (savingsAcc) contraSel.value = String(savingsAcc.id);
+    }
+
+    const mDate=document.getElementById('m_date');
+    if (mDate && !mDate.value) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
+
+    document.getElementById('m_amount')?.focus();
+  }
+
+  // ===== Savings wizard (когда нет накопительного) =====
+  function openSavingsWizard(nextAction){
+    const modal = document.getElementById('savingsWizard');
+    if(!modal) return;
+    modal.dataset.next = nextAction || '';
+    modal.querySelector('#sw_title').value = 'Накопительный';
+    modal.querySelector('#sw_currency').value = 'RUB';
+    modal.removeAttribute('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSavingsWizard(){
+    const modal = document.getElementById('savingsWizard');
+    if(!modal) return;
+    modal.setAttribute('hidden','');
+    document.body.style.overflow = '';
+  }
+  (() => {
+    const modal = document.getElementById('savingsWizard');
+    if(!modal) return;
+    modal.addEventListener('click', (e)=>{
+      const el = e.target;
+      if(!(el instanceof HTMLElement)) return;
+      if(el.hasAttribute('data-close')) closeSavingsWizard();
+    });
+    document.getElementById('sw_submit')?.addEventListener('click', async ()=>{
+      const title = document.getElementById('sw_title').value.trim() || 'Накопительный';
+      const currency = document.getElementById('sw_currency').value || 'RUB';
+      try{
+        await api.post('/budget/accounts', { title, currency, is_savings:true });
+        await loadAccountsAndCats(activeAbort?.signal);
+        toast('Накопительный счёт создан');
+
+        const next = document.getElementById('savingsWizard').dataset.next;
+        closeSavingsWizard();
+
+        if(next === 'topup')    openTransfer(false);
+        if(next === 'withdraw') openTransfer(true);
+      }catch(err){
+        toast(err?.response?.data?.detail || 'Не удалось создать счёт', 'err', 3600);
+      }
+    });
+  })();
+
+  // ===== KPI «Накопительный счёт» — кнопки =====
   function injectTopUpButton(){
     const valEl = document.getElementById('kpiSavings'); if(!valEl) return;
     const card = valEl.closest('.kpi'); if(!card) return;
@@ -292,51 +343,75 @@
 
     btnTopUp.addEventListener('click', ()=>{
       const savingsAcc = ACCOUNTS.find(a=>a.is_savings);
-      if(!savingsAcc){
-        if(confirm('Нет накопительного счёта. Создать?')){
-          createAccountFlow(true).then(()=> openTransfer(false));
-        }
-        return;
-      }
+      if(!savingsAcc){ openSavingsWizard('topup'); return; }
       openTransfer(false);
     });
 
     btnWithdraw.addEventListener('click', ()=>{
       const savingsAcc = ACCOUNTS.find(a=>a.is_savings);
-      if(!savingsAcc){
-        if(confirm('Нет накопительного счёта. Создать?')){
-          createAccountFlow(true).then(()=> openTransfer(true));
-        }
-        return;
-      }
+      if(!savingsAcc){ openSavingsWizard('withdraw'); return; }
       openTransfer(true);
     });
-
-    function openTransfer(withdraw){
-      fillAccountSelects();
-      setModalType('transfer');
-      openModal('#opModal');
-
-      const mainAcc    = ACCOUNTS.find(a=>!a.is_savings) || ACCOUNTS[0];
-      const savingsAcc = ACCOUNTS.find(a=> a.is_savings) || ACCOUNTS[0];
-
-      const accSel    = document.getElementById('m_acc');
-      const contraSel = document.getElementById('m_contra');
-
-      if (withdraw){
-        if (savingsAcc) accSel.value    = String(savingsAcc.id);
-        if (mainAcc)    contraSel.value = String(mainAcc.id);
-      } else {
-        if (mainAcc)    accSel.value    = String(mainAcc.id);
-        if (savingsAcc) contraSel.value = String(savingsAcc.id);
-      }
-
-      const mDate=document.getElementById('m_date');
-      if (mDate && !mDate.value) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
-
-      document.getElementById('m_amount')?.focus();
-    }
   }
+
+  // ===== Account create/delete — МОДАЛКИ =====
+  function createAccountFlow(markSavings=false){
+    // заполнить и открыть модалку создания
+    const m = document.getElementById('accCreateModal'); if(!m) return;
+    const title = document.getElementById('acc_title');
+    const cur   = document.getElementById('acc_currency');
+    const chk   = document.getElementById('acc_is_savings');
+    title.value = markSavings ? 'Накопительный' : 'Основной';
+    cur.value   = 'RUB';
+    chk.checked = !!markSavings;
+    openModal('#accCreateModal');
+  }
+
+  document.getElementById('accCreateForm')?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const title = document.getElementById('acc_title').value.trim();
+    const currency = document.getElementById('acc_currency').value;
+    const is_savings = document.getElementById('acc_is_savings').checked;
+    if(!title){ return; }
+    try{
+      await api.post('/budget/accounts', { title, currency, is_savings });
+      document.querySelector('#accCreateModal [data-close]')?.click();
+      await loadAccountsAndCats(activeAbort?.signal);
+      fillAccountSelects();
+      toast('Счёт создан');
+    }catch(err){
+      toast(err?.response?.data?.detail || 'Не удалось создать счёт', 'err', 3600);
+    }
+  });
+
+  function deleteAccountFlow(){
+    if (!ACCOUNTS.length){ toast('Нет счетов для удаления', 'err'); return; }
+    // заполнить селект и открыть модалку
+    const sel = document.getElementById('del_acc_select');
+    sel.innerHTML = '';
+    ACCOUNTS.forEach(a=>{
+      const opt = new Option(`${a.title}${a.is_savings?' (накоп.)':''} — ${a.currency || 'RUB'}`, a.id);
+      sel.add(opt);
+    });
+    document.getElementById('del_acc_confirm').checked = false;
+    openModal('#accDeleteModal');
+  }
+
+  document.getElementById('accDeleteForm')?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const id = document.getElementById('del_acc_select').value;
+    const ok = document.getElementById('del_acc_confirm').checked;
+    if(!ok || !id) return;
+    try{
+      await api.delete(`/budget/accounts/${id}`);
+      document.querySelector('#accDeleteModal [data-close]')?.click();
+      await loadAccountsAndCats(activeAbort?.signal);
+      fillAccountSelects();
+      toast('Счёт удалён');
+    }catch(err){
+      toast(err?.response?.data?.detail || 'Не удалось удалить счёт', 'err', 3600);
+    }
+  });
 
   // ===== Category dropdown helpers =====
   function buildCatItemsForLedger(){
@@ -474,7 +549,7 @@
     }
   }
 
-  // ===== row expand =====
+  // ===== expandable rows =====
   document.addEventListener('click', (e)=>{
     const target = e.target instanceof HTMLElement ? e.target : null;
     if (!target) return;
@@ -519,7 +594,7 @@
     const t = e.target; if(!(t instanceof HTMLElement) || !t.classList.contains('tab-btn')) return;
     document.querySelectorAll('#ledgerTabs .tab-btn').forEach(b=>b.classList.remove('tab-btn--active'));
     t.classList.add('tab-btn--active');
-    rebuildCategoryFilters(); // перестроить список категорий под вкладку
+    rebuildCategoryFilters();
     renderLedger();
   });
 
@@ -551,11 +626,11 @@
     if (btn){
       const id = btn.getAttribute('data-id');
       try{ await api.delete(`/budget/categories/${id}`); await loadAccountsAndCats(activeAbort?.signal); renderCatTable(); await loadCharts(activeAbort?.signal); }
-      catch(err){ alert(err?.response?.data?.detail || 'Нельзя удалить категорию (есть операции?)'); }
+      catch(err){ toast(err?.response?.data?.detail || 'Нельзя удалить категорию', 'err'); }
     }
   });
 
-  // ===== Modals =====
+  // ===== Modals base =====
   function openModal(sel, e){ e?.preventDefault(); e?.stopPropagation(); const m=$(sel); if(!m) return; m.removeAttribute('hidden'); m.style.removeProperty('display'); m.style.removeProperty('visibility'); m.style.removeProperty('opacity'); document.body.style.overflow='hidden'; }
   function ensureAccountButtonsNearSelects(){
     injectAccountButtons(document.getElementById('m_acc'),    'acc1');
@@ -591,7 +666,7 @@
     if (modalType==='transfer') payload.contra_account_id = Number($('#m_contra').value);
     else payload.category_id = Number($('#m_cat').value);
     try{ await api.post('/budget/transactions', payload); closeModal('#opModal'); await refreshAll('op-submit'); }
-    catch(err){ alert(err?.response?.data?.detail || 'Ошибка при добавлении операции'); }
+    catch(err){ toast(err?.response?.data?.detail || 'Ошибка при добавлении операции', 'err'); }
   });
 
   // Category modal
@@ -604,7 +679,7 @@
       await api.post('/budget/categories', { kind: modalKind, name });
       $('#catmName').value=''; closeModal('#catModal');
       await loadAccountsAndCats(activeAbort?.signal); renderCatTable(); await loadCharts(activeAbort?.signal);
-    }catch(err){ alert(err?.response?.data?.detail || 'Ошибка при добавлении категории'); }
+    }catch(err){ toast(err?.response?.data?.detail || 'Ошибка при добавлении категории', 'err'); }
   });
 
   // ===== Obligations actions =====
@@ -613,12 +688,12 @@
     const due_date = $('#obDate')?.value || null;
     const amount = Number($('#obAmount')?.value || '0');
     const currency = $('#obCurrency')?.value || 'RUB';
-    if (!title || !amount) { alert('Укажи название и сумму'); return; }
+    if (!title || !amount) { toast('Укажи название и сумму','err'); return; }
     try{
       await api.post('/budget/obligations', { title, due_date, amount, currency });
       if ($('#obTitle')) $('#obTitle').value=''; if ($('#obDate')) $('#obDate').value=''; if ($('#obAmount')) $('#obAmount').value='';
       await loadObligations(activeAbort?.signal);
-    }catch(err){ alert(err?.response?.data?.detail || 'Не удалось добавить платёж'); }
+    }catch(err){ toast(err?.response?.data?.detail || 'Не удалось добавить платёж','err'); }
   }
   document.getElementById('addObBtn')?.addEventListener('click', addObligation);
   document.getElementById('obTable')?.addEventListener('click', async e=>{
@@ -626,13 +701,13 @@
     const id = btn.getAttribute('data-id'); if (!id) return;
     if (!confirm('Удалить платёж?')) return;
     try{ await api.delete(`/budget/obligations/${id}`); await loadObligations(activeAbort?.signal); }
-    catch(err){ alert(err?.response?.data?.detail || 'Не удалось удалить платёж'); }
+    catch(err){ toast(err?.response?.data?.detail || 'Не удалось удалить платёж','err'); }
   });
   document.getElementById('obTable')?.addEventListener('change', async e=>{
     const chk = e.target; if (!(chk instanceof HTMLInputElement) || !chk.classList.contains('ob-done')) return;
     const id = chk.getAttribute('data-id'); const date = chk.getAttribute('data-date') || null;
     try{ await api.patch(`/budget/obligations/${id}`, { is_done: chk.checked, date }); await loadObligations(activeAbort?.signal); }
-    catch(err){ alert(err?.response?.data?.detail || 'Не удалось изменить статус'); chk.checked = !chk.checked; }
+    catch(err){ toast(err?.response?.data?.detail || 'Не удалось изменить статус','err'); chk.checked = !chk.checked; }
   });
 
   // ===== Toggle all sections =====
@@ -696,7 +771,7 @@
       await ping(signal);
       await loadAccountsAndCats(signal);
       await Promise.all([loadSummary(signal), loadCharts(signal), loadObligations(signal), loadMonthTransactions(signal)]);
-      rebuildCategoryFilters(); // после данных
+      rebuildCategoryFilters();
     }catch(err){ if(!axios.isCancel(err)) console.error('refresh error', err); }
     finally{ if(btn){ btn.disabled=false; btn.textContent='Обновить'; } isRefreshing=false; scheduleNext(); }
   }
@@ -714,7 +789,6 @@
     const tag = (e.target?.tagName || '').toLowerCase();
     const typing = tag==='input' || tag==='textarea' || e.target?.isContentEditable;
 
-    // Быстрый фокус поиска
     if (e.key === '/') { if(!typing && !activeModalOpen){ e.preventDefault(); focusSearch(); } return; }
     if (typing || activeModalOpen) return;
 

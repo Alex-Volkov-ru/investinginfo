@@ -252,6 +252,86 @@
     </div>
   </div>
 
+  <!-- ===== SAVINGS WIZARD ===== -->
+  <div id="savingsWizard" class="modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Накопительный счёт</h3>
+        <button class="modal__close" data-close>&times;</button>
+      </div>
+      <div class="form">
+        <p class="muted" id="swLead">У тебя ещё нет накопительного счёта. Создадим?</p>
+        <label>Название
+          <input id="sw_title" type="text" placeholder="Накопительный" value="Накопительный" />
+        </label>
+        <label>Валюта
+          <select id="sw_currency">
+            <option value="RUB" selected>RUB</option>
+          </select>
+        </label>
+        <div class="modal__footer">
+          <button class="btn" data-close>Отмена</button>
+          <button id="sw_submit" class="btn btn-primary" type="button">Создать</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ACCOUNT: CREATE ===== -->
+  <div id="accCreateModal" class="modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Новый счёт</h3>
+        <button class="modal__close" data-close>&times;</button>
+      </div>
+      <form id="accCreateForm" class="form">
+        <label>Название <input id="acc_title" type="text" placeholder="Напр. Основной" required></label>
+        <label>Валюта
+          <select id="acc_currency" required>
+            <option value="RUB" selected>RUB</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </label>
+        <label style="flex-direction:row; align-items:center; gap:10px">
+          <input id="acc_is_savings" type="checkbox" />
+          <span>Это накопительный счёт</span>
+        </label>
+        <div class="modal__footer">
+          <button type="button" class="btn" data-close>Отмена</button>
+          <button type="submit" class="btn btn-primary">Создать</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== ACCOUNT: DELETE ===== -->
+  <div id="accDeleteModal" class="modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Удаление счёта</h3>
+        <button class="modal__close" data-close>&times;</button>
+      </div>
+      <form id="accDeleteForm" class="form">
+        <p class="muted">Выберите счёт, который нужно удалить. Действие необратимо.</p>
+        <label>Счёт
+          <select id="del_acc_select" required></select>
+        </label>
+        <label style="flex-direction:row; align-items:center; gap:10px">
+          <input id="del_acc_confirm" type="checkbox" required />
+          <span>Я понимаю, что удаление необратимо</span>
+        </label>
+        <div class="modal__footer">
+          <button type="button" class="btn" data-close>Отмена</button>
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ===== HELP MODAL ===== -->
   <div id="helpModal" class="modal" hidden>
     <div class="modal__backdrop" data-close></div>
