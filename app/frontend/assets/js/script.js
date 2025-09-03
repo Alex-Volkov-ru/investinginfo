@@ -3,7 +3,6 @@
   const isTG = !!(window.Telegram && window.Telegram.WebApp) || /Telegram/i.test(navigator.userAgent);
   if (isTG) {
     document.documentElement.classList.add('tg-app');
-
     try {
       const wa = window.Telegram?.WebApp;
       const topInset = (wa?.safeAreaInsets?.top || 0);
@@ -11,7 +10,6 @@
       const h = Math.max(baseBar, topInset);
       document.documentElement.style.setProperty('--tg-topbar', h + 'px');
     } catch(_) {}
-
     let _t = null;
     window.addEventListener('resize', () => {
       clearTimeout(_t);
@@ -49,9 +47,6 @@ let isRefreshing = false;
 // ====== EDIT MODAL STATE ======
 let editCtx = { item:null, type:null, idx:null };
 let editFp = null;
-
-// ====== ONBOARDING ======
-const LS_ONB = 'pf_onboarding_dismissed_v1';
 
 // ====== TOAST ======
 function toast(msg, type='ok'){
@@ -293,7 +288,8 @@ const nf0 = new Intl.NumberFormat('ru-RU',{ maximumFractionDigits:0 });
 const nf2 = new Intl.NumberFormat('ru-RU',{ maximumFractionDigits:2 });
 const fmt = (n,d=2)=> isFinite(n) ? (d===0? nf0.format(n) : nf2.format(n)) : '0';
 const cssId = s => (s||'').toString().replace(/[^a-z0-9]/gi,'_');
-function totalValue(){ return ['savings','stocks','bonds','funds'].reduce((s,k)=> s + (portfolio[k]||[]).reduce((a,i)=>a+(i.value||0),0), 0); }
+// (ВАЖНО) сумма только по акциям/облигациям/фондам — без накопит. счёта
+function totalValue(){ return ['stocks','bonds','funds'].reduce((s,k)=> s + (portfolio[k]||[]).reduce((a,i)=>a+(i.value||0),0), 0); }
 function pushHistory(){ portfolio.history.push({ t: Date.now(), total: totalValue() }); if(portfolio.history.length>600) portfolio.history.shift(); saveLocal(); }
 function fmtISOtoRU(iso){ if(!iso) return '—'; const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); if(!m) return iso; return `${m[3]}.${m[2]}.${m[1]}`; }
 function toISOFromAlt(inputVal){
@@ -337,12 +333,11 @@ function highlightMatch(text, q){
   return escHtml(text||'').replace(re,'<mark>$1</mark>');
 }
 
-// ====== SUMMARY ======
+// ====== SUMMARY (без «Накопит. счёта») ======
 function buildClassBreakdownHint(){
   const blocks = [
-    ['Накопит', (portfolio.savings||[]).reduce((s,i)=>s+i.value,0)],
     ['Акции', (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0)],
-    ['ОФЗ', (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0)],
+    ['ОФЗ',   (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0)],
     ['Фонды', (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0)]
   ];
   const total = blocks.reduce((a,b)=>a+b[1],0) || 1;
@@ -356,11 +351,10 @@ function topInsideHint(arr){
 }
 function renderSummary(){
   const blocks = [
-    { key:'total', title:'Всего', val: totalValue(), hint: buildClassBreakdownHint() },
-    { key:'savings', title:'Накопит. счёт', val: (portfolio.savings||[]).reduce((s,i)=>s+i.value,0), hint: topInsideHint(portfolio.savings) },
-    { key:'stocks', title:'Акции', val: (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0), hint: topInsideHint(portfolio.stocks) },
-    { key:'bonds', title:'ОФЗ', val: (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0), hint: topInsideHint(portfolio.bonds) },
-    { key:'funds', title:'Фонды', val: (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0), hint: topInsideHint(portfolio.funds) },
+    { key:'total',  title:'Всего',  val: totalValue(), hint: buildClassBreakdownHint() },
+    { key:'stocks', title:'Акции',  val: (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0), hint: topInsideHint(portfolio.stocks) },
+    { key:'bonds',  title:'ОФЗ',    val: (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),   hint: topInsideHint(portfolio.bonds) },
+    { key:'funds',  title:'Фонды',  val: (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),   hint: topInsideHint(portfolio.funds) },
   ];
   const wrap = document.getElementById('portfolioSummary');
   wrap.innerHTML = blocks.map(b=>`
@@ -371,7 +365,7 @@ function renderSummary(){
   animateNumbers();
 }
 
-// ====== RENDER: SECTIONS ======
+// ====== RENDER: SECTIONS (без «Накопит. счёта») ======
 function destroyPerAssetCharts(){
   Object.keys(charts).forEach(key=>{
     if(key.startsWith('canvas-') && charts[key] && typeof charts[key].destroy==='function'){
@@ -393,8 +387,7 @@ function renderSections(){
   const groups = [
     ['stocks','Акции'],
     ['bonds','ОФЗ/Облигации'],
-    ['funds','Фонды/ETF'],
-    ['savings','Накопительный счёт']
+    ['funds','Фонды/ETF']
   ];
 
   const query = (searchQuery||'').trim().toLowerCase();
@@ -413,21 +406,6 @@ function renderSections(){
     const open = query ? true : !collapsedMap[cat];
 
     const listHTML = items.length ? items.map((it,idx)=>{
-      if(cat==='savings'){
-        return `
-        <div class="asset-card animate-in">
-          <div class="asset-header">
-            <div class="asset-name">${highlightMatch('Пополнение', query)}</div>
-            <div class="asset-actions">
-              <button class="btn btn-danger" data-action="del" data-type="${cat}" data-index="${idx}">Удалить</button>
-            </div>
-          </div>
-          <div class="asset-details" style="grid-template-columns:repeat(2,1fr)">
-            <div>Сумма: <b>${fmt(it.value)} ₽</b></div>
-            <div>Дата: <b>${fmtISOtoRU(it.date)}</b></div>
-          </div>
-        </div>`;
-      }
       const id = cssId(it.name);
       const curPrice = it.currentPrice ?? it.avgPrice ?? 0;
       const curVal = curPrice * (it.quantity||0);
@@ -490,7 +468,7 @@ function renderSections(){
   updateEmptyState();
 }
 
-// ====== CHARTS ======
+// ====== CHARTS (без доли накопит. счёта) ======
 function grad(ctx, c1, c2){ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
 function rebuild(id, cfg){ const el=document.getElementById(id); if(!el) return null; if(charts[id]) charts[id].destroy(); const ctx=el.getContext('2d'); charts[id]=new Chart(ctx,cfg); return charts[id]; }
 function removeSkeleton(){ ['sk1','sk2','sk3'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('skeleton'); }); }
@@ -533,15 +511,14 @@ function renderCharts(){
   const isDark = theme === 'dark';
   const axisGrid = isDark ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.08)';
 
-  // Doughnut
+  // Doughnut — только акции/ОФЗ/фонды
   const classValues = [
-    (portfolio.savings||[]).reduce((s,i)=>s+i.value,0),
     (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),
     (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),
     (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0)
   ];
   const total = classValues.reduce((a,b)=>a+b,0);
-  const classLabels = ['Накопит','Акции','ОФЗ','Фонды'];
+  const classLabels = ['Акции','ОФЗ','Фонды'];
   const pl = totalPL();
 
   const el1 = document.getElementById('chartByClass');
@@ -551,7 +528,6 @@ function renderCharts(){
     const bg = [
       grad(ctx1,'rgba(67,97,238,.9)','rgba(67,97,238,.3)'),
       grad(ctx1,'rgba(127,240,249,.9)','rgba(127,240,249,.35)'),
-      grad(ctx1,'rgba(247,37,133,.9)','rgba(247,37,133,.35)'),
       grad(ctx1,'rgba(6,214,160,.9)','rgba(6,214,160,.35)')
     ];
     charts.c1 = new Chart(ctx1, {
@@ -622,11 +598,11 @@ function renderCharts(){
     }
   });
 
-  // --- Сохраняем сумму портфеля для budget.js ---
+  // — это значение дальше используется бюджетом (оставляем сумму БЕЗ накопит. счёта)
   try {
     localStorage.setItem('pf_portfolio_total', String(total));
     localStorage.setItem('pf_portfolio_currency', 'RUB');
-  } catch(_) { /* no-op */ }
+  } catch(_) {}
 
   removeSkeleton();
 }
@@ -728,8 +704,9 @@ async function addAsset(e){
   const date = dateVal || new Date().toISOString().slice(0,10);
 
   if(type==='savings'){
-    const amount = parseFloat(document.getElementById('savingsAmount').value)||0;
-    if(amount<=0){ toast('Введите сумму для накопительного счёта','err'); return; }
+    // В интерфейсе этот кейс недоступен, оставлен для совместимости
+    const amount = parseFloat(document.getElementById('savingsAmount')?.value||'0')||0;
+    if(amount<=0){ toast('Введите сумму','err'); return; }
     portfolio.savings.push({ value: amount, date });
     toast('Пополнение сохранено (локально)');
   } else {
@@ -765,13 +742,7 @@ async function addAsset(e){
   renderSummary(); renderSections(); renderCharts();
   pushHistory(); saveLocal();
   e.target.reset(); if(fp) fp.setDate(new Date()); onTypeChange();
-
-  const btn = document.getElementById('addBtn');
-  if(btn){
-    btn.classList.remove('rippling'); setTimeout(()=> btn.classList.add('rippling'), 0); setTimeout(()=> btn.classList.remove('rippling'), 250);
-  }
-
-  closeAddModal();
+  document.getElementById('addModal')?.classList.remove('modal--open');
 }
 
 // ====== EDIT MODАЛ ======
@@ -850,6 +821,24 @@ function hookEditModal(){
 
 // ====== ADD MODAL ======
 function openAddModal(){ document.getElementById('addModal')?.classList.add('modal--open'); }
+function onTypeChange(){
+  const t = document.getElementById('assetType').value;
+  const isSavings = t==='savings';
+  const f1 = document.getElementById('fieldName');
+  const f2 = document.getElementById('fieldQuantity');
+  const f3 = document.getElementById('fieldPrice');
+  const f4 = document.getElementById('fieldDate');
+  const fSavings = document.getElementById('fieldSavingsAmount'); // может отсутствовать
+  if(f1) f1.style.display = isSavings ? 'none' : '';
+  if(f2) f2.style.display = isSavings ? 'none' : '';
+  if(f3) f3.style.display = isSavings ? 'none' : '';
+  if(f4) f4.style.display = '';
+  if(fSavings) fSavings.style.display = isSavings ? '' : 'none';
+  const an = document.getElementById('assetName');        if(an) an.required = !isSavings;
+  const aq = document.getElementById('assetQuantity');    if(aq) aq.required = !isSavings;
+  const ap = document.getElementById('assetAvgPrice');    if(ap) ap.required = false;
+  const sa = document.getElementById('savingsAmount');    if(sa) sa.required = isSavings;
+}
 function closeAddModal(){
   const m = document.getElementById('addModal');
   const form = document.getElementById('assetForm');
@@ -958,7 +947,8 @@ document.addEventListener('click', async (e)=>{
 function updateEmptyState(){
   const el = document.getElementById('emptyState');
   if(!el) return;
-  const totalItems = ['savings','stocks','bonds','funds']
+  // считаем только инвестиционные позиции
+  const totalItems = ['stocks','bonds','funds']
     .reduce((s,k)=> s + ((portfolio[k]||[]).length), 0);
   el.classList.toggle('hidden', totalItems > 0);
 }
@@ -976,26 +966,14 @@ function hookHelpModal(){
   document.getElementById('helpCloseX')?.addEventListener('click', closeHelpModal);
   document.getElementById('helpModal')?.addEventListener('click', (e)=>{ if(e.target.id==='helpModal') closeHelpModal(); });
 }
-function focusSearch(){
-  const el = document.getElementById('searchInput');
-  if(el){ el.focus(); el.select?.(); }
-}
-function toggleTheme(){
-  const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
-  setTheme(cur);
-}
+function focusSearch(){ const el = document.getElementById('searchInput'); if(el){ el.focus(); el.select?.(); } }
+function toggleTheme(){ const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark'; setTheme(cur); }
 function hookShortcuts(){
   document.addEventListener('keydown', (e)=>{
     const tag = (e.target?.tagName || '').toLowerCase();
     const typing = tag==='input' || tag==='textarea' || e.target?.isContentEditable;
-    // / — фокус поиска (всегда)
-    if(e.key === '/'){
-      if(!typing) e.preventDefault();
-      focusSearch();
-      return;
-    }
+    if(e.key === '/'){ if(!typing) e.preventDefault(); focusSearch(); return; }
     if(typing) return;
-
     if(e.key.toLowerCase() === 'r'){ e.preventDefault(); hardRefresh(); }
     if(e.key.toLowerCase() === 't'){ e.preventDefault(); toggleTheme(); }
     if(e.key.toLowerCase() === 'a'){ e.preventDefault(); openAddModal(); }
@@ -1005,18 +983,6 @@ function hookShortcuts(){
 }
 
 // ====== HEADER & SEARCH ======
-function onTypeChange(){
-  const t = document.getElementById('assetType').value;
-  const isSavings = t==='savings';
-  document.getElementById('fieldName').style.display = isSavings ? 'none' : '';
-  document.getElementById('fieldQuantity').style.display = isSavings ? 'none' : '';
-  document.getElementById('fieldPrice').style.display = isSavings ? 'none' : '';
-  document.getElementById('fieldSavingsAmount').style.display = isSavings ? '' : 'none';
-  document.getElementById('assetName').required = !isSavings;
-  document.getElementById('assetQuantity').required = !isSavings;
-  document.getElementById('assetAvgPrice').required = false;
-  document.getElementById('savingsAmount').required = isSavings;
-}
 function updateToggleAllBtn(){
   const btn = document.getElementById('toggleAllBtn');
   if(!btn) return;
@@ -1040,7 +1006,7 @@ function hookHeaderButtons(){
     toggle.classList.remove('rippling'); setTimeout(()=> toggle.classList.add('rippling'), 0); setTimeout(()=> toggle.classList.remove('rippling'), 250);
 
     const anyOpen = document.querySelectorAll('.section.open').length > 0;
-    const keys = ['stocks','bonds','funds','savings'];
+    const keys = ['stocks','bonds','funds']; // savings исключили
     if(anyOpen){
       keys.forEach(k=> collapsedMap[k]=true);
       document.querySelectorAll('.section').forEach(s=> s.classList.remove('open'));
@@ -1088,18 +1054,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
   // title
   loadTitle();
-  const editBtn = document.getElementById('editTitleBtn');
-  if (editBtn){
-    editBtn.addEventListener('click', ()=>{
-      const cur = (document.getElementById('portfolioTitle')?.textContent || 'Мой портфель').trim();
-      const v = prompt('Введите новое название портфеля', cur);
-      if(v!==null && v.trim()){
-        localStorage.setItem('pf_title', v.trim());
-        applyTitle(v.trim());
-        toast('Название обновлено');
-      }
-    });
-  }
 
   loadAuth();
   loadLocal();
