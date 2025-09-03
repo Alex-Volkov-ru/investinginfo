@@ -152,12 +152,12 @@
         <td class="col-date" title="${fmtDate(r.due_date)}">${fmtDate(r.due_date)}</td>
         <td class="col-cat"  title="${r.title}"><span class="cell-clip">${r.title}</span></td>
         <td class="t-right col-sum" title="${fmtMoney(r.amount, r.currency)}">${fmtMoney(r.amount, r.currency)}</td>
-        <td class="t-center">
+        <td class="t-center col-done">
           <input class="chk ob-done" type="checkbox" ${r.is_done ? 'checked':''}
-                 data-id="${r.id}" data-date="${r.due_date || ''}"/>
+                data-id="${r.id}" data-date="${r.due_date || ''}"/>
         </td>
-        <td class="t-right">
-          <button class="btn btn-danger btn-sm btn-del" data-id="${r.id}" data-act="del">
+        <td class="t-right col-actions">
+          <button class="btn btn-danger btn-sm btn-del" data-id="${r.id}" data-act="del" title="Удалить">
             <span class="ico" aria-hidden="true">🗑</span><span class="txt">Удалить</span>
           </button>
         </td>`;
