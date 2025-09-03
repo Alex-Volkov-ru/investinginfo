@@ -4,21 +4,14 @@
   if (isTG) {
     document.documentElement.classList.add('tg-app');
 
-    // Попробуем оценить высоту верхней панели TG,
-    // если API доступно — возьмём безопасные отступы, иначе fallback.
     try {
       const wa = window.Telegram?.WebApp;
-      // если есть safe area сверху – используем как минимум его
       const topInset = (wa?.safeAreaInsets?.top || 0);
-      // базовая высота панели (iOS чуть выше), берём консервативно
       const baseBar = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 86 : 68;
       const h = Math.max(baseBar, topInset);
       document.documentElement.style.setProperty('--tg-topbar', h + 'px');
-    } catch(_) {
-      // останемся на CSS значении --tg-topbar: 72px
-    }
+    } catch(_) {}
 
-    // Пересчёт при повороте/resize
     let _t = null;
     window.addEventListener('resize', () => {
       clearTimeout(_t);
@@ -56,6 +49,9 @@ let isRefreshing = false;
 // ====== EDIT MODAL STATE ======
 let editCtx = { item:null, type:null, idx:null };
 let editFp = null;
+
+// ====== ONBOARDING ======
+const LS_ONB = 'pf_onboarding_dismissed_v1';
 
 // ====== TOAST ======
 function toast(msg, type='ok'){
@@ -491,6 +487,7 @@ function renderSections(){
       </section>`);
   }
   updateToggleAllBtn();
+  updateEmptyState();
 }
 
 // ====== CHARTS ======
@@ -957,6 +954,46 @@ document.addEventListener('click', async (e)=>{
   }
 });
 
+// ====== EMPTY STATE & ONBOARDING ======
+function updateEmptyState(){
+  const el = document.getElementById('emptyState');
+  if(!el) return;
+  const totalItems = ['savings','stocks','bonds','funds']
+    .reduce((s,k)=> s + ((portfolio[k]||[]).length), 0);
+  el.classList.toggle('hidden', totalItems > 0);
+}
+function hookEmptyCtas(){
+  document.getElementById('emptyAddBtn')?.addEventListener('click', openAddModal);
+}
+function maybeShowOnboarding(){
+  if(localStorage.getItem(LS_ONB) === '1') return;
+  const m = document.getElementById('onboardingModal'); if(!m) return;
+
+  const close = ()=>{
+    if(document.getElementById('onbDontShow')?.checked){
+      localStorage.setItem(LS_ONB, '1');
+      toast('Подсказка больше не будет показываться');
+    }
+    m.classList.remove('modal--open');
+  };
+
+  // Сохраняем и закрываем сразу по клику на чекбокс
+  document.getElementById('onbDontShow')?.addEventListener('change', (e)=>{
+    if(e.target.checked){
+      localStorage.setItem(LS_ONB, '1');
+      m.classList.remove('modal--open');
+      toast('Подсказка больше не будет показываться');
+    }else{
+      localStorage.removeItem(LS_ONB);
+    }
+  });
+
+  document.getElementById('onbCloseBtn')?.addEventListener('click', close);
+  document.getElementById('onbCloseX')?.addEventListener('click', close);
+  m.addEventListener('click', (e)=>{ if(e.target.id==='onboardingModal') close(); });
+  m.classList.add('modal--open');
+}
+
 // ====== HEADER & SEARCH ======
 function onTypeChange(){
   const t = document.getElementById('assetType').value;
@@ -1037,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark'; setTheme(cur);
   });
 
-  // title (без кнопки — просто не навешиваем хендлер)
+  // title
   loadTitle();
   const editBtn = document.getElementById('editTitleBtn');
   if (editBtn){
@@ -1057,6 +1094,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   loadCollapsed();
   loadSearch();
   hookHeaderButtons();
+  hookEmptyCtas();
   hookTokenModal();
   hookEditModal();
   hookAddModal();
@@ -1073,10 +1111,13 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   try{ await loadFromDB(); }catch(e){ console.warn('loadFromDB failed', e); toast('Не удалось загрузить портфель из БД','err'); }
 
   renderSummary(); renderSections(); renderCharts();
+  updateEmptyState();
   document.querySelectorAll('.chart-card, .summary-card, .section').forEach(el=> io.observe(el));
 
   document.getElementById('refreshBtn')?.addEventListener('click', hardRefresh);
   await hardRefresh();
+  maybeShowOnboarding();
+
   if(quotesTimer) clearInterval(quotesTimer);
   quotesTimer = setInterval(async ()=>{
     await hardRefresh();

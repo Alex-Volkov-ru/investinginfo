@@ -64,6 +64,17 @@
       <button id="openAddBtn" class="btn btn-primary">Добавить актив</button>
     </div>
 
+    <!-- НУЛЕВОЕ СОСТОЯНИЕ (когда нет позиций) -->
+    <div id="emptyState" class="empty-state hidden" aria-live="polite">
+      <div class="empty-card">
+        <h3>Здесь будут ваши активы</h3>
+        <p class="muted">Добавьте первую позицию или пополнение накопительного счёта.</p>
+        <div class="empty-actions">
+          <button id="emptyAddBtn" class="btn btn-primary">＋ Добавить актив</button>
+        </div>
+      </div>
+    </div>
+
     <div id="portfolioSections"></div>
   </div>
 
@@ -72,6 +83,31 @@
 
   <!-- FAB (мобилка) -->
   <button id="fabAddBtn" class="fab" title="Добавить актив">＋</button>
+
+  <!-- Модалка: ОНБОРДИНГ (один раз, с чекбоксом "не показывать") -->
+  <div id="onboardingModal" class="modal" aria-hidden="true">
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Как начать</h3>
+        <button class="modal__close" id="onbCloseX" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="readonly-box">
+          <ol>
+            <li>Нажмите «Добавить актив» и внесите первую сделку (или пополнение накопит. счёта).</li>
+            <li>Нажмите «Обновить» — подтянем FIGI и котировки, появятся графики.</li>
+            <li>Используйте поиск и сворачивание секций для навигации по портфелю.</li>
+          </ol>
+          <label class="checkbox-row" style="margin-top:8px">
+            <input id="onbDontShow" type="checkbox" /> Больше не показывать
+          </label>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button id="onbCloseBtn" class="btn btn-primary">Понятно</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Модалка: ДОБАВИТЬ АКТИВ -->
   <div id="addModal" class="modal" aria-hidden="true">

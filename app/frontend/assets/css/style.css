@@ -71,7 +71,7 @@ header{
   display:flex; align-items:center; justify-content:space-between; gap:12px;
   padding:10px clamp(10px,1.6vw,14px); margin-bottom:var(--gap); z-index:1000;
 }
-.title-wrap{display:none} /* титул убрали */
+.title-wrap{display:none}
 h1{margin:0; font-weight:800; letter-spacing:-.3px; font-size: clamp(18px, 2.5vw, 28px)}
 .title-edit{display:none}
 
@@ -158,13 +158,14 @@ h1{margin:0; font-weight:800; letter-spacing:-.3px; font-size: clamp(18px, 2.5vw
 @media (max-width: 900px){ .asset-details{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width: 560px){ .asset-details{ grid-template-columns:1fr; } }
 
-select, input{
+/* ВАЖНО: не стилизуем чекбоксы/радио как текстовые инпуты */
+select, input:not([type="checkbox"]):not([type="radio"]){
   appearance:none; -webkit-appearance:none; -moz-appearance:none;
   background:var(--input-bg);
   border:1px solid var(--stroke); color:var(--text); border-radius:12px; padding:12px 40px 12px 12px; font-weight:700;
   width:100%; transition:border-color .15s ease, box-shadow .15s ease, background .15s ease; font-size: clamp(14px,2.2vw,16px)
 }
-select:hover, input:hover{ background:var(--input-bg-hover); }
+select:hover, input:not([type="checkbox"]):not([type="radio"]):hover{ background:var(--input-bg-hover); }
 input{ padding-right:12px }
 input::placeholder{ color:var(--muted); opacity:.9 }
 .select-wrap{position:relative}
@@ -172,6 +173,16 @@ input::placeholder{ color:var(--muted); opacity:.9 }
 select option, select optgroup{ background-color:var(--menu-bg); color:var(--menu-text); }
 input:focus, select:focus{ outline:none; box-shadow:var(--ring); border-color:transparent }
 select::-ms-expand { display:none; }
+
+/* Аккуратные чекбоксы */
+input[type="checkbox"]{
+  width:16px; height:16px; margin:0;
+  accent-color: var(--brand);
+  cursor:pointer;
+  background:transparent; border:none; padding:0;
+}
+.checkbox-row{ display:flex; gap:10px; align-items:center; font-weight:700; color:var(--text); }
+.checkbox-row *{ pointer-events:auto; }
 
 .form-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px}
 .form-group{display:flex; flex-direction:column; gap:6px}
@@ -254,6 +265,7 @@ header{ top: env(safe-area-inset-top, 0); }
 .modal__close{ border:1px solid var(--stroke); background:var(--input-bg); border-radius:10px; padding:6px 10px; cursor:pointer; }
 .modal__footer{ display:flex; justify-content:flex-end; gap:10px; margin-top:12px; }
 .readonly-box{ padding:12px; border:1px dashed var(--stroke); border-radius:12px; background:rgba(255,255,255,.04); }
+.readonly-box ol{ margin:0 0 8px; padding-left:18px; }
 
 /* зебра карточек */
 :root[data-theme='light']{ --zebra-1: rgba(0,0,0,.028); --zebra-2: rgba(67,97,238,.06); }
@@ -263,11 +275,9 @@ header{ top: env(safe-area-inset-top, 0); }
 .assets-list > .asset-card:hover{ transform: translateY(-2px); box-shadow: var(--shadow); }
 .assets-list .asset-card .asset-header{ border-bottom: 1px dashed var(--stroke); padding-bottom: 8px; margin-bottom: 8px; }
 
-/* ===== Telegram WebApp адаптация (ИСПРАВЛЕНО: шапка остаётся липкой) ===== */
+/* ===== Telegram WebApp адаптация ===== */
 :root { --tg-topbar: 56px; }
-html.tg-app body{
-  padding-top: calc(env(safe-area-inset-top, 0px) + var(--tg-topbar));
-}
+html.tg-app body{ padding-top: calc(env(safe-area-inset-top, 0px) + var(--tg-topbar)); }
 html.tg-app header{
   position: sticky !important;
   top: calc(env(safe-area-inset-top, 0px) + var(--tg-topbar)) !important;
@@ -282,44 +292,20 @@ body, button, .btn, input, select, canvas{ -webkit-tap-highlight-color: transpar
 html.tg-app .container{ padding-top: clamp(8px, 2vw, 16px); }
 
 /* ===== Хедер: флекс/адаптив ===== */
-header{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:8px;
-}
+header{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 .header-actions{
-  flex:1 1 auto;
-  min-width:220px;
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  justify-content:flex-end;
+  flex:1 1 auto; min-width:220px; display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end;
 }
 .search-wrap{ order:0; flex:1 1 260px; max-width:480px; }
 
 /* табы: горизонтальная прокрутка */
 .tabs-row{
-  display:flex;
-  gap:10px;
-  overflow:auto;
-  -webkit-overflow-scrolling:touch;
-  padding:6px 0;
+  display:flex; gap:10px; overflow:auto; -webkit-overflow-scrolling:touch; padding:6px 0;
 }
 .tabs-row .pill{
-  white-space:nowrap;
-  padding:10px 14px;
-  border-radius:999px;
-  border:1px solid var(--stroke);
-  background:var(--card);
-  font-weight:800;
-  user-select:none;
+  white-space:nowrap; padding:10px 14px; border-radius:999px; border:1px solid --stroke; background:var(--card); font-weight:800; user-select:none;
 }
-.tabs-row .pill.active{
-  background:linear-gradient(135deg, var(--brand), var(--brand2));
-  color:#0c0f21;
-  border:none;
-}
+.tabs-row .pill.active{ background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:none; }
 
 /* карточки-графики и секции — чуть меньше отступов на мобилках */
 @media (max-width: 760px){
@@ -328,3 +314,16 @@ header{
   .section{ padding:12px; }
   .asset-actions .btn{ padding:6px 9px; }
 }
+
+/* ===== НУЛЕВОЕ СОСТОЯНИЕ + УТИЛИТЫ ===== */
+.hidden{ display:none !important; }
+.muted{ color: var(--muted); }
+.empty-state{
+  border:1px dashed var(--stroke);
+  border-radius: var(--radius);
+  padding: 16px;
+  background: rgba(255,255,255,.04);
+  margin-bottom: var(--gap);
+}
+.empty-card h3{ margin:0 0 6px; }
+.empty-actions{ display:flex; gap:10px; flex-wrap:wrap; }
