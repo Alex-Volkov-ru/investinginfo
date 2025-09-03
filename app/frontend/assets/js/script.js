@@ -954,7 +954,7 @@ document.addEventListener('click', async (e)=>{
   }
 });
 
-// ====== EMPTY STATE & ONBOARDING ======
+// ====== EMPTY STATE & HELP ======
 function updateEmptyState(){
   const el = document.getElementById('emptyState');
   if(!el) return;
@@ -964,34 +964,44 @@ function updateEmptyState(){
 }
 function hookEmptyCtas(){
   document.getElementById('emptyAddBtn')?.addEventListener('click', openAddModal);
+  document.getElementById('helpOpenSecondary')?.addEventListener('click', openHelpModal);
 }
-function maybeShowOnboarding(){
-  if(localStorage.getItem(LS_ONB) === '1') return;
-  const m = document.getElementById('onboardingModal'); if(!m) return;
 
-  const close = ()=>{
-    if(document.getElementById('onbDontShow')?.checked){
-      localStorage.setItem(LS_ONB, '1');
-      toast('Подсказка больше не будет показываться');
+// ====== HELP MODAL + SHORTCUTS ======
+function openHelpModal(){ document.getElementById('helpModal')?.classList.add('modal--open'); }
+function closeHelpModal(){ document.getElementById('helpModal')?.classList.remove('modal--open'); }
+function hookHelpModal(){
+  document.getElementById('helpBtn')?.addEventListener('click', openHelpModal);
+  document.getElementById('helpCloseBtn')?.addEventListener('click', closeHelpModal);
+  document.getElementById('helpCloseX')?.addEventListener('click', closeHelpModal);
+  document.getElementById('helpModal')?.addEventListener('click', (e)=>{ if(e.target.id==='helpModal') closeHelpModal(); });
+}
+function focusSearch(){
+  const el = document.getElementById('searchInput');
+  if(el){ el.focus(); el.select?.(); }
+}
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
+  setTheme(cur);
+}
+function hookShortcuts(){
+  document.addEventListener('keydown', (e)=>{
+    const tag = (e.target?.tagName || '').toLowerCase();
+    const typing = tag==='input' || tag==='textarea' || e.target?.isContentEditable;
+    // / — фокус поиска (всегда)
+    if(e.key === '/'){
+      if(!typing) e.preventDefault();
+      focusSearch();
+      return;
     }
-    m.classList.remove('modal--open');
-  };
+    if(typing) return;
 
-  // Сохраняем и закрываем сразу по клику на чекбокс
-  document.getElementById('onbDontShow')?.addEventListener('change', (e)=>{
-    if(e.target.checked){
-      localStorage.setItem(LS_ONB, '1');
-      m.classList.remove('modal--open');
-      toast('Подсказка больше не будет показываться');
-    }else{
-      localStorage.removeItem(LS_ONB);
-    }
+    if(e.key.toLowerCase() === 'r'){ e.preventDefault(); hardRefresh(); }
+    if(e.key.toLowerCase() === 't'){ e.preventDefault(); toggleTheme(); }
+    if(e.key.toLowerCase() === 'a'){ e.preventDefault(); openAddModal(); }
+    if(e.key.toLowerCase() === 's'){ e.preventDefault(); document.getElementById('toggleAllBtn')?.click(); }
+    if(e.key === '?' || (e.shiftKey && e.key === '/')){ e.preventDefault(); openHelpModal(); }
   });
-
-  document.getElementById('onbCloseBtn')?.addEventListener('click', close);
-  document.getElementById('onbCloseX')?.addEventListener('click', close);
-  m.addEventListener('click', (e)=>{ if(e.target.id==='onboardingModal') close(); });
-  m.classList.add('modal--open');
 }
 
 // ====== HEADER & SEARCH ======
@@ -1015,11 +1025,11 @@ function updateToggleAllBtn(){
   const anyOpen = document.querySelectorAll('.section.open').length > 0;
   if(anyOpen){
     btn.textContent = '⤵️ Все';
-    btn.title = q ? 'Недоступно во время поиска' : 'Свернуть все секции';
+    btn.title = q ? 'Недоступно во время поиска' : 'Свернуть все секции (S)';
     btn.setAttribute('aria-label','Свернуть все секции');
   }else{
     btn.textContent = '⤴️ Все';
-    btn.title = q ? 'Недоступно во время поиска' : 'Развернуть все секции';
+    btn.title = q ? 'Недоступно во время поиска' : 'Развернуть все секции (S)';
     btn.setAttribute('aria-label','Развернуть все секции');
   }
 }
@@ -1048,6 +1058,17 @@ function hookHeaderButtons(){
     saveSearch();
     renderSections();
   });
+
+  document.getElementById('themeToggle')?.addEventListener('click', (e)=>{
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left)/rect.width*100).toFixed(2)+"%";
+    const y = ((e.clientY - rect.top)/rect.height*100).toFixed(2)+"%";
+    e.currentTarget.style.setProperty('--rx', x); e.currentTarget.style.setProperty('--ry', y);
+    e.currentTarget.classList.remove('rippling'); setTimeout(()=> e.currentTarget.classList.add('rippling'), 0); setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250);
+    toggleTheme();
+  });
+
+  document.getElementById('helpBtn')?.addEventListener('click', openHelpModal);
 }
 
 // ====== INIT ======
@@ -1064,15 +1085,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   const applyCompact = () => headerEl.classList.toggle('header--compact', window.scrollY > 8);
   window.addEventListener('scroll', applyCompact, { passive: true });
   applyCompact();
-
-  document.getElementById('themeToggle')?.addEventListener('click', (e)=>{
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left)/rect.width*100).toFixed(2)+"%";
-    const y = ((e.clientY - rect.top)/rect.height*100).toFixed(2)+"%";
-    e.currentTarget.style.setProperty('--rx', x); e.currentTarget.style.setProperty('--ry', y);
-    e.currentTarget.classList.remove('rippling'); setTimeout(()=> e.currentTarget.classList.add('rippling'), 0); setTimeout(()=> e.currentTarget.classList.remove('rippling'), 250);
-    const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark'; setTheme(cur);
-  });
 
   // title
   loadTitle();
@@ -1098,6 +1110,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   hookTokenModal();
   hookEditModal();
   hookAddModal();
+  hookHelpModal();
+  hookShortcuts();
   await refreshApiIndicator();
 
   document.getElementById('logoutBtn')?.addEventListener('click', ()=>{
@@ -1116,7 +1130,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
   document.getElementById('refreshBtn')?.addEventListener('click', hardRefresh);
   await hardRefresh();
-  maybeShowOnboarding();
 
   if(quotesTimer) clearInterval(quotesTimer);
   quotesTimer = setInterval(async ()=>{

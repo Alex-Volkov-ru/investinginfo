@@ -327,3 +327,19 @@ header{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 }
 .empty-card h3{ margin:0 0 6px; }
 .empty-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+
+/* ===== Справка: горячие клавиши и легенды ===== */
+.kbd{
+  display:inline-block;
+  padding:2px 6px;
+  border:1px solid var(--stroke);
+  border-radius:8px;
+  background:rgba(255,255,255,.06);
+  font-weight:800;
+  font-size:12px;
+}
+.help-list{ margin:0; padding-left:18px; }
+.help-list li{ margin:6px 0; }
+.legend-dot{ display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; }
+.legend-dot.ok{ background:var(--ok); }
+.legend-dot.off{ background:#888; }

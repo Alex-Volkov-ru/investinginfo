@@ -29,18 +29,19 @@
   <div class="container">
     <header>
       <div class="search-wrap">
-        <input id="searchInput" type="text" placeholder="Поиск по тикерам/названию…" />
+        <input id="searchInput" type="text" placeholder="Поиск по тикерам/названию…" title="Искать по тикеру и названию (горячая клавиша / )" />
       </div>
 
       <div class="header-actions">
-        <button class="btn btn-ghost" id="toggleAllBtn" title="Свернуть/развернуть все секции">⤴️ Все</button>
+        <button class="btn btn-ghost" id="toggleAllBtn" title="Свернуть/развернуть все секции (S)">⤴️ Все</button>
         <div id="authStatus" class="auth-status">Гость</div>
-        <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
-        <button id="refreshBtn" class="btn" title="Обновить котировки">🔄 Обновить</button>
-        <button id="themeToggle" class="btn" title="Сменить тему">🌓 Тема</button>
+        <button id="logoutBtn" class="btn btn-danger" title="Выйти из аккаунта">🚪 Выйти</button>
+        <button id="refreshBtn" class="btn" title="Обновить котировки (R)">🔄 Обновить</button>
+        <button id="themeToggle" class="btn" title="Сменить тему (T)">🌓 Тема</button>
         <button id="apiStatusBtn" class="btn" title="Подключение Tinkoff Invest API">
           🔌 <span id="apiStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#888;margin-left:6px;"></span>
         </button>
+        <button id="helpBtn" class="btn" title="Справка и горячие клавиши (?)">❓ Справка</button>
       </div>
     </header>
 
@@ -61,16 +62,21 @@
 
     <div class="title-row">
       <h2 class="zone-title">Позиции</h2>
-      <button id="openAddBtn" class="btn btn-primary">Добавить актив</button>
+      <button id="openAddBtn" class="btn btn-primary" title="Добавить актив (A)">Добавить актив</button>
     </div>
 
-    <!-- НУЛЕВОЕ СОСТОЯНИЕ (когда нет позиций) -->
-    <div id="emptyState" class="empty-state hidden" aria-live="polite">
+    <!-- Нулевое состояние -->
+    <div id="emptyState" class="empty-state hidden">
       <div class="empty-card">
-        <h3>Здесь будут ваши активы</h3>
-        <p class="muted">Добавьте первую позицию или пополнение накопительного счёта.</p>
+        <h3>Как начать</h3>
+        <ol class="muted">
+          <li>Нажмите <b>«Добавить актив»</b> и внесите первую сделку (или пополнение накопит. счёта).</li>
+          <li>Нажмите <b>«Обновить»</b> — подтянем FIGI и котировки, появятся графики.</li>
+          <li>Используйте <b>поиск</b> и <b>сворачивание секций</b> для навигации.</li>
+        </ol>
         <div class="empty-actions">
-          <button id="emptyAddBtn" class="btn btn-primary">＋ Добавить актив</button>
+          <button class="btn btn-primary" id="emptyAddBtn">Добавить актив</button>
+          <button class="btn" id="helpOpenSecondary">Показать справку</button>
         </div>
       </div>
     </div>
@@ -82,32 +88,7 @@
   <div class="toast-wrap" id="toastWrap"></div>
 
   <!-- FAB (мобилка) -->
-  <button id="fabAddBtn" class="fab" title="Добавить актив">＋</button>
-
-  <!-- Модалка: ОНБОРДИНГ (один раз, с чекбоксом "не показывать") -->
-  <div id="onboardingModal" class="modal" aria-hidden="true">
-    <div class="modal__dialog">
-      <div class="modal__header">
-        <h3>Как начать</h3>
-        <button class="modal__close" id="onbCloseX" aria-label="Закрыть">✕</button>
-      </div>
-      <div class="form-grid">
-        <div class="readonly-box">
-          <ol>
-            <li>Нажмите «Добавить актив» и внесите первую сделку (или пополнение накопит. счёта).</li>
-            <li>Нажмите «Обновить» — подтянем FIGI и котировки, появятся графики.</li>
-            <li>Используйте поиск и сворачивание секций для навигации по портфелю.</li>
-          </ol>
-          <label class="checkbox-row" style="margin-top:8px">
-            <input id="onbDontShow" type="checkbox" /> Больше не показывать
-          </label>
-        </div>
-      </div>
-      <div class="modal__footer">
-        <button id="onbCloseBtn" class="btn btn-primary">Понятно</button>
-      </div>
-    </div>
-  </div>
+  <button id="fabAddBtn" class="fab" title="Добавить актив (A)">＋</button>
 
   <!-- Модалка: ДОБАВИТЬ АКТИВ -->
   <div id="addModal" class="modal" aria-hidden="true">
@@ -212,6 +193,30 @@
         <button id="modalCancelBtn" class="btn btn-ghost">Отмена</button>
         <button id="modalClearBtn" class="btn btn-danger">Очистить</button>
         <button id="modalSaveBtn" class="btn btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка: СПРАВКА -->
+  <div id="helpModal" class="modal" aria-hidden="true">
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Справка и горячие клавиши</h3>
+        <button class="modal__close" id="helpCloseX" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal__body">
+        <ul class="help-list">
+          <li><b>Поиск</b> — ищите по тикеру и названию. Горячая клавиша <span class="kbd">/</span>.</li>
+          <li><b>Все</b> — свернуть/развернуть все секции. Клавиша <span class="kbd">S</span>.</li>
+          <li><b>Обновить</b> — подтянуть котировки и FIGI. Клавиша <span class="kbd">R</span>.</li>
+          <li><b>Тема</b> — тёмная/светлая тема. Клавиша <span class="kbd">T</span>.</li>
+          <li><b>Добавить актив</b> — модалка ввода сделки. Клавиша <span class="kbd">A</span>.</li>
+          <li><b>API Тинькофф</b> — индикатор подключения (<span class="legend-dot ok"></span> подключено, <span class="legend-dot off"></span> нет). Нажмите, чтобы изменить токен.</li>
+          <li><b>Справка</b> — это окно. Клавиша <span class="kbd">?</span>.</li>
+        </ul>
+      </div>
+      <div class="modal__footer">
+        <button id="helpCloseBtn" class="btn btn-primary">Понятно</button>
       </div>
     </div>
   </div>
