@@ -31,6 +31,7 @@
         <div class="select-wrap" style="min-width:170px"><input id="periodInput" type="month" /></div>
         <button id="refreshBtn" class="btn" title="Обновить данные">🔄 Обновить</button>
         <button id="themeToggle" class="btn" title="Сменить тему">🌓 Тема</button>
+        <button id="helpBtn" class="btn" title="Справка и горячие клавиши">❓ Справка</button>
       </div>
     </header>
 
@@ -159,7 +160,7 @@
               <tr>
                 <th class="col-date">Дата</th>
                 <th class="col-cat">Категория</th>
-                <th class="t-right col-sum">Сумма</th>
+                <th class="t-right col-sум">Сумма</th>
                 <th class="t-hide-sm col-desc">Описание</th>
               </tr>
             </thead>
@@ -248,6 +249,30 @@
         <label>Название <input type="text" id="catmName" placeholder="Напр. Зарплата" required></label>
         <div class="modal__footer"><button type="submit" class="btn btn-primary">Добавить</button></div>
       </form>
+    </div>
+  </div>
+
+  <!-- ===== HELP MODAL ===== -->
+  <div id="helpModal" class="modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Справка и горячие клавиши</h3>
+        <button class="modal__close" data-close>&times;</button>
+      </div>
+      <div class="form">
+        <ul class="help-list">
+          <li><b>Поиск</b> — по названию операции/категории. Клавиша <span class="kbd">/</span>.</li>
+          <li><b>Все</b> — свернуть/развернуть все секции. Клавиша <span class="kbd">S</span>.</li>
+          <li><b>Обновить</b> — перезагрузить данные за выбранный месяц. Клавиша <span class="kbd">R</span>.</li>
+          <li><b>Тема</b> — тёмная/светлая. Клавиша <span class="kbd">T</span>.</li>
+          <li><b>Добавить операцию</b> — открыть модалку доход/расход/перевод. Клавиша <span class="kbd">A</span>.</li>
+          <li><b>Раскрытие строки</b> — клик по строке таблицы показывает детали.</li>
+          <li><b>Портфель всего</b> — подтягивается с вкладки «Инвестиции» и отображается в KPI.</li>
+          <li><b>Справка</b> — открыть/закрыть это окно: <span class="kbd">?</span>.</li>
+        </ul>
+      </div>
+      <div class="modal__footer"><button class="btn btn-primary" data-close>Понятно</button></div>
     </div>
   </div>
 

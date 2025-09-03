@@ -563,7 +563,8 @@
   }
   document.getElementById('openOpModal')?.addEventListener('click', ensureAccountButtonsNearSelects);
   function closeModal(sel){ const m=$(sel); if(!m) return; m.setAttribute('hidden',''); m.style.removeProperty('display'); m.style.removeProperty('visibility'); m.style.removeProperty('opacity'); document.body.style.overflow=''; }
-  $('#openOpModal')?.addEventListener('click', (e)=>{ fillAccountSelects(); fillCategoriesForModal(); const mDate=document.getElementById('m_date'); if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000; openModal('#opModal', e); });
+  const openOpModalFlow = (e)=>{ fillAccountSelects(); fillCategoriesForModal(); const mDate=document.getElementById('m_date'); if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000; openModal('#opModal', e); };
+  $('#openOpModal')?.addEventListener('click', (e)=> openOpModalFlow(e));
   $('#openCatModal')?.addEventListener('click', (e)=> openModal('#catModal', e));
   document.querySelectorAll('.modal [data-close]')?.forEach(btn=> btn.addEventListener('click', ev=>{ const root=ev.currentTarget.closest('.modal'); if(root){ root.setAttribute('hidden',''); document.body.style.overflow=''; } }));
   window.addEventListener('keydown', ev=>{ if (ev.key==='Escape'){ document.querySelectorAll('.modal:not([hidden])').forEach(m=>m.setAttribute('hidden','')); document.body.style.overflow=''; } });
@@ -701,6 +702,29 @@
   }
   document.getElementById('refreshBtn')?.addEventListener('click', ()=>refreshAll());
   document.getElementById('periodInput')?.addEventListener('change', ()=>refreshAll());
+
+  // ====== HELP MODAL + HOTKEYS ======
+  function openHelp(){ openModal('#helpModal'); }
+  document.getElementById('helpBtn')?.addEventListener('click', openHelp);
+
+  function focusSearch(){ const el = document.getElementById('searchInput'); if(el){ el.focus(); el.select?.(); } }
+
+  document.addEventListener('keydown', (e)=>{
+    const activeModalOpen = !!document.querySelector('.modal:not([hidden])');
+    const tag = (e.target?.tagName || '').toLowerCase();
+    const typing = tag==='input' || tag==='textarea' || e.target?.isContentEditable;
+
+    // Быстрый фокус поиска
+    if (e.key === '/') { if(!typing && !activeModalOpen){ e.preventDefault(); focusSearch(); } return; }
+    if (typing || activeModalOpen) return;
+
+    const k = e.key.toLowerCase();
+    if (k === 'r'){ e.preventDefault(); refreshAll(); }
+    if (k === 't'){ e.preventDefault(); const btn=document.getElementById('themeToggle'); btn?.click(); }
+    if (k === 's'){ e.preventDefault(); document.getElementById('toggleAllBtn')?.click(); }
+    if (k === 'a'){ e.preventDefault(); openOpModalFlow(); }
+    if (e.key === '?' || (e.shiftKey && e.key === '/')){ e.preventDefault(); openHelp(); }
+  });
 
   // ===== init =====
   (async ()=>{
