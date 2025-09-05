@@ -1046,11 +1046,6 @@ async function hardRefresh(){ await recalcQuotes(); }
 document.addEventListener('DOMContentLoaded', async ()=>{
   initTheme();
 
-  const headerEl = document.querySelector('header');
-  const applyCompact = () => headerEl.classList.toggle('header--compact', window.scrollY > 8);
-  window.addEventListener('scroll', applyCompact, { passive: true });
-  applyCompact();
-
   // title
   loadTitle();
 
