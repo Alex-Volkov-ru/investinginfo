@@ -1,6 +1,27 @@
+/* HEADER: same size as Investments, but not sticky */
+:root{ --header-h: 56px; }
+.app-header{
+  /* визуал и размеры как на вкладке Инвестиции */
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  height: var(--header-h);
+  padding: 0 clamp(10px,1.6vw,14px);
+  backdrop-filter:saturate(1.2) blur(6px);
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border:1px solid var(--stroke);
+  border-radius: clamp(10px,1.8vw,14px);
+  box-shadow: var(--shadow);
+}
+/* отключаем «липкость» и любые top/margin от глобального стиля */
+.app-header--static{
+  position: static !important;
+  top: auto !important;
+  margin-top: 0 !important;
+}
+/* чтобы глобальный selector header{} из style.css не навесил sticky */
+header.app-header{ position: static !important; }
+
 /* Бюджет — визуал в стиле портфеля */
 .budget-page{
-  /* было: display:grid; gap:16px; */
   display:flex;
   flex-direction:column;
   gap:16px;
@@ -41,7 +62,7 @@ body{
   padding-right: var(--safe-right);
 }
 
-/* чтобы верхний блок не "уплывал" из-за большого safe-area */
+/* верхний внутренний отступ контейнера (на случай бровей/динамических safe areas) */
 .container{
   padding-top: clamp(8px, var(--safe-top), 16px);
   padding-bottom: clamp(8px, var(--safe-bottom), 16px);
@@ -121,7 +142,6 @@ html[data-theme="light"] .budget-page .kpi{
   font-weight: 800;
   line-height: 1;
 }
-/* адаптив для очень узких экранов */
 @media (max-width: 860px){
   .budget-page .kpis{ grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
 }
@@ -398,4 +418,44 @@ html[data-theme="light"] .dd__list{ --dialog-bg:#ffffff; }
 }
 .toast.err{
   background:linear-gradient(135deg, #ff6b6b, #f43f5e); color:#fff;
+}
+
+/* ===== HEADER (фикс налезания) ===== */
+:root{ --header-h: 56px; }
+
+/* было с фикс-высотой; делаем авто-высоту и перенос */
+.app-header{
+  position: static !important;
+  display: flex;
+  flex-wrap: wrap;              /* ← разрешаем перенос строк */
+  align-items: center;
+  gap: 8px 12px;
+  height: auto !important;      /* ← вместо фиксированной */
+  min-height: var(--header-h);  /* минимальная высота как на «Инвестициях» */
+  padding: 10px clamp(10px,1.6vw,14px);
+  margin-bottom: 22px;          /* ↓ отступ под табы, чтобы точно не касались */
+  backdrop-filter: saturate(1.2) blur(6px);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border: 1px solid var(--stroke);
+  border-radius: clamp(10px,1.8vw,14px);
+  box-shadow: var(--shadow);
+  z-index: 1;
+}
+
+/* делаем блоки внутри шапки адаптивными, чтобы красиво переносились */
+.search-wrap{ flex: 1 1 260px; min-width: 260px; max-width: 520px; }
+.header-actions{
+  flex: 1 1 420px;
+  display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end;
+}
+
+/* табы — под шапкой, с небольшим «воздухом» */
+.container > .tabs-row{
+  position: relative; z-index: 0;
+  margin-top: 0;
+  padding-top: 2px;
+}
+
+@media (max-width: 640px){
+  .app-header{ margin-bottom: 26px; }   /* чуть больше воздуха на узких экранах */
 }
