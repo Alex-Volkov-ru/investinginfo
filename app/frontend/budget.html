@@ -43,19 +43,39 @@
     <main class="budget-page">
 
       <!-- Итоги -->
-      <details open class="card collapsible">
-        <summary class="card-head"><h2><span class="chev">▸</span> Итоги месяца</h2></summary>
+      <details open class="collapsible kpi-block">
+        <summary class="card-head">
+          <h2><span class="chev">▸</span> Итоги месяца</h2>
+        </summary>
+
         <div class="kpis">
-          <div class="kpi"><div class="kpi__label">Доходы</div><div class="kpi__value" id="kpiIncome">0 ₽</div></div>
-          <div class="kpi"><div class="kpi__label">Расходы</div><div class="kpi__value" id="kpiExpense">0 ₽</div></div>
-          <div class="kpi"><div class="kpi__label">Остаток</div><div class="kpi__value" id="kpiNet">0 ₽</div></div>
-          <div class="kpi"><div class="kpi__label">Накопительный счёт</div><div class="kpi__value" id="kpiSavings">0 ₽</div></div>
+          <div class="kpi">
+            <div class="kpi__label">Доходы</div>
+            <div class="kpi__value" id="kpiIncome">0 ₽</div>
+          </div>
+
+          <div class="kpi">
+            <div class="kpi__label">Расходы</div>
+            <div class="kpi__value" id="kpiExpense">0 ₽</div>
+          </div>
+
+          <div class="kpi">
+            <div class="kpi__label">Остаток</div>
+            <div class="kpi__value" id="kpiNet">0 ₽</div>
+          </div>
+
+          <div class="kpi">
+            <div class="kpi__label">Накопительный счёт</div>
+            <div class="kpi__value" id="kpiSavings">0 ₽</div>
+            <div class="kpi-actions">
+            </div>
+          </div>
+
           <div class="kpi" id="kpiPortfolioCard" hidden>
             <div class="kpi__label">Портфель всего</div>
             <div class="kpi__value" id="kpiPortfolioTotal">—</div>
           </div>
         </div>
-      </details>
 
       <!-- Диаграммы -->
       <details class="card collapsible">

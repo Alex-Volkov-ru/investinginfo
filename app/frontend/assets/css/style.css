@@ -117,7 +117,7 @@ h1{margin:0; font-weight:800; letter-spacing:-.3px; font-size: clamp(18px, 2.5vw
 .chart-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg)}
 .chart-card h3{margin:0 0 6px; color:var(--muted); font-size: clamp(11px,1.6vw,13px); letter-spacing:.2px; text-transform:uppercase}
 
-.portfolio-summary{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:var(--gap); margin-bottom:var(--gap)}
+.portfolio-summary{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:var(--gap); margin-bottom:var(--gap);}
 .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:var(--radius); padding:14px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); box-shadow:var(--shadow)}
 .summary-title{font-size: clamp(11px,1.6vw,12px); color:var(--muted); text-transform:uppercase; letter-spacing:.25px; margin-bottom:6px}
 .summary-num{font-size: clamp(20px,3vw,26px); font-weight:800}

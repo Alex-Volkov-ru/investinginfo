@@ -427,7 +427,6 @@ function renderSections(){
           <div>Кол-во: <b>${fmt(it.quantity,0)}</b></div>
           <div>Цена ср.: <b>${fmt(it.avgPrice)} ₽</b></div>
           <div>Тек. цена: <b>${fmt(curPrice)} ₽</b></div>
-          <div>Дата покупки: <b>${fmtISOtoRU(it.date)}</b></div>
           <div>Стоимость: <b>${fmt(curVal)} ₽</b></div>
           <div class="pnl-big" style="${pnlColor}">P/L: <b>${fmt(pnlAbs)} ₽</b> (${fmt(pnlPct)}%)</div>
         </div>
