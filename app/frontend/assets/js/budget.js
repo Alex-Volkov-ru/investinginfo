@@ -119,8 +119,7 @@
     ctx.fillStyle=muted; ctx.font='700 12px Inter'; if(info.title) ctx.fillText(info.title,x,y-18);
     ctx.fillStyle=text;  ctx.font='800 16px Inter'; if(info.line1) ctx.fillText(info.line1,x,y+2);
     if(info.line2){ ctx.fillStyle=info.line2Color || muted; ctx.font='800 12px Inter'; ctx.fillText(info.line2,x,y+20); }
-    ctx.restore();
-  }});
+    ctx.restore();}});
   function hsl(h,s,l,a=1){ return `hsla(${h} ${s}% ${l}% / ${a})`; }
   function catPalette(ctx, labels, kind){
     const n = Math.max(labels.length,1);
@@ -712,9 +711,20 @@
 
   // ===== Toggle all sections =====
   const toggleAllBtn = document.getElementById('toggleAllBtn');
-  function anyOpen(){ return Array.from(document.querySelectorAll('details.collapsible')).some(d=>d.open); }
-  function updateToggleAllBtn(){ if (!toggleAllBtn) return; const open=anyOpen(); toggleAllBtn.textContent=open?'⤵️ Все':'⤴️ Все'; toggleAllBtn.title=open?'Свернуть все секции':'Развернуть все секции'; toggleAllBtn.disabled=false; }
-  toggleAllBtn?.addEventListener('click', ()=>{ const open=anyOpen(); document.querySelectorAll('details.collapsible').forEach(d=> d.open=!open); updateToggleAllBtn(); });
+  const listDetails = () => Array.from(document.querySelectorAll('details.collapsible:not(.kpi-block)'));
+  function anyOpen(){ return listDetails().some(d=>d.open); }
+  function updateToggleAllBtn(){
+    if (!toggleAllBtn) return;
+    const open=anyOpen();
+    toggleAllBtn.textContent=open?'⤵️ Все':'⤴️ Все';
+    toggleAllBtn.title=open?'Свернуть все секции':'Развернуть все секции';
+    toggleAllBtn.disabled=false;
+  }
+  toggleAllBtn?.addEventListener('click', ()=>{
+    const open=anyOpen();
+    listDetails().forEach(d=> d.open=!open);   // KPI-блок не трогаем
+    updateToggleAllBtn();
+  });
   updateToggleAllBtn();
 
   // ===== Summary (KPI) =====

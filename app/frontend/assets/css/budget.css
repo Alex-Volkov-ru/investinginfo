@@ -1,6 +1,9 @@
 /* Бюджет — визуал в стиле портфеля */
 .budget-page{
-  display:grid; gap:16px;
+  /* было: display:grid; gap:16px; */
+  display:flex;
+  flex-direction:column;
+  gap:16px;
   font-variant-numeric: tabular-nums lining-nums;
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
 }
@@ -82,6 +85,10 @@ html[data-theme="light"] .budget-page .card{
 .budget-page .collapsible>summary::-webkit-details-marker{ display:none }
 .budget-page .chev{ display:inline-block; width:1em; height:1em; margin-right:8px; transform-origin:center; transition:transform .25s ease; font-weight:900; color:var(--muted) }
 .budget-page .collapsible[open] .chev{ transform:rotate(90deg) }
+
+/* === KPI-блок: не сворачивается, стрелку скрыть === */
+.kpi-block > summary{ pointer-events:none; cursor:default; }
+.kpi-block > summary .chev{ display:none; }
 
 /* ===== KPI — визуал как «Итоги» на вкладке Инвестиции ===== */
 .budget-page .kpis{
