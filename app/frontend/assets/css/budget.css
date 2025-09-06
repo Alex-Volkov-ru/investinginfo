@@ -459,3 +459,11 @@ html[data-theme="light"] .dd__list{ --dialog-bg:#ffffff; }
 @media (max-width: 640px){
   .app-header{ margin-bottom: 26px; }   /* чуть больше воздуха на узких экранах */
 }
+
+/* ===== PERF MODE: убираем дорогие эффекты, когда включён no-fx ===== */
+html.no-fx body{ animation: none !important; }
+html.no-fx .aurora, html.no-fx .blob{ display: none !important; }
+html.no-fx header{ backdrop-filter: none !important; }
+html.no-fx .chart-card, html.no-fx .section, html.no-fx .btn{ box-shadow: none !important; }
+html.no-fx .skeleton{ animation: none !important; }
+html.no-fx *{ transition: none !important; }

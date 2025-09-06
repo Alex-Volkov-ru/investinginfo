@@ -333,3 +333,11 @@ header{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 .legend-dot{ display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; }
 .legend-dot.ok{ background:var(--ok); }
 .legend-dot.off{ background:#888; }
+
+/* ===== PERF MODE: убираем дорогие эффекты, когда включён no-fx ===== */
+html.no-fx body{ animation: none !important; }
+html.no-fx .aurora, html.no-fx .blob{ display: none !important; }
+html.no-fx header{ backdrop-filter: none !important; }
+html.no-fx .chart-card, html.no-fx .section, html.no-fx .btn{ box-shadow: none !important; }
+html.no-fx .skeleton{ animation: none !important; }
+html.no-fx *{ transition: none !important; }

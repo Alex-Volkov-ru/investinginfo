@@ -1,4 +1,4 @@
-/* global axios, Chart */
+if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAspectRatio = false; Chart.defaults.resizeDelay = 200; }
 (() => {
   'use strict';
   if (window.__BUDGET_APP_INITIALIZED__) return;
@@ -13,7 +13,7 @@
   // ===== helpers =====
   const $ = s => document.querySelector(s);
   const setText = (el, v) => { if (el) el.textContent = v; };
-  const fmtMoney = (v, cur='RUB') => new Intl.NumberFormat('ru-RU', {style:'currency', currency:cur, maximumFractionDigits:2}).format(Number(v||0));
+  const fmtMoney = (v, cur='RUB', d=2) => new Intl.NumberFormat('ru-RU', {style:'currency', currency:cur, maximumFractionDigits:d}).format(Number(v||0));
   const nfPct = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
   const humanType = row => row.type==='income' ? 'Доход' : (row.type==='expense' ? 'Расход' : 'Перевод');
 
