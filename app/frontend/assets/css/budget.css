@@ -75,6 +75,10 @@ body{
 .budget-page .card{
   background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
   border:1px solid var(--stroke); border-radius:16px; padding:16px; box-shadow:var(--shadow);
+
+  /* PERF: пропускаем отрисовку вне вьюпорта */
+  content-visibility: auto;
+  contain-intrinsic-size: 600px 800px;
 }
 html[data-theme="light"] .budget-page .card{
   background:linear-gradient(180deg, rgba(0,0,0,.03), rgba(0,0,0,.00));
@@ -300,7 +304,7 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .seg-btn.is-active{ opacity:1; color:#0c0f21; background:linear-gradient(135deg, var(--brand), var(--brand2)) }
 
 /* ====== Универсальная «корзина» ====== */
-.btn-del{ display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; }
+.btn-del{ display:inline-flex; align-items:center; gap:8px; padding:8px 12px; }
 .btn-del .ico{ pointer-events:none }
 
 /* ====== ТАБЛИЦА КАТЕГОРИЙ ====== */

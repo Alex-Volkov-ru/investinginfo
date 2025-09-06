@@ -40,7 +40,29 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   // ===== Theme =====
   function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); }
   (function initTheme(){ setTheme(localStorage.getItem('pf_theme') || 'dark'); })();
-  function onThemeChanged(){ requestAnimationFrame(()=> loadCharts(activeAbort?.signal)); }
+
+  // onThemeChanged — без лишних запросов: пересоздаём только инстансы чартов
+  function onThemeChanged(){
+    Object.keys(CHARTS).forEach(k=>{
+      if (CHARTS[k]) { try{ CHARTS[k].destroy(); }catch(_){} CHARTS[k]=null; }
+    });
+    chartsObserved = false;
+    observeChartsOnce();
+
+    // если в кадре — перерисуем сразу
+    if (CHART_DATA){
+      ['incChart','expChart','expByDayChart'].forEach(id=>{
+        const el = document.getElementById(id);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        if (r.top < innerHeight && r.bottom > 0){
+          if (id==='incChart')  upsertDoughnutReusable('inc', el, CHART_DATA.inc.labels,  CHART_DATA.inc.values,  CHART_DATA.inc.total,  'inc');
+          if (id==='expChart')  upsertDoughnutReusable('exp', el, CHART_DATA.exp.labels,  CHART_DATA.exp.values,  CHART_DATA.exp.total,  'exp');
+          if (id==='expByDayChart'){ const L=CHART_DATA.line; upsertExpenseLineReusable('line', el, L.labels, L.values, L.year, L.month); }
+        }
+      });
+    }
+  }
   document.getElementById('themeToggle')?.addEventListener('click', ()=>{
     const next = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
     setTheme(next); onThemeChanged();
@@ -102,7 +124,11 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   let selectedLedgerCat = null;
   let selectedRecentCat = null;
 
-  // ===== Charts helpers =====
+  // ===== Charts helpers (PERF) =====
+  const CHARTS = { inc: null, exp: null, line: null };
+  let CHART_DATA = null;
+  let chartsObserved = false;
+
   const donutCenter = (getInfo)=>({ id:'donutCenter', beforeDraw(chart){
     const meta = chart.getDatasetMeta(0); if(!meta || !meta.data || !meta.data.length) return;
     const arc = meta.data[0]; const {x,y} = arc; const innerR = arc.innerRadius;
@@ -119,7 +145,9 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
     ctx.fillStyle=muted; ctx.font='700 12px Inter'; if(info.title) ctx.fillText(info.title,x,y-18);
     ctx.fillStyle=text;  ctx.font='800 16px Inter'; if(info.line1) ctx.fillText(info.line1,x,y+2);
     if(info.line2){ ctx.fillStyle=info.line2Color || muted; ctx.font='800 12px Inter'; ctx.fillText(info.line2,x,y+20); }
-    ctx.restore();}});
+    ctx.restore();
+  }});
+
   function hsl(h,s,l,a=1){ return `hsla(${h} ${s}% ${l}% / ${a})`; }
   function catPalette(ctx, labels, kind){
     const n = Math.max(labels.length,1);
@@ -128,16 +156,84 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
     return labels.map((_,i)=>{ const h=(start + (i*spread)/n)%360; const g=ctx.createLinearGradient(0,0,0,260); g.addColorStop(0,hsl(h,75,60)); g.addColorStop(1,hsl(h,75,42)); return g; });
   }
   const commonTooltip = { callbacks:{ label(c){ const v=Number(c.raw||0); const sum=(c.dataset.data||[]).reduce((s,x)=>s+Number(x||0),0)||1; const p=v/sum*100; return `${c.label}: ${fmtMoney(v)} (${nfPct.format(p)}%)`; } } };
-  function upsertDoughnut(canvas, labels, values, total, kind){
-    if(!canvas) return null; const prev=Chart.getChart(canvas); if(prev) prev.destroy();
-    const ctx = canvas.getContext('2d'); const colors = catPalette(ctx, labels, kind);
-    return new Chart(ctx,{ type:'doughnut', data:{ labels, datasets:[{ data:values, borderWidth:0, hoverOffset:8, cutout:'62%', backgroundColor:colors }] }, options:{ plugins:{ legend:{ display:false }, tooltip:commonTooltip }, animation:{ duration:900, easing:'easeOutQuart' } }, plugins:[donutCenter(()=>({ title:'Итого', line1:fmtMoney(total) }))] });
+
+  function upsertDoughnutReusable(key, canvas, labels, values, total, kind){
+    if(!canvas) return null;
+    const ctx = canvas.getContext('2d');
+    if (CHARTS[key]){
+      const ch = CHARTS[key];
+      ch.data.labels = labels;
+      ch.data.datasets[0].data = values;
+      ch.update();
+      return ch;
+    }
+    const colors = catPalette(ctx, labels, kind);
+    CHARTS[key] = new Chart(ctx,{
+      type:'doughnut',
+      data:{ labels, datasets:[{ data:values, borderWidth:0, hoverOffset:8, cutout:'62%', backgroundColor:colors }] },
+      options:{ plugins:{ legend:{ display:false }, tooltip:commonTooltip }, animation:{ duration:600, easing:'easeOutQuart' } },
+      plugins:[donutCenter(()=>({ title:'Итого', line1:fmtMoney(total) }))]
+    });
+    return CHARTS[key];
   }
-  function upsertExpenseLine(canvas, labels, values, year, month){
-    if(!canvas) return null; const ctx = canvas.getContext('2d'); const theme = getComputedStyle(document.documentElement);
-    const line = (theme.getPropertyValue('--brand') || '#6a7dff').trim(); const g = ctx.createLinearGradient(0,0,0,300); g.addColorStop(0,'rgba(67,97,238,.35)'); g.addColorStop(1,'rgba(67,97,238,.05)');
-    const prev = Chart.getChart(canvas); if(prev) prev.destroy();
-    return new Chart(ctx,{ type:'line', data:{ labels, datasets:[{ data:values, fill:true, backgroundColor:g, borderColor:line, borderWidth:2.5, pointRadius:0, tension:.25 }] }, options:{ plugins:{ legend:{ display:false }, tooltip:{ mode:'index', intersect:false, callbacks:{ title(items){ const d=Number(items[0].label||'0'); const mm=String(month).padStart(2,'0'); const dd=String(d).padStart(2,'0'); return `${dd}.${mm}.${year}`; }, label(c){ return fmtMoney(c.parsed.y); } } } }, interaction:{ intersect:false, mode:'nearest' }, scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0 } }, y:{ ticks:{ callback:v=> new Intl.NumberFormat('ru-RU').format(v) }, grid:{ color: theme.getPropertyValue('--stroke') || 'rgba(0,0,0,.1)' } } }, animation:{ duration:700 } } });
+
+  function upsertExpenseLineReusable(key, canvas, labels, values, year, month){
+    if(!canvas) return null;
+    const ctx = canvas.getContext('2d');
+    const theme = getComputedStyle(document.documentElement);
+    const line = (theme.getPropertyValue('--brand') || '#6a7dff').trim();
+    const g = ctx.createLinearGradient(0,0,0,300); g.addColorStop(0,'rgba(67,97,238,.35)'); g.addColorStop(1,'rgba(67,97,238,.05)');
+
+    if (CHARTS[key]){
+      const ch = CHARTS[key];
+      ch.data.labels = labels;
+      ch.data.datasets[0].data = values;
+      ch.options.plugins.tooltip.callbacks.title = (items)=>{
+        const d=Number(items[0].label||'0'); const mm=String(month).padStart(2,'0'); const dd=String(d).padStart(2,'0');
+        return `${dd}.${mm}.${year}`;
+      };
+      ch.update();
+      return ch;
+    }
+
+    CHARTS[key] = new Chart(ctx,{
+      type:'line',
+      data:{ labels, datasets:[{ data:values, fill:true, backgroundColor:g, borderColor:line, borderWidth:2.5, pointRadius:0, tension:.25 }] },
+      options:{
+        plugins:{ legend:{ display:false }, tooltip:{ mode:'index', intersect:false, callbacks:{
+          title(items){ const d=Number(items[0].label||'0'); const mm=String(month).padStart(2,'0'); const dd=String(d).padStart(2,'0'); return `${dd}.${mm}.${year}`; },
+          label(c){ return fmtMoney(c.parsed.y); }
+        } } },
+        interaction:{ intersect:false, mode:'nearest' },
+        scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0 } },
+                y:{ ticks:{ callback:v=> new Intl.NumberFormat('ru-RU').format(v) }, grid:{ color: theme.getPropertyValue('--stroke') || 'rgba(0,0,0,.1)' } } },
+        animation:{ duration:500 }
+      }
+    });
+    return CHARTS[key];
+  }
+
+  const ioCharts = new IntersectionObserver((ents)=>{
+    ents.forEach(e=>{
+      if (!e.isIntersecting || !CHART_DATA) return;
+      if (e.target.id === 'incChart'){
+        upsertDoughnutReusable('inc', e.target, CHART_DATA.inc.labels, CHART_DATA.inc.values, CHART_DATA.inc.total, 'inc');
+      } else if (e.target.id === 'expChart'){
+        upsertDoughnutReusable('exp', e.target, CHART_DATA.exp.labels, CHART_DATA.exp.values, CHART_DATA.exp.total, 'exp');
+      } else if (e.target.id === 'expByDayChart'){
+        const L = CHART_DATA.line;
+        upsertExpenseLineReusable('line', e.target, L.labels, L.values, L.year, L.month);
+      }
+      ioCharts.unobserve(e.target);
+    });
+  });
+  function observeChartsOnce(){
+    if (chartsObserved) return;
+    ['incChart','expChart','expByDayChart'].forEach(id=>{
+      const el = document.getElementById(id);
+      if (el) ioCharts.observe(el);
+    });
+    chartsObserved = true;
   }
 
   // ===== Obligations =====
@@ -145,52 +241,48 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   async function loadObligations(signal){
     const ym = $('#periodInput')?.value;
     const { data } = await api.get('/budget/obligations', { params:{ month: ym }, signal });
-    const tbody = $('#obTable'); if(!tbody) return; tbody.innerHTML='';
+    const tbody = $('#obTable'); if(!tbody) return;
+
+    let html = '';
+    const totalsAll = {};
+    const totalsLeft = {};
+
     for (const r of data){
       const overdue = isOverdue(r.due_date, r.is_done);
-      const tr = document.createElement('tr');
-      tr.className = `ob-row ${r.is_done ? 'done':''} ${overdue ? 'overdue':''}`;
+      const status = r.is_done ? 'Оплачен' : (overdue ? 'Просрочен' : 'Запланирован');
+      const date = fmtDate(r.due_date);
+      const sum  = fmtMoney(r.amount, r.currency);
+      html += `
+        <tr class="ob-row ${r.is_done ? 'done':''} ${overdue ? 'overdue':''}" data-clickrow="1"
+            data-mode="ob" data-title="${r.title || ''}" data-date="${date}"
+            data-amount="${sum}" data-status="${status}">
+          <td class="col-date" title="${date}">${date}</td>
+          <td class="col-cat"  title="${r.title}"><span class="cell-clip">${r.title}</span></td>
+          <td class="t-right col-sum" title="${sum}">${sum}</td>
+          <td class="t-center col-done">
+            <input class="chk ob-done" type="checkbox" ${r.is_done ? 'checked':''}
+                   data-id="${r.id}" data-date="${r.due_date || ''}"/>
+          </td>
+          <td class="t-right col-actions">
+            <button class="btn btn-danger btn-sm btn-del" data-id="${r.id}" data-act="del" title="Удалить">
+              <span class="ico" aria-hidden="true">🗑</span><span class="txt">Удалить</span>
+            </button>
+          </td>
+        </tr>`;
 
-      tr.setAttribute('data-clickrow','1');
-      tr.dataset.mode   = 'ob';
-      tr.dataset.title  = r.title || '';
-      tr.dataset.date   = fmtDate(r.due_date);
-      tr.dataset.amount = fmtMoney(r.amount, r.currency);
-      tr.dataset.status = r.is_done ? 'Оплачен' : (overdue ? 'Просрочен' : 'Запланирован');
-
-      tr.innerHTML = `
-        <td class="col-date" title="${fmtDate(r.due_date)}">${fmtDate(r.due_date)}</td>
-        <td class="col-cat"  title="${r.title}"><span class="cell-clip">${r.title}</span></td>
-        <td class="t-right col-sum" title="${fmtMoney(r.amount, r.currency)}">${fmtMoney(r.amount, r.currency)}</td>
-        <td class="t-center col-done">
-          <input class="chk ob-done" type="checkbox" ${r.is_done ? 'checked':''}
-                data-id="${r.id}" data-date="${r.due_date || ''}"/>
-        </td>
-        <td class="t-right col-actions">
-          <button class="btn btn-danger btn-sm btn-del" data-id="${r.id}" data-act="del" title="Удалить">
-            <span class="ico" aria-hidden="true">🗑</span><span class="txt">Удалить</span>
-          </button>
-        </td>`;
-      tbody.appendChild(tr);
+      const cur = r.currency || 'RUB';
+      const amt = Number(r.amount || 0) || 0;
+      totalsAll[cur]  = (totalsAll[cur]  || 0) + amt;
+      if (!r.is_done) totalsLeft[cur] = (totalsLeft[cur] || 0) + amt;
     }
+    tbody.innerHTML = html;
 
-    // Totals
-    try {
-      const totalsAll = {};
-      const totalsLeft = {};
-      for (const r of data) {
-        const cur = r.currency || 'RUB';
-        const amt = Number(r.amount || 0) || 0;
-        totalsAll[cur]  = (totalsAll[cur]  || 0) + amt;
-        if (!r.is_done) totalsLeft[cur] = (totalsLeft[cur] || 0) + amt;
-      }
-      const fmtTotals = obj => {
-        const parts = Object.entries(obj).map(([cur, sum]) => fmtMoney(sum, cur));
-        return parts.length ? parts.join(' • ') : fmtMoney(0, 'RUB');
-      };
-      setText(document.getElementById('obTotalAll'),  fmtTotals(totalsAll));
-      setText(document.getElementById('obTotalLeft'), fmtTotals(totalsLeft));
-    } catch(_) {/* no-op */}
+    const fmtTotals = obj => {
+      const parts = Object.entries(obj).map(([cur, sum]) => fmtMoney(sum, cur));
+      return parts.length ? parts.join(' • ') : fmtMoney(0, 'RUB');
+    };
+    setText(document.getElementById('obTotalAll'),  fmtTotals(totalsAll));
+    setText(document.getElementById('obTotalLeft'), fmtTotals(totalsLeft));
   }
 
   // ===== Accounts & Categories =====
@@ -470,7 +562,7 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
     MONTH_TX = res.data || []; renderRecent(); renderLedger();
   }
 
-  // ===== Recent table =====
+  // ===== Recent table (batched) =====
   function resolveCategory(t){
     return (
       t.category_name ??
@@ -481,31 +573,34 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
     );
   }
   function renderRecent(){
-    const tbody = $('#txTable'); if(!tbody) return; tbody.innerHTML='';
-
+    const tbody = $('#txTable'); if(!tbody) return;
     const wanted = selectedRecentCat ? Number(selectedRecentCat) : null;
+
     const rows = [...MONTH_TX]
       .filter(t => !wanted || Number(t.category_id) === wanted || Number(t?.category?.id) === wanted)
       .sort((a,b)=> new Date(b.occurred_at) - new Date(a.occurred_at))
       .slice(0,50);
 
+    let html = '';
     for (const t of rows){
-      const tr = document.createElement('tr');
-      tr.setAttribute('data-clickrow','1');
-      tr.dataset.type = humanType(t);
-      tr.dataset.account = t.account_title ?? acctTitle(t.account_id);
-      tr.dataset.desc = t.description ?? '';
       const cat = resolveCategory(t);
-      tr.innerHTML = `
-        <td class="col-date">${fmtDate(t.occurred_at)}</td>
-        <td class="col-cat" title="${cat || ''}"><span class="cell-clip">${cat || '—'}</span></td>
-        <td class="t-right col-sum">${fmtMoney(t.amount, t.currency ?? (MAP_ACC[t.account_id]?.currency ?? 'RUB'))}</td>
-        <td class="t-hide-sm col-desc" title="${t.description ?? ''}"><span class="cell-clip">${t.description ?? ''}</span></td>`;
-      tbody.appendChild(tr);
+      const sum = fmtMoney(t.amount, t.currency ?? (MAP_ACC[t.account_id]?.currency ?? 'RUB'));
+      const date = fmtDate(t.occurred_at);
+      const desc = t.description ?? '';
+      const acc  = t.account_title ?? acctTitle(t.account_id);
+      const type = humanType(t);
+      html += `
+        <tr data-clickrow="1" data-type="${type}" data-account="${acc}" data-desc="${desc}">
+          <td class="col-date">${date}</td>
+          <td class="col-cat" title="${cat || ''}"><span class="cell-clip">${cat || '—'}</span></td>
+          <td class="t-right col-sum">${sum}</td>
+          <td class="t-hide-sm col-desc" title="${desc}"><span class="cell-clip">${desc}</span></td>
+        </tr>`;
     }
+    tbody.innerHTML = html;
   }
 
-  // ===== Ledger =====
+  // ===== Ledger (batched) =====
   function renderLedger(){
     const tab = document.querySelector('#ledgerTabs .tab-btn--active')?.dataset.tab || 'income';
     const wanted = selectedLedgerCat ? Number(selectedLedgerCat) : null;
@@ -520,22 +615,24 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
 
     function fill(sel, rows){
       const tbody = $(sel); if(!tbody) return 0;
-      tbody.innerHTML=''; let sum=0;
+      let sum=0, html='';
       for (const t of rows){
         sum += Number(t.amount || 0);
         const cat = resolveCategory(t);
-        const tr = document.createElement('tr');
-        tr.setAttribute('data-clickrow','1');
-        tr.dataset.type = humanType(t);
-        tr.dataset.account = t.account_title ?? acctTitle(t.account_id);
-        tr.dataset.desc = t.description ?? '';
-        tr.innerHTML = `
-          <td class="col-date">${fmtDate(t.occurred_at)}</td>
-          <td class="col-cat" title="${cat || ''}"><span class="cell-clip">${cat || '—'}</span></td>
-          <td class="t-right col-sum">${fmtMoney(t.amount, t.currency ?? (MAP_ACC[t.account_id]?.currency ?? 'RUB'))}</td>
-          <td class="t-hide-sm col-desc" title="${t.description ?? ''}"><span class="cell-clip">${t.description ?? ''}</span></td>`;
-        tbody.appendChild(tr);
+        const sumStr = fmtMoney(t.amount, t.currency ?? (MAP_ACC[t.account_id]?.currency ?? 'RUB'));
+        const date = fmtDate(t.occurred_at);
+        const desc = t.description ?? '';
+        const acc  = t.account_title ?? acctTitle(t.account_id);
+        const type = humanType(t);
+        html += `
+          <tr data-clickrow="1" data-type="${type}" data-account="${acc}" data-desc="${desc}">
+            <td class="col-date">${date}</td>
+            <td class="col-cat" title="${cat || ''}"><span class="cell-clip">${cat || '—'}</span></td>
+            <td class="t-right col-sum">${sumStr}</td>
+            <td class="t-hide-sm col-desc" title="${desc}"><span class="cell-clip">${desc}</span></td>
+          </tr>`;
       }
+      tbody.innerHTML = html;
       return sum;
     }
 
@@ -722,7 +819,7 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   }
   toggleAllBtn?.addEventListener('click', ()=>{
     const open=anyOpen();
-    listDetails().forEach(d=> d.open=!open);   // KPI-блок не трогаем
+    listDetails().forEach(d=> d.open=!open);
     updateToggleAllBtn();
   });
   updateToggleAllBtn();
@@ -749,12 +846,14 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
     } catch(_) { /* no-op */ }
   }
 
-  // ===== Charts load =====
+  // ===== Charts load (PERF) =====
   async function loadCharts(signal){
     const { from, to, days, year, month } = monthRange();
     const { data } = await api.get('/budget/summary/charts', { params:{ date_from:from, date_to:to }, signal });
-    const inc = (data.income_by_category||[]).map(x=>({ name:x.name ?? x.category, amount:Number(x.amount||0) }));
-    const exp = (data.expense_by_category||[]).map(x=>({ name:x.name ?? x.category, amount:Number(x.amount||0) }));
+
+    const inc = (data.income_by_category||[]).map(x=>({ name:(x.name ?? x.category), amount:Number(x.amount||0) }));
+    const exp = (data.expense_by_category||[]).map(x=>({ name:(x.name ?? x.category), amount:Number(x.amount||0) }));
+
     const byDayRaw = (data.expense_by_day||[]).map(x=>({ name:String(x.name||x.d), amount:Number(x.amount||0) }));
     const mapByDay = {};
     for (const r of byDayRaw){
@@ -763,11 +862,28 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
     }
     const labels = Array.from({length:days}, (_,i)=> String(i+1).padStart(2,'0'));
     const series = labels.map(d=> mapByDay[parseInt(d,10)] || 0);
+
     const incTotal = inc.reduce((s,x)=>s+x.amount,0);
     const expTotal = exp.reduce((s,x)=>s+x.amount,0);
-    upsertDoughnut($('#incChart'), inc.map(x=>x.name), inc.map(x=>x.amount), incTotal, 'inc');
-    upsertDoughnut($('#expChart'), exp.map(x=>x.name), exp.map(x=>x.amount), expTotal, 'exp');
-    upsertExpenseLine($('#expByDayChart'), labels, series, year, month);
+
+    CHART_DATA = {
+      inc:  { labels: inc.map(x=>x.name), values: inc.map(x=>x.amount), total: incTotal },
+      exp:  { labels: exp.map(x=>x.name), values: exp.map(x=>x.amount), total: expTotal },
+      line: { labels, values: series, year, month }
+    };
+
+    observeChartsOnce();
+    ['incChart','expChart','expByDayChart'].forEach(id=>{
+      const el = document.getElementById(id);
+      if (!el || !CHART_DATA) return;
+      const r = el.getBoundingClientRect();
+      const inView = r.top < window.innerHeight && r.bottom > 0;
+      if (inView){
+        if (id==='incChart')  upsertDoughnutReusable('inc', el, CHART_DATA.inc.labels,  CHART_DATA.inc.values,  CHART_DATA.inc.total,  'inc');
+        if (id==='expChart')  upsertDoughnutReusable('exp', el, CHART_DATA.exp.labels,  CHART_DATA.exp.values,  CHART_DATA.exp.total,  'exp');
+        if (id==='expByDayChart'){ const L=CHART_DATA.line; upsertExpenseLineReusable('line', el, L.labels, L.values, L.year, L.month); }
+      }
+    });
   }
 
   // ===== Refresh =====
@@ -786,7 +902,13 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
     finally{ if(btn){ btn.disabled=false; btn.textContent='Обновить'; } isRefreshing=false; scheduleNext(); }
   }
   document.getElementById('refreshBtn')?.addEventListener('click', ()=>refreshAll());
-  document.getElementById('periodInput')?.addEventListener('change', ()=>refreshAll());
+
+  // троттлинг смены периода
+  let _periodT;
+  document.getElementById('periodInput')?.addEventListener('change', ()=>{
+    clearTimeout(_periodT);
+    _periodT = setTimeout(()=>refreshAll(), 60);
+  });
 
   // ====== HELP MODAL + HOTKEYS ======
   function openHelp(){ openModal('#helpModal'); }
@@ -815,6 +937,10 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
     const mDate = document.getElementById('m_date');
     if (mDate) mDate.valueAsNumber = Date.now() - (new Date()).getTimezoneOffset()*60000;
     setModalType('income'); setModalKind('income');
+
+    // ленивые графики включаем сразу
+    observeChartsOnce();
+
     await refreshAll();
     injectTopUpButton();
   })();
