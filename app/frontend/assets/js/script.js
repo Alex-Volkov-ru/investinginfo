@@ -121,14 +121,16 @@ function initTheme(){ const t = localStorage.getItem('pf_theme') || 'dark'; setT
 // ====== DATEPICKER ======
 function initDatePicker(){
   if(fp) fp.destroy();
-  fp = flatpickr('#assetDate', {
-    locale: flatpickr.l10ns.ru,
-    dateFormat: 'Y-m-d',
-    altInput: true,
-    altFormat: 'd.m.Y',
-    allowInput: true,
-    defaultDate: new Date()
-  });
+  if (window.flatpickr) {
+    fp = flatpickr('#assetDate', {
+      locale: flatpickr.l10ns.ru,
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'd.m.Y',
+      allowInput: true,
+      defaultDate: new Date()
+    });
+  }
 }
 
 // ====== AXIOS ======
@@ -467,7 +469,7 @@ function renderSections(){
   updateEmptyState();
 }
 
-// ====== CHARTS (без доли накопит. счёта) ======
+// ====== CHARTS ======
 function grad(ctx, c1, c2){ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
 function rebuild(id, cfg){ const el=document.getElementById(id); if(!el) return null; if(charts[id]) charts[id].destroy(); const ctx=el.getContext('2d'); charts[id]=new Chart(ctx,cfg); return charts[id]; }
 function removeSkeleton(){ ['sk1','sk2','sk3'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('skeleton'); }); }
@@ -510,7 +512,7 @@ function renderCharts(){
   const isDark = theme === 'dark';
   const axisGrid = isDark ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.08)';
 
-  // Doughnut — только акции/ОФЗ/фонды
+  // Doughnut
   const classValues = [
     (portfolio.stocks||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),
     (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),
@@ -542,7 +544,7 @@ function renderCharts(){
           title:{ display:false }
         },
         onHover: (_, els) => { charts.c1.setActiveElements(els); charts.c1.update(); },
-        animation: { duration: 900, easing: 'easeOutQuart' }
+        animation: { duration: 300, easing: 'easeOutQuart' }
       },
       plugins: [donutCenter((chart) => {
         const active = chart.getActiveElements?.() || [];
@@ -576,7 +578,7 @@ function renderCharts(){
       x:{ grid:{ display:false }, ticks:{ maxRotation: 45, minRotation: 0, autoSkip:true, callback:(v, i)=> trimLabel(labelsTickers[i]) } },
       y:{ ticks:{ callback:(v)=> fmt(v) }, grid:{ color:axisGrid } }
     },
-    animation:{duration:700}
+    animation:{duration:250}
   };
 
   if(document.getElementById('chartByTickerValue')) rebuild('chartByTickerValue', {
@@ -597,7 +599,6 @@ function renderCharts(){
     }
   });
 
-  // — это значение дальше используется бюджетом (оставляем сумму БЕЗ накопит. счёта)
   try {
     localStorage.setItem('pf_portfolio_total', String(total));
     localStorage.setItem('pf_portfolio_currency', 'RUB');
@@ -620,7 +621,7 @@ function makeLineChart(canvasId,label){
         x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true } },
         y:{ grid:{ color:getComputedStyle(document.documentElement).getPropertyValue('--stroke')||'rgba(0,0,0,.1)' }, ticks:{ callback:(v)=> fmt(v) } }
       },
-      animation:{duration:600},
+      animation:{duration:250},
       interaction:{ intersect:false, mode:'nearest' }
     }
   });
@@ -703,7 +704,6 @@ async function addAsset(e){
   const date = dateVal || new Date().toISOString().slice(0,10);
 
   if(type==='savings'){
-    // В интерфейсе этот кейс недоступен, оставлен для совместимости
     const amount = parseFloat(document.getElementById('savingsAmount')?.value||'0')||0;
     if(amount<=0){ toast('Введите сумму','err'); return; }
     portfolio.savings.push({ value: amount, date });
@@ -858,6 +858,42 @@ function hookAddModal(){
   modal?.addEventListener('click', (e)=>{ if(e.target.id==='addModal') closeAddModal(); });
 }
 
+// ====== FAST SECTION TOGGLE (мгновенно, без тяжёлых перерисовок) ======
+function animateSection(bodyEl, open){
+  // отключаем «тяжёлые» эффекты на время анимации
+  document.documentElement.classList.add('no-fx');
+
+  const dur = 140; // мс
+  bodyEl.style.transition = 'height '+dur+'ms ease, opacity '+dur+'ms ease';
+
+  if(open){
+    bodyEl.style.display = 'block';
+    bodyEl.style.height = '0px';
+    bodyEl.style.opacity = '0';
+    // force reflow
+    void bodyEl.offsetHeight;
+    bodyEl.style.height = bodyEl.scrollHeight + 'px';
+    bodyEl.style.opacity = '1';
+    setTimeout(()=>{
+      bodyEl.style.height = 'auto';
+      bodyEl.style.transition = '';
+      document.documentElement.classList.remove('no-fx');
+    }, dur+20);
+  }else{
+    const h = bodyEl.scrollHeight;
+    bodyEl.style.height = h + 'px';
+    bodyEl.style.opacity = '1';
+    void bodyEl.offsetHeight;
+    bodyEl.style.height = '0px';
+    bodyEl.style.opacity = '0';
+    setTimeout(()=>{
+      bodyEl.style.transition = '';
+      bodyEl.style.display = '';
+      document.documentElement.classList.remove('no-fx');
+    }, dur+20);
+  }
+}
+
 // ====== CLICK HANDLERS (списки) ======
 document.addEventListener('click', async (e)=>{
   const act = e.target.closest('[data-action]'); if(!act) return;
@@ -936,7 +972,13 @@ document.addEventListener('click', async (e)=>{
     collapsedMap[sec] = !collapsedMap[sec];
     saveCollapsed();
     const el = document.querySelector(`.section[data-section="${sec}"]`);
-    if(el){ el.classList.toggle('open', !collapsedMap[sec]); const btn = el.querySelector('.section-toggle'); if(btn) btn.setAttribute('aria-expanded', String(!collapsedMap[sec])); }
+    if(el){
+      const body = el.querySelector('.section-body');
+      const willOpen = !el.classList.contains('open');
+      el.classList.toggle('open', willOpen);
+      act.setAttribute('aria-expanded', String(willOpen));
+      animateSection(body, willOpen);
+    }
     updateToggleAllBtn();
     return;
   }
@@ -946,7 +988,6 @@ document.addEventListener('click', async (e)=>{
 function updateEmptyState(){
   const el = document.getElementById('emptyState');
   if(!el) return;
-  // считаем только инвестиционные позиции
   const totalItems = ['stocks','bonds','funds']
     .reduce((s,k)=> s + ((portfolio[k]||[]).length), 0);
   el.classList.toggle('hidden', totalItems > 0);
@@ -1005,14 +1046,14 @@ function hookHeaderButtons(){
     toggle.classList.remove('rippling'); setTimeout(()=> toggle.classList.add('rippling'), 0); setTimeout(()=> toggle.classList.remove('rippling'), 250);
 
     const anyOpen = document.querySelectorAll('.section.open').length > 0;
-    const keys = ['stocks','bonds','funds']; // savings исключили
-    if(anyOpen){
-      keys.forEach(k=> collapsedMap[k]=true);
-      document.querySelectorAll('.section').forEach(s=> s.classList.remove('open'));
-    }else{
-      keys.forEach(k=> collapsedMap[k]=false);
-      document.querySelectorAll('.section').forEach(s=> s.classList.add('open'));
-    }
+    const keys = ['stocks','bonds','funds'];
+    keys.forEach(k=> collapsedMap[k] = anyOpen ? true : false);
+    document.querySelectorAll('.section').forEach(s=>{
+      const body = s.querySelector('.section-body');
+      const willOpen = !anyOpen;
+      s.classList.toggle('open', willOpen);
+      animateSection(body, willOpen);
+    });
     saveCollapsed();
     updateToggleAllBtn();
   });
@@ -1069,6 +1110,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('assetForm')?.addEventListener('submit', addAsset);
   document.getElementById('assetType')?.addEventListener('change', onTypeChange);
   onTypeChange();
+  initDatePicker();
 
   try{ await loadFromDB(); }catch(e){ console.warn('loadFromDB failed', e); toast('Не удалось загрузить портфель из БД','err'); }
 

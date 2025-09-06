@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title id="pageTitle">Инвестиции</title>
 
   <script>
@@ -20,31 +20,12 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
 
   <link rel="stylesheet" href="assets/css/style.css" />
-
-  <!-- KILL STICKY/FIXED: шапка не прилипает нигде -->
-  <style>
-    /* на случай, если во внешнем CSS/режиме ТГ задан sticky/fixed */
-    header, .app-header {
-      position: static !important;
-      top: auto !important;
-      inset: auto !important;
-      margin-top: 0 !important;
-    }
-    html.tg-app header,
-    html.tg-app .app-header {
-      position: static !important;
-      top: auto !important;
-    }
-    /* убираем компенсации высоты шапки, если где-то проставлялись */
-    body { padding-top: 0 !important; }
-  </style>
 </head>
 <body>
   <div class="aurora"></div>
   <div class="blob one"></div>
   <div class="blob two"></div>
 
-  <!-- Обычная (НЕ липкая) шапка -->
   <div class="container">
     <header>
       <div class="search-wrap">
@@ -65,7 +46,7 @@
     </header>
 
     <!-- Табы -->
-    <nav class="tabs-row" style="margin-top:2px">
+    <nav class="tabs-row">
       <a class="tab active" href="index.html">Инвестиции</a>
       <a class="tab" href="budget.html">Бюджетирование</a>
     </nav>
