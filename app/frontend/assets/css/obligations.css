@@ -1,0 +1,53 @@
+/* Обязательства — локальные стили (фон и типографика берём из style.css) */
+
+.ob-list{ display:grid; gap:var(--gap); }
+
+/* карточка */
+.ob-card{ background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border:1px solid var(--stroke); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow); }
+html[data-theme="light"] .ob-card{ background:linear-gradient(180deg, rgba(0,0,0,.03), rgba(0,0,0,0)); }
+
+.ob-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.ob-title{ font-size:clamp(16px,2.4vw,20px); font-weight:900; }
+.ob-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+/* мини-плашки статов */
+.stats{ display:grid; grid-template-columns:repeat(3, minmax(160px, 1fr)); gap:12px; margin-bottom:10px; }
+.stat{
+  background:var(--input-bg); border:1px solid var(--stroke); border-radius:14px;
+  padding:12px; box-shadow:var(--shadow); text-align:center;
+}
+.stat__label{ color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.25px; margin-bottom:6px; }
+.stat__val{ font-weight:900; font-size:18px; }
+
+.ob-grid{ display:grid; gap:14px; grid-template-columns:1fr; }
+@media (min-width:960px){ .ob-grid{ grid-template-columns:420px 1fr; } }
+
+/* kv-таблица */
+.ob-kv{ width:100%; border-collapse:collapse; table-layout:fixed; }
+.ob-kv th,.ob-kv td{ border-bottom:1px solid var(--stroke); padding:8px 10px; font-size:14px; }
+.ob-kv th{ text-align:left; color:var(--muted); width:56% }
+.ob-kv input{
+  width:100%; background:var(--input-bg); border:1px solid var(--stroke); color:var(--text);
+  border-radius:10px; padding:8px 10px; font-weight:700; font-size:14px;
+}
+
+/* график */
+.ob-chart{ background:transparent; border:1px dashed var(--stroke); border-radius:12px; padding:8px; }
+.ob-chart canvas{ width:100% !important; height:260px !important; display:block; }
+
+/* таблица платежей */
+.ob-pay{ width:100%; border-collapse:collapse; table-layout:fixed; margin-top:10px; }
+.ob-pay th,.ob-pay td{ border-bottom:1px solid var(--stroke); padding:8px 10px; font-size:14px; }
+.ob-pay th{ color:var(--muted); }
+.ob-pay .col-done{ width:56px; text-align:center; }
+.ob-pay .col-date{ width:130px; }
+.ob-pay .col-sum{ width:140px; }
+.ob-pay input[type="date"], .ob-pay input[type="number"], .ob-pay input[type="text"]{
+  width:100%; background:var(--input-bg); border:1px solid var(--stroke); color:var(--text);
+  border-radius:10px; padding:8px 10px; font-weight:700; font-size:14px;
+}
+
+/* модалки — уже заданы в style.css; добавим видимость */
+.modal{ display:none; }
+.modal.modal--open{ display:flex; align-items:center; justify-content:center; }

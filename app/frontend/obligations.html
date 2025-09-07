@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Обязательства • Портфель</title>
+
+  <!-- базовые стили портфеля -->
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <!-- локальные стили вкладки -->
+  <link rel="stylesheet" href="assets/css/obligations.css" />
+</head>
+<body>
+  <div class="aurora"></div>
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+
+  <div class="container">
+    <!-- header (как в инвестициях) -->
+    <header class="app-header">
+      <div class="search-wrap">
+        <input id="searchInput" type="search" placeholder="Поиск по названию/описанию…" />
+      </div>
+
+      <div class="header-actions">
+        <button id="refreshBtn" class="btn" title="Обновить данные (R)">
+          <span>🔄 Обновить</span>
+        </button>
+        <button id="themeToggle" class="btn" title="Тёмная/светлая тема (T)">
+          <span>🌓 Тема</span>
+        </button>
+        <div id="authStatus" class="auth-status">Гость</div>
+        <button id="logoutBtn" class="btn btn-danger" title="Выйти из аккаунта">
+          <span>⎋ Выйти</span>
+        </button>
+        <button id="helpBtn" class="btn" title="Справка и горячие клавиши (?)">
+          <span>❓ Справка</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- вкладки -->
+    <nav class="tabs-row">
+      <a class="tab" href="index.html">Инвестиции</a>
+      <a class="tab" href="budget.html">Бюджетирование</a>
+      <a class="tab active" href="obligations.html" aria-current="page">Обязательства</a>
+    </nav>
+
+    <!-- Кнопка «все» для будущих секций -->
+    <div class="title-row" style="margin-top:6px;">
+      <div class="muted">▸</div>
+      <button id="toggleAllBtn" class="btn btn-ghost" title="Развернуть/свернуть все секции (S)">⤴️ Все</button>
+    </div>
+
+    <!-- Плейсхолдер-секция -->
+    <section class="section open" id="devSection">
+      <div class="section-header">
+        <button class="section-toggle" data-action="toggle-section" data-section="devSection">
+          <span class="chev">▸</span> Раздел в разработке
+        </button>
+        <div class="section-meta">
+          <span class="meta-badge">Шаблон</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="empty-state">
+          <div class="zone-title">Что дальше</div>
+          <p>Таблицы, фильтры и графики — дальше сюда.</p>
+          <p>Здесь появятся планы/платежи/кредиты. Сейчас это лёгкий шаблон со всем окружением
+            (тема, табы, кнопки, пинг API, хоткеи).</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Toasts -->
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <!-- Справка / хоткеи (как в инвестициях) -->
+  <div class="modal" id="helpModal">
+    <div class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="modal__header">
+        <h3 id="helpTitle">Справка и горячие клавиши</h3>
+        <button class="modal__close" id="helpCloseX" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal__content">
+        <ul class="help-list">
+          <li><span class="kbd">/</span> — фокус на поиск</li>
+          <li><span class="kbd">R</span> — обновить данные</li>
+          <li><span class="kbd">T</span> — переключить тему</li>
+          <li><span class="kbd">S</span> — развернуть/свернуть все секции</li>
+          <li><span class="kbd">?</span> — открыть эту справку</li>
+          <li>Клик по «Раздел в разработке» — сворачивает/разворачивает секцию</li>
+        </ul>
+      </div>
+      <div class="modal__footer">
+        <button id="helpCloseBtn" class="btn btn-primary">Понятно</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- зависимости -->
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.8/dist/axios.min.js"></script>
+  <!-- логика вкладки -->
+  <script src="assets/js/obligations.js"></script>
+</body>
+</html>
