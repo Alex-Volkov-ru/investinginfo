@@ -26,11 +26,24 @@
   
     // даты
     const isIsoDate = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
-    const normDateOrNull = v => {
-      if (!v) return null;
+    const isRuDate  = s => typeof s === 'string' && /^\d{2}\.\d{2}\.\d{4}$/.test(s.trim());
+    function toIsoOrNull(v){
+      if (v == null || v === '') return null;
       const s = String(v).trim();
-      return isIsoDate(s) ? s : null;
-    };
+      if (isIsoDate(s)) return s;
+      if (isRuDate(s)) {
+        const [dd,mm,yyyy] = s.split('.');
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      const d = new Date(s);
+      if (!isNaN(d)) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const day = String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${day}`;
+      }
+      return null;
+    }
   
     /* ---------------- верхняя панель ---------------- */
     try{
@@ -79,11 +92,9 @@
     const token = localStorage.getItem('pf_token');
     if (!token) { window.location.href = 'login.html'; return; }
   
-    // ВАЖНО: используем ту же маршрутизацию, что и в script.js
-    // script.js объявляет глобальный BACKEND
-    const API_BASE = (typeof BACKEND !== 'undefined')
-      ? BACKEND
-      : ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://127.0.0.1:8000' : '/api');
+    // как в script.js
+    const isLocal = ['localhost','127.0.0.1'].includes(location.hostname);
+    const API_BASE = isLocal ? 'http://127.0.0.1:8000' : '/api';
   
     const api = axios.create({ baseURL: API_BASE, timeout: 20000 });
     api.interceptors.request.use(cfg => {
@@ -109,12 +120,13 @@
       })),
     });
   
+    // строгая нормализация payload
     const toApi = (item) => {
       const payments = (item.payments || []).map((p, i) => ({
         id: p.id ?? null,
-        n: toInt(p.n || (i+1)),
+        n: i + 1, // 1..N
         ok: !!p.ok,
-        date: normDateOrNull(p.date),
+        date: toIsoOrNull(p.date),
         amount: toNum(p.amount),
         note: p.note || ''
       }));
@@ -126,8 +138,8 @@
         monthly: toNum(item.monthly),
         rate:    toNum(item.rate),
         due_day: Math.min(31, Math.max(1, toInt(item.dueDay, 15))),
-        next_payment: normDateOrNull(item.nextPayment),
-        close_date:   normDateOrNull(item.closeDate),
+        next_payment: toIsoOrNull(item.nextPayment),
+        close_date:   toIsoOrNull(item.closeDate),
         status: item.status || 'Активный',
         notes:  item.notes  || '',
         payments,
@@ -158,11 +170,11 @@
       m: $('#createObModal'), mInput: $('#createNameInput'),
       mOk: $('#createCreateBtn'), mCancel: $('#createCancelBtn'), mCloseX: $('#createCloseX'),
   
-      // модалка переименования (если есть)
+      // модалка переименования
       r: $('#renameObModal'), rInput: $('#renameNameInput'),
       rOk: $('#renameOkBtn'), rCancel: $('#renameCancelBtn'), rCloseX: $('#renameCloseX'),
   
-      // модалка подтверждения (если есть)
+      // модалка подтверждения
       c: $('#confirmObModal'), cText: $('#confirmText'),
       cOk: $('#confirmOkBtn'), cCancel: $('#confirmCancelBtn'), cCloseX: $('#confirmCloseX'),
     };
@@ -172,7 +184,6 @@
     const closeModal = box => { if(!box) return; box.style.display='';     document.body.style.overflow=''; };
   
     function askRename(initial=''){
-      // если нет кастомной модалки — fallback на prompt
       if(!el.r){
         const v = prompt('Название блока', initial || '') || '';
         return v.trim() ? Promise.resolve(v.trim()) : Promise.reject();
@@ -202,7 +213,6 @@
     }
   
     function askConfirm(text='Вы уверены?'){
-      // если нет кастомной модалки — fallback на confirm
       if(!el.c) return confirm(text) ? Promise.resolve() : Promise.reject();
       return new Promise((resolve,reject)=>{
         el.cText.textContent = text;
@@ -232,10 +242,7 @@
     // загрузка
     async function loadAndRender(){
       try { items = await apiList(); render(); }
-      catch (err){
-        console.error(err);
-        toast(err?.response?.data?.detail || 'Ошибка загрузки', 'err', 3600);
-      }
+      catch (err){ console.error(err); toast(err?.response?.data?.detail || 'Ошибка загрузки', 'err', 3600); }
     }
   
     /* ---------------- модалка создания ---------------- */
@@ -371,7 +378,7 @@
           if(!name) return;
           item.title = name.trim();
           root.querySelector('.ob-card__title').textContent = item.title;
-        }catch{ /* отменено */ }
+        }catch{}
       });
   
       // Дублировать
@@ -382,7 +389,7 @@
           copy.id = created.id;
           copy.payments = (copy.payments||[]).map((p,i)=>({
             id: created.payments[i]?.id ?? null,
-            n:i+1, ok:p.ok, date: p.date ? p.date : '', amount: toNum(p.amount), note:p.note||''
+            n:i+1, ok:p.ok, date:p.date || '', amount: toNum(p.amount), note:p.note||''
           }));
           const saved = await apiUpdate(copy);
           items.unshift(saved);
@@ -459,7 +466,7 @@
   
       dateInp.addEventListener('input', ()=>{
         const v = (dateInp.value || '').trim();
-        p.date = isIsoDate(v) ? v : '';
+        p.date = toIsoOrNull(v) || ''; // в UI храним ''/ISO
       });
   
       sumInp.addEventListener('input',  ()=>{ p.amount=toNum(sumInp.value, 0); updateComputed(tr.closest('.ob-card'), item); });
