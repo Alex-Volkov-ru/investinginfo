@@ -88,8 +88,12 @@ jobs:
           echo "📦 Копируем файлы на сервер"
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/docker-compose.production.yml
+          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} Makefile \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/Makefile
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/nginx.conf \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/frontend/nginx.conf
+          scp -r -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/pgsql/ \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/"
 
           echo "🚀 Перезапускаем стек контейнеров"
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \

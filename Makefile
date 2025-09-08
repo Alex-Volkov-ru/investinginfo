@@ -1,76 +1,85 @@
 # --- env ---
 ifeq (,$(wildcard ./.env))
-    $(error Файл .env не найден. Создайте его из .env.LOCAL)
+  $(error Файл .env не найден. Создайте его из .env.LOCAL)
 endif
 include .env
 export $(shell sed 's/=.*//' .env)
 
-# --- bins ---
+# --- выбор compose-файла ---
+# По умолчанию: локальный docker-compose.yml.
+# Для прода: MODE=prod (или явно COMPOSE_FILE=...).
+MODE ?= local
+ifeq ($(origin COMPOSE_FILE), undefined)
+  ifeq ($(MODE),prod)
+    COMPOSE_FILE := docker-compose.production.yml
+  else
+    COMPOSE_FILE := docker-compose.yml
+  endif
+endif
+
 DOCKER_COMPOSE := docker compose
 
-# --- service names in docker-compose.yml ---
+# --- имена сервисов (совпадают в обоих compose) ---
 DB_SVC      ?= db
-FLYWAY_SVC  ?= cli-flyway
+FLYWAY_SVC  ?= flyway
 
-# --- SQL helpers (по желанию) ---
+# --- файлы-хелперы (опционально) ---
 TRUNCATE_FILE  ?= ./env/pgsql/truncate.sql
 TEST_DATA_FILE ?= ./env/pgsql/test_data.sql
 
-# --- Flyway connection (по умолчанию идём к сервису DB в сети compose) ---
+# --- Flyway connection внутри docker-сети ---
+# Postgres в сети compose всегда на 5432
 FLYWAY_DB_HOST ?= $(DB_SVC)
-FLYWAY_URL     := jdbc:postgresql://$(FLYWAY_DB_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)
+FLYWAY_URL     := jdbc:postgresql://$(FLYWAY_DB_HOST):5432/$(POSTGRES_DB)
 
-# Базовые опции для Flyway
 FLYWAY_BASE_OPTS := -url=$(FLYWAY_URL) -user=$(POSTGRES_USER) -password=$(POSTGRES_PASSWORD)
-# если используешь отдельную схему (у тебя DB_SCHEMA=pf) — добавим
 ifdef DB_SCHEMA
   FLYWAY_BASE_OPTS += -defaultSchema=$(DB_SCHEMA) -schemas=$(DB_SCHEMA)
 endif
 
-FLYWAY_RUN := $(DOCKER_COMPOSE) run --rm $(FLYWAY_SVC) $(FLYWAY_BASE_OPTS)
+FLYWAY_RUN := $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) run --rm $(FLYWAY_SVC)
 
 # --- phony ---
 .PHONY: up down logs wait-db migrate drop reset create recreate truncate test_data psql help
 
 # --- compose lifecycle ---
 up:
-	$(DOCKER_COMPOSE) up -d --build
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d --build
 
 down:
-	$(DOCKER_COMPOSE) down
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) down
 
 logs:
-	$(DOCKER_COMPOSE) logs -f $(DB_SVC) backend frontend
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) logs -f $(DB_SVC) backend frontend
 
-# Дождаться готовности Postgres
+# дождаться готовности Postgres (когда сервис уже запущен)
 wait-db:
-	$(DOCKER_COMPOSE) exec -T $(DB_SVC) sh -c 'until pg_isready -h localhost -U "$(POSTGRES_USER)" -d "$(POSTGRES_DB)"; do sleep 1; done; echo "DB is ready"'
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec -T $(DB_SVC) sh -c 'until pg_isready -h localhost -U "$(POSTGRES_USER)" -d "$(POSTGRES_DB)"; do sleep 1; done; echo "DB is ready"'
 
-# --- flyway ---
+# --- Flyway ---
 migrate:
-	$(FLYWAY_RUN) migrate
+	$(FLYWAY_RUN) $(FLYWAY_BASE_OPTS) migrate
 
-# clean с явным разрешением (иначе Flyway может запретить clean)
 drop:
-	$(DOCKER_COMPOSE) run --rm -e FLYWAY_CLEAN_DISABLED=false $(FLYWAY_SVC) $(FLYWAY_BASE_OPTS) clean
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) run --rm -e FLYWAY_CLEAN_DISABLED=false $(FLYWAY_SVC) $(FLYWAY_BASE_OPTS) clean
 
 reset: drop migrate
 
-# если нужно раскатить до первой миграции (например, создать пустую схему)
+# накатить до первой миграции (baseline/target=1)
 create:
-	$(FLYWAY_RUN) migrate -target=1
+	$(FLYWAY_RUN) $(FLYWAY_BASE_OPTS) migrate -target=1
 
 recreate: drop create
 
-# --- SQL скрипты внутри контейнера БД ---
+# --- вспомогательные SQL ---
 truncate:
-	cat $(TRUNCATE_FILE) | $(DOCKER_COMPOSE) exec -T $(DB_SVC) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
+	cat $(TRUNCATE_FILE) | $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec -T $(DB_SVC) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
 
 test_data:
-	cat $(TEST_DATA_FILE) | $(DOCKER_COMPOSE) exec -T $(DB_SVC) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
+	cat $(TEST_DATA_FILE) | $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec -T $(DB_SVC) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
 
 psql:
-	$(DOCKER_COMPOSE) exec $(DB_SVC) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec $(DB_SVC) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
 
 # --- help ---
 help:

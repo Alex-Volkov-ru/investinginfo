@@ -122,3 +122,69 @@ class BudgetObligation(Base):
 
     def __repr__(self) -> str:
         return f"<BudgetObligation id={self.id} title={self.title!r} due={self.due_date} done={self.is_done}>"
+
+
+class ObligationBlock(Base):
+    __tablename__ = "obligation_blocks"
+    __table_args__ = {"schema": "pf"}
+
+    id = Column(sa.BigInteger, primary_key=True)
+    user_id = Column(
+        sa.BigInteger,
+        ForeignKey("pf.users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    title = Column(String(200), nullable=False)
+
+    total = Column(Numeric(20, 2), nullable=False, server_default="0")
+    monthly = Column(Numeric(20, 2), nullable=False, server_default="0")
+    rate = Column(Numeric(9, 4), nullable=False, server_default="0")
+    due_day = Column(sa.Integer, nullable=False, server_default="15")
+    next_payment = Column(Date)
+    close_date = Column(Date)
+    status = Column(String(32), nullable=False, server_default="Активный")
+    notes = Column(Text)
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+        onupdate=sa.func.now(),
+    )
+
+    payments = relationship(
+        "ObligationPayment",
+        back_populates="obligation",
+        cascade="all, delete-orphan",
+        order_by="ObligationPayment.n",
+        lazy="selectin",
+    )
+
+    def __repr__(self) -> str:
+        return f"<ObligationBlock id={self.id} title={self.title!r} status={self.status!r}>"
+
+
+class ObligationPayment(Base):
+    __tablename__ = "obligation_payments"
+    __table_args__ = {"schema": "pf"}
+
+    id = Column(sa.BigInteger, primary_key=True)
+    obligation_id = Column(
+        sa.BigInteger,
+        ForeignKey("pf.obligation_blocks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    n = Column(sa.Integer, nullable=False)
+    ok = Column(Boolean, nullable=False, server_default=sa.text("false"))
+    date = Column(Date)
+    amount = Column(Numeric(20, 2), nullable=False, server_default="0")
+    note = Column(Text)
+
+    obligation = relationship("ObligationBlock", back_populates="payments")
+
+    def __repr__(self) -> str:
+        return f"<ObligationPayment oid={self.obligation_id} n={self.n} ok={self.ok}>"
