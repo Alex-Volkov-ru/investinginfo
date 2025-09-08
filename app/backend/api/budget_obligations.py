@@ -62,7 +62,6 @@ def list_obligations(
     if only_open:
         q = q.where(BudgetObligation.is_done.is_(False))
     if month:
-        # YYYY-MM -> фильтруем по началу месяца
         y, m = month.split("-")
         q = q.where(
             func.date_trunc("month", BudgetObligation.due_date)

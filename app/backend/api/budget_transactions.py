@@ -29,14 +29,12 @@ TransactionType = Literal["income", "expense", "transfer"]
 class TransactionCreate(BaseModel):
     type: TransactionType
     account_id: int
-    # для transfer обязателен:
     contra_account_id: Optional[int] = None
-    # для income/expense обязателен:
     category_id: Optional[int] = None
 
     amount: Decimal = Field(..., gt=0)
     currency: str = "RUB"
-    occurred_at: Optional[str] = None  # ISO date/time
+    occurred_at: Optional[str] = None
     description: Optional[str] = None
 
     @field_validator("currency")
@@ -135,7 +133,6 @@ def create_transaction(
     Запрещён перевод в тот же самый счёт.
     Оба счёта должны принадлежать пользователю и быть активными.
     """
-    # Общие проверки
     if payload.type == "transfer":
         if not payload.contra_account_id or payload.contra_account_id == payload.account_id:
             raise HTTPException(400, detail="Неверные параметры перевода")
@@ -191,7 +188,6 @@ def create_transaction(
     else:
         raise HTTPException(400, detail="Неизвестный тип операции")
 
-    # Сериализация ответа
     cat = None
     if tx.category_id:
         c = db.get(BudgetCategory, tx.category_id)

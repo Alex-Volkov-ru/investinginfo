@@ -55,16 +55,15 @@ class UserMeOut(BaseModel):
     id: int
     email: EmailStr
     tg_username: Optional[str] = None
-    has_tinkoff: bool = False  # НОВОЕ
+    has_tinkoff: bool = False
 
 class TokenUpdateIn(BaseModel):
-    tinkoff_token: Optional[str] = None  # пусто/None — очистить токен
+    tinkoff_token: Optional[str] = None
 
 # === Routes ===
 
 @router.post("/register", response_model=UserMeOut)
 def register(payload: UserCreateIn, db: Session = Depends(get_db)):
-    # Проверка уникальности
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(409, "Пользователь с таким email уже существует")
 

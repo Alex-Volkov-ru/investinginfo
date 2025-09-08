@@ -25,7 +25,7 @@ class CategoryOut(BaseModel):
     is_active: bool
 
 class CategoryCreate(BaseModel):
-    kind: KindStr   # "income" | "expense"
+    kind: KindStr
     name: NameStr
     parent_id: Optional[int] = None
 
@@ -52,7 +52,6 @@ def create_category(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    # не дублировать имя в рамках пользователя и kind
     exists = db.execute(
         select(BudgetCategory)
         .where(
@@ -88,7 +87,6 @@ def delete_category(
     if not cat or cat.user_id != user.id:
         raise HTTPException(status_code=404, detail="category not found")
 
-    # мягко — просто деактивируем, чтобы не ломать существующие транзакции
     cat.is_active = False
     db.commit()
     return None

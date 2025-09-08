@@ -28,9 +28,7 @@ class MonthSummaryOut(BaseModel):
     income_total: float
     expense_total: float
     net_total: float
-    # старое поле (только пополнения на накопительный) — оставляем для совместимости
     savings_transferred: float
-    # новое поле: ЧИСТОЕ движение по накопительным (пополнения − снятия)
     savings: float
 
 
@@ -61,8 +59,6 @@ def _dates(from_: Optional[str], to: Optional[str]):
     if to:
         d2 = date.fromisoformat(to)
     else:
-        # последний день месяца d1:
-        # берём 1-е число следующего месяца и минус один день
         next_month_first = (d1.replace(day=28) + timedelta(days=4)).replace(day=1)
         d2 = next_month_first - timedelta(days=1)
 
@@ -80,7 +76,6 @@ def month_summary(
 ):
     d1, d2 = _dates(date_from, date_to)
 
-    # income
     income = db.scalar(
         select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
         .where(
@@ -91,7 +86,6 @@ def month_summary(
         )
     ) or Decimal(0)
 
-    # expense
     expense = db.scalar(
         select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
         .where(
@@ -102,7 +96,6 @@ def month_summary(
         )
     ) or Decimal(0)
 
-    # ТОЛЬКО пополнения на накопительные (для совместимости со старым фронтом)
     savings_in = db.scalar(
         select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
         .join(BudgetAccount, BudgetAccount.id == BudgetTransaction.contra_account_id)
@@ -115,7 +108,6 @@ def month_summary(
         )
     ) or Decimal(0)
 
-    # ЧИСТОЕ движение по накопительным: + если перевод НА накопительный, − если ИЗ накопительного
     AccFrom = aliased(BudgetAccount)
     AccTo = aliased(BudgetAccount)
 
@@ -124,8 +116,8 @@ def month_summary(
             func.coalesce(
                 func.sum(
                     case(
-                        (AccTo.is_savings.is_(True), BudgetTransaction.amount),    # пополнение
-                        (AccFrom.is_savings.is_(True), -BudgetTransaction.amount), # снятие
+                        (AccTo.is_savings.is_(True), BudgetTransaction.amount),
+                        (AccFrom.is_savings.is_(True), -BudgetTransaction.amount),
                         else_=0,
                     )
                 ),
@@ -174,7 +166,6 @@ def charts(
         .order_by(BudgetCategory.name)
     ).all()
 
-    # expense by category
     rs_exp = db.execute(
         select(BudgetCategory.name, func.coalesce(func.sum(BudgetTransaction.amount), 0))
         .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
@@ -188,7 +179,6 @@ def charts(
         .order_by(BudgetCategory.name)
     ).all()
 
-    # expense by day
     rs_day = db.execute(
         select(BudgetTransaction.occurred_at, func.coalesce(func.sum(BudgetTransaction.amount), 0))
         .where(

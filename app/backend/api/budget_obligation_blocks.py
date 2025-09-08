@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import List, Optional
-from datetime import date
+import datetime as dt
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -19,7 +19,7 @@ class PaymentDTO(BaseModel):
     id: Optional[int] = None
     n: int
     ok: bool = False
-    date: Optional[date] = None
+    date: Optional[dt.date] = None
     amount: float = 0
     note: str = ""
 
@@ -34,12 +34,11 @@ class BlockDTO(BaseModel):
     monthly: float = 0
     rate: float = 0
     due_day: int = 15
-    next_payment: Optional[date] = None
-    close_date: Optional[date] = None
+    next_payment: Optional[dt.date] = None
+    close_date: Optional[dt.date] = None
     status: str = "Активный"
     notes: str = ""
 
-    # не мутируемый дефолт
     payments: List[PaymentDTO] = Field(default_factory=list)
 
     class Config:
@@ -68,7 +67,7 @@ def list_blocks(db: Session = Depends(get_db), user: User = Depends(get_current_
 
 @router.post("", response_model=BlockDTO, status_code=201)
 def create_block(payload: BlockDTO, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    title = (payload.title or "").strip() or "Обязательство"  # <- нормализация
+    title = (payload.title or "").strip() or "Обязательство"
     block = ObligationBlock(
         user_id=user.id,
         title=title,
@@ -81,7 +80,6 @@ def create_block(payload: BlockDTO, db: Session = Depends(get_db), user: User = 
         status=payload.status or "Активный",
         notes=payload.notes or "",
     )
-    # создаём 12 пустых платежей
     for i in range(1, 13):
         block.payments.append(ObligationPayment(n=i, ok=False, amount=0, note=""))
 
@@ -100,9 +98,8 @@ def save_block(
     block = db.get(ObligationBlock, block_id)
     _ensure_owner(block, user.id)
 
-    # поля блока
     new_title = (payload.title or "").strip()
-    if new_title:  # только если прислали непустой
+    if new_title:
         block.title = new_title
     block.total = payload.total or 0
     block.monthly = payload.monthly or 0
@@ -113,7 +110,6 @@ def save_block(
     block.status = payload.status or "Активный"
     block.notes = payload.notes or ""
 
-    # синхронизация платежей (по id, иначе insert)
     by_id = {p.id: p for p in block.payments}
     seen = set()
     for p in payload.payments or []:
@@ -138,7 +134,6 @@ def save_block(
             db.flush()
             seen.add(row.id)
 
-    # удалить те, которых нет в payload
     to_delete = [r for r in block.payments if r.id not in seen]
     for r in to_delete:
         db.delete(r)
