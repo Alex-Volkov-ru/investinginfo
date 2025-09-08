@@ -11,7 +11,7 @@ from app.backend.core.auth import get_current_user
 from app.backend.models.user import User
 from app.backend.models.budget import ObligationBlock, ObligationPayment
 
-router = APIRouter(prefix="/api/budget/obligation-blocks", tags=["budget:obligation-blocks"])
+router = APIRouter(prefix="/budget/obligation-blocks", tags=["budget:obligation-blocks"])
 
 # ---------- Schemas ----------
 
@@ -24,11 +24,10 @@ class PaymentDTO(BaseModel):
     note: str = ""
 
     class Config:
-        from_attributes = True  # <- ВАЖНО: чтобы Pydantic умел брать поля из ORM-объекта
+        from_attributes = True
 
 class BlockDTO(BaseModel):
     id: Optional[int] = None
-    # title может прийти пустой строкой — не валидируем длину здесь
     title: Optional[str] = None
 
     total: float = 0

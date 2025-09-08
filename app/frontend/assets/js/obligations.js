@@ -12,7 +12,7 @@
     const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || name;
     const clone = obj => JSON.parse(JSON.stringify(obj));
   
-    /* ---------------- верхняя панель (аккуратно, без ломки макета) ---------------- */
+    /* ---------------- верхняя панель ---------------- */
     try{
       const themeToggle=$('#themeToggle'), refreshBtn=$('#refreshBtn'),
             helpBtn=$('#helpBtn'), helpModal=$('#helpModal'),
@@ -107,7 +107,7 @@
     }
     async function apiDelete(id){ await api.delete(`/budget/obligation-blocks/${id}`); }
   
-    /* ---------------- состояние ---------------- */
+    /* ---------------- состояние + элементы ---------------- */
     const el = {
       section: $('#obSection'),
       list: $('#obList'),
@@ -116,20 +116,77 @@
       addBtn: $('#addObBtn'),
       m: $('#createObModal'), mInput: $('#createNameInput'),
       mOk: $('#createCreateBtn'), mCancel: $('#createCancelBtn'), mCloseX: $('#createCloseX'),
+  
+      // NEW: модалка переименования
+      r: $('#renameObModal'), rInput: $('#renameNameInput'),
+      rOk: $('#renameOkBtn'), rCancel: $('#renameCancelBtn'), rCloseX: $('#renameCloseX'),
+  
+      // NEW: модалка подтверждения
+      c: $('#confirmObModal'), cText: $('#confirmText'),
+      cOk: $('#confirmOkBtn'), cCancel: $('#confirmCancelBtn'), cCloseX: $('#confirmCloseX'),
     };
     if (!el.list || !el.addBtn) return;
   
-    let items = []; // тут храним то, что пришло с сервера
+    const openModal = box => { box.style.display='flex'; document.body.style.overflow='hidden'; };
+    const closeModal = box => { box.style.display='';     document.body.style.overflow=''; };
+  
+    function askRename(initial=''){
+      return new Promise((resolve,reject)=>{
+        if(!el.r) return reject();
+        el.rInput.value = initial || '';
+        openModal(el.r);
+        const onOk = ()=>{ const v=(el.rInput.value||'').trim(); cleanup(); resolve(v); };
+        const onCancel = ()=>{ cleanup(); reject(); };
+        const onBack = e => { if(e.target===el.r) onCancel(); };
+        const onEsc  = e => { if(e.key==='Escape') onCancel(); };
+        function cleanup(){
+          el.rOk.removeEventListener('click', onOk);
+          el.rCancel.removeEventListener('click', onCancel);
+          el.rCloseX.removeEventListener('click', onCancel);
+          el.r.removeEventListener('click', onBack);
+          document.removeEventListener('keydown', onEsc);
+          closeModal(el.r);
+        }
+        el.rOk.addEventListener('click', onOk);
+        el.rCancel.addEventListener('click', onCancel);
+        el.rCloseX.addEventListener('click', onCancel);
+        el.r.addEventListener('click', onBack);
+        document.addEventListener('keydown', onEsc);
+        setTimeout(()=>el.rInput.focus(), 30);
+      });
+    }
+  
+    function askConfirm(text='Вы уверены?'){
+      return new Promise((resolve,reject)=>{
+        if(!el.c) return reject();
+        el.cText.textContent = text;
+        openModal(el.c);
+        const onOk = ()=>{ cleanup(); resolve(); };
+        const onCancel = ()=>{ cleanup(); reject(); };
+        const onBack = e => { if(e.target===el.c) onCancel(); };
+        const onEsc  = e => { if(e.key==='Escape') onCancel(); };
+        function cleanup(){
+          el.cOk.removeEventListener('click', onOk);
+          el.cCancel.removeEventListener('click', onCancel);
+          el.cCloseX.removeEventListener('click', onCancel);
+          el.c.removeEventListener('click', onBack);
+          document.removeEventListener('keydown', onEsc);
+          closeModal(el.c);
+        }
+        el.cOk.addEventListener('click', onOk);
+        el.cCancel.addEventListener('click', onCancel);
+        el.cCloseX.addEventListener('click', onCancel);
+        el.c.addEventListener('click', onBack);
+        document.addEventListener('keydown', onEsc);
+      });
+    }
+  
+    let items = []; // состояние
   
     // загрузка
     async function loadAndRender(){
-      try {
-        items = await apiList();
-        render();
-      } catch (err){
-        console.error(err);
-        toast(err?.response?.data?.detail || 'Ошибка загрузки', 'err', 3600);
-      }
+      try { items = await apiList(); render(); }
+      catch (err){ console.error(err); toast(err?.response?.data?.detail || 'Ошибка загрузки', 'err', 3600); }
     }
   
     /* ---------------- модалка создания ---------------- */
@@ -246,13 +303,12 @@
       // сворачивание
       root.querySelector('.ob-card__toggle').addEventListener('click',()=> root.classList.toggle('collapsed'));
   
-      // кнопки шапки
+      // Сохранить
       root.querySelector('[data-act="save"]').addEventListener('click', async ()=>{
         try{
           const id = Number(root.dataset.id);
           const local = items.find(x=>Number(x.id)===id);
           const saved = await apiUpdate(local);
-          // заменить локально тем, что вернул сервер (обновятся id платежей и т.п.)
           const idx = items.findIndex(x=>Number(x.id)===id);
           if (idx>=0) items[idx] = saved;
           render();
@@ -262,23 +318,26 @@
         }
       });
   
+      // Переименовать — КАСТОМНАЯ модалка
       root.querySelector('[data-act="rename"]').addEventListener('click', async ()=>{
-        const name = prompt('Название блока', item.title);
-        if (!name) return;
-        item.title = name.trim();
-        // только UI изменим, сохранение — по кнопке «Сохранить»
-        root.querySelector('.ob-card__title').textContent = item.title;
+        try{
+          const name = await askRename(item.title);
+          if(!name) return;
+          item.title = name.trim();
+          root.querySelector('.ob-card__title').textContent = item.title;
+        }catch{ /* отменено */ }
       });
   
+      // Дублировать
       root.querySelector('[data-act="duplicate"]').addEventListener('click', async ()=>{
         try{
-          // 1) создаём пустой блок на сервере
           const created = await apiCreate(item.title + ' (копия)');
-          // 2) копируем поля и платежи с оригинала и сохраняем
           const copy = clone(item);
           copy.id = created.id;
-          // выравниваем номера n по порядку (и убираем серверные id из созданного)
-          copy.payments = (copy.payments||[]).map((p,i)=>({ id: created.payments[i]?.id ?? p.id ?? null, n:i+1, ok:p.ok, date:p.date||null, amount:Number(p.amount||0), note:p.note||'' }));
+          copy.payments = (copy.payments||[]).map((p,i)=>({
+            id: created.payments[i]?.id ?? p.id ?? null,
+            n:i+1, ok:p.ok, date:p.date||null, amount:Number(p.amount||0), note:p.note||''
+          }));
           const saved = await apiUpdate(copy);
           items.unshift(saved);
           render();
@@ -288,8 +347,9 @@
         }
       });
   
+      // Удалить — КАСТОМНАЯ модалка
       root.querySelector('[data-act="remove"]').addEventListener('click', async ()=>{
-        if(!confirm('Удалить блок?')) return;
+        try{ await askConfirm('Удалить блок?'); }catch{ return; }
         try{
           await apiDelete(item.id);
           items = items.filter(x=>x.id!==item.id);
@@ -386,7 +446,7 @@
         const dy=y*canvas.height/rect.height - cy;
         const r=Math.hypot(dx,dy);
         if(r<inR || r>outR) return null;
-        const ang=(Math.atan2(dy,dx)+Math.PI*2+Math.PI/2)%(Math.PI*2); // 0 сверху
+        const ang=(Math.atan2(dy,dx)+Math.PI*2+Math.PI/2)%(Math.PI*2);
         const total=+item.total||0;
         const paid=(item.payments||[]).filter(p=>p.ok).reduce((s,p)=>s+(+p.amount||0),0);
         const paidAng= total>0 ? (Math.PI*2)*paid/total : 0;
@@ -425,11 +485,9 @@
         const c = cv.getContext('2d');
         c.clearRect(0,0,cv.width,cv.height);
         const cx=cv.width/2, cy=cv.height/2;
-        // base ring
         c.lineWidth = outR-inR;
         c.strokeStyle = colorRest;
         c.beginPath(); c.arc(cx,cy,(outR+inR)/2,-Math.PI/2,1.5*Math.PI); c.stroke();
-        // paid
         const a = total>0 ? (Math.PI*2)*(paid/total) : 0;
         if(a>0){
           c.strokeStyle = colorPaid;
@@ -451,8 +509,7 @@
     }
   
     /* ---------------- init ---------------- */
-    (async ()=>{
-      await loadAndRender();
-    })();
+    (async ()=>{ await loadAndRender(); })();
+  
   })();
   
