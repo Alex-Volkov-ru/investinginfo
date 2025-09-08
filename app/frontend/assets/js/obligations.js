@@ -2,15 +2,35 @@
     'use strict';
   
     /* ---------------- utils ---------------- */
-    const $ = (s, r=document) => r.querySelector(s);
+    const $  = (s, r=document) => r.querySelector(s);
     const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
     const nf = new Intl.NumberFormat('ru-RU');
     const money = n => nf.format(Math.round(Number(n)||0));
-    const escH = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    const escA = s => String(s).replace(/"/g,'&quot;');
+    const escH  = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const escA  = s => String(s).replace(/"/g,'&quot;');
     const todayISO = () => new Date().toISOString().slice(0,10);
-    const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || name;
-    const clone = obj => JSON.parse(JSON.stringify(obj));
+    const cssVar   = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || name;
+    const clone    = obj => JSON.parse(JSON.stringify(obj));
+  
+    // числа
+    const toNum = (v, def=0) => {
+      if (v === null || v === undefined || v === '') return def;
+      const n = parseFloat(String(v).replace(',', '.'));
+      return Number.isFinite(n) ? n : def;
+    };
+    const toInt = (v, def=0) => {
+      if (v === null || v === undefined || v === '') return def;
+      const n = parseInt(String(v).replace(',', '.'), 10);
+      return Number.isFinite(n) ? n : def;
+    };
+  
+    // даты
+    const isIsoDate = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
+    const normDateOrNull = v => {
+      if (!v) return null;
+      const s = String(v).trim();
+      return isIsoDate(s) ? s : null;
+    };
   
     /* ---------------- верхняя панель ---------------- */
     try{
@@ -58,43 +78,61 @@
     /* ---------------- axios / api ---------------- */
     const token = localStorage.getItem('pf_token');
     if (!token) { window.location.href = 'login.html'; return; }
-    const isLocal = ['localhost','127.0.0.1'].includes(location.hostname);
-    const baseURL = isLocal ? 'http://127.0.0.1:8000/api' : '/api';
-    const api = axios.create({ baseURL, timeout: 20000 });
-    api.interceptors.request.use(cfg => { cfg.headers = cfg.headers || {}; cfg.headers.Authorization = `Bearer ${token}`; return cfg; });
+  
+    // ВАЖНО: используем ту же маршрутизацию, что и в script.js
+    // script.js объявляет глобальный BACKEND
+    const API_BASE = (typeof BACKEND !== 'undefined')
+      ? BACKEND
+      : ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://127.0.0.1:8000' : '/api');
+  
+    const api = axios.create({ baseURL: API_BASE, timeout: 20000 });
+    api.interceptors.request.use(cfg => {
+      cfg.headers = cfg.headers || {};
+      cfg.headers.Authorization = `Bearer ${token}`;
+      return cfg;
+    });
   
     // map API <-> UI
     const fromApi = (row) => ({
       id: row.id,
       title: row.title || 'Обязательство',
-      total: Number(row.total||0),
-      monthly: Number(row.monthly||0),
-      rate: Number(row.rate||0),
-      dueDay: Number(row.due_day||15),
+      total: toNum(row.total),
+      monthly: toNum(row.monthly),
+      rate: toNum(row.rate),
+      dueDay: toInt(row.due_day, 15),
       nextPayment: row.next_payment || '',
       closeDate: row.close_date || '',
       status: row.status || 'Активный',
       notes: row.notes || '',
       payments: (row.payments||[]).map(p => ({
-        id: p.id, n: Number(p.n), ok: !!p.ok, date: p.date || '', amount: Number(p.amount||0), note: p.note || ''
+        id: p.id, n: toInt(p.n), ok: !!p.ok, date: p.date || '', amount: toNum(p.amount), note: p.note || ''
       })),
     });
   
-    const toApi = (item) => ({
-      id: item.id,
-      title: (item.title || '').trim() || 'Обязательство',
-      total: Number(item.total||0),
-      monthly: Number(item.monthly||0),
-      rate: Number(item.rate||0),
-      due_day: Number(item.dueDay||15),
-      next_payment: item.nextPayment || null,
-      close_date: item.closeDate || null,
-      status: item.status || 'Активный',
-      notes: item.notes || '',
-      payments: (item.payments||[]).map(p => ({
-        id: p.id, n: Number(p.n), ok: !!p.ok, date: p.date || null, amount: Number(p.amount||0), note: p.note || ''
-      })),
-    });
+    const toApi = (item) => {
+      const payments = (item.payments || []).map((p, i) => ({
+        id: p.id ?? null,
+        n: toInt(p.n || (i+1)),
+        ok: !!p.ok,
+        date: normDateOrNull(p.date),
+        amount: toNum(p.amount),
+        note: p.note || ''
+      }));
+  
+      return {
+        id: item.id,
+        title: (item.title || '').trim() || 'Обязательство',
+        total:   toNum(item.total),
+        monthly: toNum(item.monthly),
+        rate:    toNum(item.rate),
+        due_day: Math.min(31, Math.max(1, toInt(item.dueDay, 15))),
+        next_payment: normDateOrNull(item.nextPayment),
+        close_date:   normDateOrNull(item.closeDate),
+        status: item.status || 'Активный',
+        notes:  item.notes  || '',
+        payments,
+      };
+    };
   
     async function apiList(){ const {data}=await api.get('/budget/obligation-blocks'); return data.map(fromApi); }
     async function apiCreate(title){
@@ -102,7 +140,8 @@
       return fromApi(data);
     }
     async function apiUpdate(item){
-      const {data}=await api.put(`/budget/obligation-blocks/${item.id}`, toApi(item));
+      const payload = toApi(item);
+      const {data}=await api.put(`/budget/obligation-blocks/${item.id}`, payload);
       return fromApi(data);
     }
     async function apiDelete(id){ await api.delete(`/budget/obligation-blocks/${id}`); }
@@ -110,29 +149,35 @@
     /* ---------------- состояние + элементы ---------------- */
     const el = {
       section: $('#obSection'),
-      list: $('#obList'),
-      empty: $('#obEmpty'),
-      search: $('#searchInput'),
-      addBtn: $('#addObBtn'),
+      list:    $('#obList'),
+      empty:   $('#obEmpty'),
+      search:  $('#searchInput'),
+      addBtn:  $('#addObBtn'),
+  
+      // модалка создания
       m: $('#createObModal'), mInput: $('#createNameInput'),
       mOk: $('#createCreateBtn'), mCancel: $('#createCancelBtn'), mCloseX: $('#createCloseX'),
   
-      // NEW: модалка переименования
+      // модалка переименования (если есть)
       r: $('#renameObModal'), rInput: $('#renameNameInput'),
       rOk: $('#renameOkBtn'), rCancel: $('#renameCancelBtn'), rCloseX: $('#renameCloseX'),
   
-      // NEW: модалка подтверждения
+      // модалка подтверждения (если есть)
       c: $('#confirmObModal'), cText: $('#confirmText'),
       cOk: $('#confirmOkBtn'), cCancel: $('#confirmCancelBtn'), cCloseX: $('#confirmCloseX'),
     };
     if (!el.list || !el.addBtn) return;
   
-    const openModal = box => { box.style.display='flex'; document.body.style.overflow='hidden'; };
-    const closeModal = box => { box.style.display='';     document.body.style.overflow=''; };
+    const openModal = box => { if(!box) return; box.style.display='flex'; document.body.style.overflow='hidden'; };
+    const closeModal = box => { if(!box) return; box.style.display='';     document.body.style.overflow=''; };
   
     function askRename(initial=''){
+      // если нет кастомной модалки — fallback на prompt
+      if(!el.r){
+        const v = prompt('Название блока', initial || '') || '';
+        return v.trim() ? Promise.resolve(v.trim()) : Promise.reject();
+      }
       return new Promise((resolve,reject)=>{
-        if(!el.r) return reject();
         el.rInput.value = initial || '';
         openModal(el.r);
         const onOk = ()=>{ const v=(el.rInput.value||'').trim(); cleanup(); resolve(v); };
@@ -157,8 +202,9 @@
     }
   
     function askConfirm(text='Вы уверены?'){
+      // если нет кастомной модалки — fallback на confirm
+      if(!el.c) return confirm(text) ? Promise.resolve() : Promise.reject();
       return new Promise((resolve,reject)=>{
-        if(!el.c) return reject();
         el.cText.textContent = text;
         openModal(el.c);
         const onOk = ()=>{ cleanup(); resolve(); };
@@ -181,25 +227,28 @@
       });
     }
   
-    let items = []; // состояние
+    let items = [];
   
     // загрузка
     async function loadAndRender(){
       try { items = await apiList(); render(); }
-      catch (err){ console.error(err); toast(err?.response?.data?.detail || 'Ошибка загрузки', 'err', 3600); }
+      catch (err){
+        console.error(err);
+        toast(err?.response?.data?.detail || 'Ошибка загрузки', 'err', 3600);
+      }
     }
   
     /* ---------------- модалка создания ---------------- */
-    const openCreate=()=>{ el.m.style.display='flex'; document.body.style.overflow='hidden'; setTimeout(()=>el.mInput?.focus(),30); };
-    const closeCreate=()=>{ el.m.style.display='none'; document.body.style.overflow=''; };
-    el.addBtn.addEventListener('click', ()=>{ el.mInput.value=''; openCreate(); });
+    const openCreate=()=>{ if(!el.m) return; el.m.style.display='flex'; document.body.style.overflow='hidden'; setTimeout(()=>el.mInput?.focus(),30); };
+    const closeCreate=()=>{ if(!el.m) return; el.m.style.display='none'; document.body.style.overflow=''; };
+    el.addBtn.addEventListener('click', ()=>{ if(el.mInput) el.mInput.value=''; openCreate(); });
     el.mCancel?.addEventListener('click', closeCreate);
     el.mCloseX?.addEventListener('click', closeCreate);
     el.m?.addEventListener('click', e=>{ if(e.target===el.m) closeCreate(); });
     el.mInput?.addEventListener('keydown', e=>{ if(e.key==='Enter') el.mOk?.click(); });
   
     el.mOk?.addEventListener('click', async ()=>{
-      const name = (el.mInput.value||'').trim();
+      const name = (el.mInput?.value||'').trim();
       try{
         const created = await apiCreate(name);
         items.unshift(created);
@@ -228,7 +277,7 @@
       el.list.innerHTML = '';
       const q=(el.search?.value||'').toLowerCase();
       const rows = items.filter(x=>!q || x.title.toLowerCase().includes(q) || (x.notes||'').toLowerCase().includes(q));
-      el.empty.style.display = rows.length ? 'none' : '';
+      if(el.empty) el.empty.style.display = rows.length ? 'none' : '';
       rows.forEach(it => el.list.appendChild(renderCard(it)));
     }
   
@@ -259,12 +308,11 @@
         </div>
   
         <div class="ob-body">
-          <!-- Блок полей -->
           <div class="ob-block">
             <table class="ob-kv"><tbody>
-              ${kv('Сумма долга общая','total',item.total)}
-              ${kv('Ежемесячный платёж','monthly',item.monthly)}
-              ${kv('% по кредиту','rate',item.rate,'number','step="0.1"')}
+              ${kv('Сумма долга общая','total',item.total,'number','step="0.01"')}
+              ${kv('Ежемесячный платёж','monthly',item.monthly,'number','step="0.01"')}
+              ${kv('% по кредиту','rate',item.rate,'number','step="0.01"')}
               ${kv('Платёж не позднее — числа','dueDay',item.dueDay,'number','min="1" max="31"')}
               ${kv('Следующий платёж','nextPayment',item.nextPayment,'date')}
               ${kv('Дата закрытия','closeDate',item.closeDate,'date')}
@@ -275,7 +323,6 @@
             </tbody></table>
           </div>
   
-          <!-- График -->
           <div class="ob-block">
             <div class="ob-chart">
               <canvas width="260" height="260"></canvas>
@@ -283,7 +330,6 @@
             </div>
           </div>
   
-          <!-- Таблица платежей -->
           <div class="ob-block">
             <table class="ob-pay">
               <thead><tr>
@@ -318,7 +364,7 @@
         }
       });
   
-      // Переименовать — КАСТОМНАЯ модалка
+      // Переименовать
       root.querySelector('[data-act="rename"]').addEventListener('click', async ()=>{
         try{
           const name = await askRename(item.title);
@@ -335,8 +381,8 @@
           const copy = clone(item);
           copy.id = created.id;
           copy.payments = (copy.payments||[]).map((p,i)=>({
-            id: created.payments[i]?.id ?? p.id ?? null,
-            n:i+1, ok:p.ok, date:p.date||null, amount:Number(p.amount||0), note:p.note||''
+            id: created.payments[i]?.id ?? null,
+            n:i+1, ok:p.ok, date: p.date ? p.date : '', amount: toNum(p.amount), note:p.note||''
           }));
           const saved = await apiUpdate(copy);
           items.unshift(saved);
@@ -347,7 +393,7 @@
         }
       });
   
-      // Удалить — КАСТОМНАЯ модалка
+      // Удалить
       root.querySelector('[data-act="remove"]').addEventListener('click', async ()=>{
         try{ await askConfirm('Удалить блок?'); }catch{ return; }
         try{
@@ -360,13 +406,13 @@
         }
       });
   
-      // поля
+      // поля блока
       root.querySelectorAll('[data-key]').forEach(inp=>{
         inp.addEventListener('input', e=>{
           const key=e.target.getAttribute('data-key');
           let val=e.target.value;
-          if(['total','monthly','rate','dueDay'].includes(key)) val = Number(val || 0);
-          if(key==='dueDay') val = Math.min(31, Math.max(1, val));
+          if (['total','monthly','rate'].includes(key)) val = toNum(val);
+          if (key==='dueDay') val = Math.min(31, Math.max(1, toInt(val,15)));
           item[key]=val;
           updateComputed(root,item);
         });
@@ -400,7 +446,7 @@
         <td class="ob-col-done"><input type="checkbox" ${p.ok?'checked':''}></td>
         <td>${p.n}</td>
         <td><input type="date" value="${p.date||''}"></td>
-        <td><input type="number" step="1" value="${p.amount||0}"></td>
+        <td><input type="number" step="0.01" value="${p.amount||0}"></td>
         <td><input type="text" value="${escA(p.note||'')}"></td>`;
       const inputs=tr.querySelectorAll('input');
       const chk=inputs[0], dateInp=inputs[1], sumInp=inputs[2], noteInp=inputs[3];
@@ -410,8 +456,13 @@
         if(p.ok && !p.date){ p.date=todayISO(); dateInp.value=p.date; }
         updateComputed(tr.closest('.ob-card'), item);
       });
-      dateInp.addEventListener('input', ()=>{ p.date=dateInp.value; });
-      sumInp.addEventListener('input',  ()=>{ p.amount=Number(sumInp.value||0); updateComputed(tr.closest('.ob-card'), item); });
+  
+      dateInp.addEventListener('input', ()=>{
+        const v = (dateInp.value || '').trim();
+        p.date = isIsoDate(v) ? v : '';
+      });
+  
+      sumInp.addEventListener('input',  ()=>{ p.amount=toNum(sumInp.value, 0); updateComputed(tr.closest('.ob-card'), item); });
       noteInp.addEventListener('input', ()=>{ p.note=noteInp.value; });
   
       return tr;
