@@ -142,6 +142,7 @@ class ObligationBlock(Base):
     monthly = Column(Numeric(20, 2), nullable=False, server_default="0")
     rate = Column(Numeric(9, 4), nullable=False, server_default="0")
     due_day = Column(sa.Integer, nullable=False, server_default="15")
+    start_date = Column(Date)
     next_payment = Column(Date)
     close_date = Column(Date)
     status = Column(String(32), nullable=False, server_default="Активный")
@@ -165,6 +166,7 @@ class ObligationBlock(Base):
 
     def __repr__(self) -> str:
         return f"<ObligationBlock id={self.id} title={self.title!r} status={self.status!r}>"
+
 
 
 class ObligationPayment(Base):
