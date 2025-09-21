@@ -179,7 +179,11 @@
   let currentRenamingItem = null;
 
   async function loadAndRender(){
-    try { items = await apiList(); render(); }
+    try { 
+      items = await apiList(); 
+      render(); 
+      updateTotals(); // Обновляем плашки после загрузки данных
+    }
     catch (err){ console.error(err); toast(err?.response?.data?.detail || 'Ошибка загрузки', 'err', 3600); }
   }
 
@@ -342,6 +346,7 @@
       const created = await apiCreate(name);
       items.unshift(created);
       render();
+      updateTotals(); // Обновляем плашки после создания
       closeModal(el.m); toast('Создано');
       el.section?.classList.add('open');
       if (el.search) el.search.value='';
@@ -356,6 +361,71 @@
     const rows = items.filter(x=>!q || x.title.toLowerCase().includes(q) || (x.notes||'').toLowerCase().includes(q));
     if(el.empty) el.empty.style.display = rows.length ? 'none' : '';
     rows.forEach(it => el.list.appendChild(renderCard(it)));
+    
+    // Обновляем плашки с итогами
+    updateTotals();
+  }
+
+  // Функция подсчета итогов
+  function calculateTotals() {
+    const totals = {
+      all: 0,
+      credits: 0,
+      paid: 0,
+      remaining: 0
+    };
+
+    items.forEach(item => {
+      // Используем правильные поля из данных
+      const totalAmount = parseFloat(item.total) || 0;
+      const paidAmount = parseFloat(item.paid_total) || 0;
+      const remainingAmount = parseFloat(item.remaining) || 0;
+
+      // ВСЕГО - общая сумма всех обязательств
+      totals.all += totalAmount;
+
+      // Проверяем, является ли это кредитом (по названию)
+      const isCredit = item.title.toLowerCase().includes('кредит') || 
+                      item.title.toLowerCase().includes('займ') ||
+                      item.title.toLowerCase().includes('ипотека') ||
+                      item.title.toLowerCase().includes('автокредит');
+
+      if (isCredit) {
+        totals.credits += totalAmount;
+      }
+
+      // ОПЛАЧЕНО - сумма уже выплаченного
+      totals.paid += paidAmount;
+
+      // ОСТАЛОСЬ - оставшаяся сумма к выплате
+      totals.remaining += remainingAmount;
+    });
+
+    return totals;
+  }
+
+  // Функция обновления плашек
+  function updateTotals() {
+    const totals = calculateTotals();
+    
+    // Форматирование чисел
+    const formatAmount = (amount) => {
+      return new Intl.NumberFormat('ru-RU', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount) + ' ₽';
+    };
+
+    // Обновляем значения в DOM
+    const totalAllEl = document.getElementById('totalAll');
+    const totalCreditsEl = document.getElementById('totalCredits');
+    const totalPaidEl = document.getElementById('totalPaid');
+    const totalRemainingEl = document.getElementById('totalRemaining');
+
+    if (totalAllEl) totalAllEl.textContent = formatAmount(totals.all);
+    if (totalCreditsEl) totalCreditsEl.textContent = formatAmount(totals.credits);
+    if (totalPaidEl) totalPaidEl.textContent = formatAmount(totals.paid);
+    if (totalRemainingEl) totalRemainingEl.textContent = formatAmount(totals.remaining);
   }
 
   // Обработчики событий

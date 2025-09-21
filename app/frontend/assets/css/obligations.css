@@ -1,4 +1,26 @@
-/* ====== Палитра (светлая) ====== */
+/* ====== Основные CSS переменные (импорт из style.css) ====== */
+:root{
+  --gap: 16px;
+  --radius: 16px;
+  --shadow: 0 10px 30px rgba(17,24,39,.12);
+  --shadow-lg: 0 20px 60px rgba(17,24,39,.18);
+}
+@media (max-width: 900px){ :root{ --gap:14px; } }
+@media (max-width: 560px){ :root{ --gap:12px; } }
+
+:root[data-theme='light']{
+  --bg:#f5f7ff; --bg2:#ffffff; --card:#ffffff; --stroke:rgba(0,0,0,.10);
+  --text:#17202a; --muted:#6b7280; --brand:#4361ee; --brand2:#67e8f9;
+  --accent:#f72585; --ok:#06d6a0; --warn:#fbbf24;
+}
+:root[data-theme='dark']{
+  --bg:#0f1224; --bg2:#0b0e1a; --card:#151935; --stroke:rgba(255,255,255,.10);
+  --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
+  --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166;
+  color-scheme: dark;
+}
+
+/* ====== Палитра для обязательств (совместимость) ====== */
 :root{
     --ob-panel:#ffffff;
     --ob-text:#1f2430;
@@ -22,10 +44,34 @@
     --ob-input-bg:#0b1222;
   }
   
-  /* список карточек — одна колонка */
-  .ob-list{display:grid;grid-template-columns:1fr;gap:14px}
-  @media (min-width:980px){.ob-list{grid-template-columns:1fr}}
-  .ob-empty{display:none;border:1px dashed var(--ob-border);border-radius:12px;padding:36px;text-align:center;color:var(--ob-muted);background:var(--ob-panel)}
+/* Секция с итогами - стиль как в инвестициях */
+.totals-section{margin-bottom:var(--gap)}
+.section-title{font-size:18px;font-weight:800;color:var(--text);margin-bottom:16px}
+.totals-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--gap)}
+.total-card{position:relative;overflow:hidden;border:1px solid var(--stroke);border-radius:var(--radius);padding:14px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));box-shadow:var(--shadow);transition:transform .25s ease, box-shadow .25s ease}
+.total-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+.total-label{font-size:clamp(11px,1.6vw,12px);color:var(--muted);text-transform:uppercase;letter-spacing:.25px;margin-bottom:6px}
+.total-value{font-size:clamp(20px,3vw,26px);font-weight:800}
+
+/* Цветовая схема для плашек - как в инвестициях */
+.total-card:nth-child(1) .total-value{color:var(--brand)} /* ВСЕГО - синий */
+.total-card:nth-child(2) .total-value{color:var(--warn)} /* КРЕДИТЫ - оранжевый */
+.total-card:nth-child(3) .total-value{color:var(--ok)} /* ОПЛАЧЕНО - зеленый */
+.total-card:nth-child(4) .total-value{color:var(--accent)} /* ОСТАЛОСЬ - розовый */
+
+/* Адаптивность для мобильных */
+@media (max-width:768px){
+  .totals-grid{gap:12px}
+  .total-card{padding:12px}
+}
+@media (max-width:480px){
+  .totals-grid{grid-template-columns:1fr;gap:10px}
+}
+
+/* список карточек — одна колонка */
+.ob-list{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:980px){.ob-list{grid-template-columns:1fr}}
+.ob-empty{display:none;border:1px dashed var(--ob-border);border-radius:12px;padding:36px;text-align:center;color:var(--ob-muted);background:var(--ob-panel)}
   
   /* Карточка */
   .ob-card{background:var(--ob-panel);border:1px solid var(--ob-border);border-radius:14px;overflow:hidden;width:100%;display:block}
