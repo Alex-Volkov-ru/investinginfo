@@ -13,15 +13,48 @@
     document.documentElement.setAttribute('data-theme', localStorage.getItem('pf_theme') || 'dark');
   </script>
 
-  <!-- libs -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <!-- Critical CSS - загружается сразу -->
+  <link rel="stylesheet" href="assets/css/critical.css" />
+  
+  <!-- Non-critical resources - загружаются асинхронно -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"></noscript>
+  
   <script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
+  
+  <!-- Chart.js загружается сразу для корректной работы -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+  
+  <!-- Flatpickr загружается асинхронно -->
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"></noscript>
+  
+  <script>
+    window.loadFlatpickr = function() {
+      return new Promise((resolve) => {
+        if (window.flatpickr) { resolve(); return; }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/flatpickr';
+        script.onload = () => {
+          const ruScript = document.createElement('script');
+          ruScript.src = 'https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js';
+          ruScript.onload = resolve;
+          document.head.appendChild(ruScript);
+        };
+        document.head.appendChild(script);
+      });
+    };
+  </script>
+  
+  <link rel="preload" href="assets/css/style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="assets/css/style.css"></noscript>
 
-  <link rel="stylesheet" href="assets/css/style.css" />
+  <!-- Мобильные оптимизации -->
+  <meta name="theme-color" content="#4361ee">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
 </head>
 <body>
   <div class="aurora"></div>
@@ -217,6 +250,7 @@
     </div>
   </div>
 
+  <script src="assets/js/network-optimizer.js"></script>
   <script defer src="assets/js/script.js"></script>
 </body>
 </html>

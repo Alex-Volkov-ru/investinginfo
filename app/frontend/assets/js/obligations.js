@@ -350,6 +350,15 @@
     }
   });
 
+  function render(){
+    el.list.innerHTML = '';
+    const q=(el.search?.value||'').toLowerCase();
+    const rows = items.filter(x=>!q || x.title.toLowerCase().includes(q) || (x.notes||'').toLowerCase().includes(q));
+    if(el.empty) el.empty.style.display = rows.length ? 'none' : '';
+    rows.forEach(it => el.list.appendChild(renderCard(it)));
+  }
+
+  // Обработчики событий
   el.search?.addEventListener('input', render);
   
   // Toggle all sections button
@@ -364,14 +373,6 @@
       btn.title = isOpen ? 'Развернуть все секции' : 'Свернуть все секции';
     }
   });
-
-  function render(){
-    el.list.innerHTML = '';
-    const q=(el.search?.value||'').toLowerCase();
-    const rows = items.filter(x=>!q || x.title.toLowerCase().includes(q) || (x.notes||'').toLowerCase().includes(q));
-    if(el.empty) el.empty.style.display = rows.length ? 'none' : '';
-    rows.forEach(it => el.list.appendChild(renderCard(it)));
-  }
 
   function renderCard(item){
     const root=document.createElement('div');

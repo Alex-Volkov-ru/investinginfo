@@ -16,6 +16,8 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   const fmtMoney = (v, cur='RUB', d=2) => new Intl.NumberFormat('ru-RU', {style:'currency', currency:cur, maximumFractionDigits:d}).format(Number(v||0));
   const nfPct = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
   const humanType = row => row.type==='income' ? 'Доход' : (row.type==='expense' ? 'Расход' : 'Перевод');
+  
+  // Поиск работает без дебаунса для стабильности
 
   // ===== tiny toast =====
   function toast(msg, type='ok', ms=2600){

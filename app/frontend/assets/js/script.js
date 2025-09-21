@@ -471,7 +471,14 @@ function renderSections(){
 
 // ====== CHARTS ======
 function grad(ctx, c1, c2){ const g = ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
-function rebuild(id, cfg){ const el=document.getElementById(id); if(!el) return null; if(charts[id]) charts[id].destroy(); const ctx=el.getContext('2d'); charts[id]=new Chart(ctx,cfg); return charts[id]; }
+function rebuild(id, cfg){ 
+  const el=document.getElementById(id); 
+  if(!el) return null; 
+  if(charts[id]) charts[id].destroy(); 
+  const ctx=el.getContext('2d'); 
+  charts[id]=new Chart(ctx,cfg); 
+  return charts[id]; 
+}
 function removeSkeleton(){ ['sk1','sk2','sk3'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('skeleton'); }); }
 
 const donutCenter = (getTextFn) => ({

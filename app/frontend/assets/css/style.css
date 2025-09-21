@@ -39,7 +39,41 @@ body{
   50%{ background-position: 100% 50%, 0% 50%, 0 0; }
   100%{ background-position: 0% 0%, 100% 0%, 0 0; }
 }
-@media (prefers-reduced-motion: reduce){ body{ animation:none } }
+@media (prefers-reduced-motion: reduce){ 
+  body{ animation:none }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Оптимизация GPU для мобильных */
+.chart-card, .modal, .btn, .card {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Оптимизация для мобильных устройств */
+@media (max-width: 768px) {
+  .container {
+    padding: 8px;
+  }
+  
+  header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  .chart-card {
+    margin-bottom: 12px;
+  }
+}
 
 .aurora{
   position:fixed; inset:-20% -10% -10% -10%; pointer-events:none; z-index:-2;

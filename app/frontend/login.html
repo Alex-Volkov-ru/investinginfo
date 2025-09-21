@@ -5,10 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Вход • Портфель</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+<!-- Critical CSS -->
+<link rel="stylesheet" href="assets/css/critical.css" />
+
+<!-- Non-critical resources -->
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"></noscript>
+
 <script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
 
-<link rel="stylesheet" href="assets/css/login.css" />
+<link rel="preload" href="assets/css/login.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="assets/css/login.css"></noscript>
+
+<!-- Мобильные оптимизации -->
+<meta name="theme-color" content="#4361ee">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
 </head>
 <body>
   <div class="card">
