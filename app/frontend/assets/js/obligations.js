@@ -182,10 +182,115 @@
     catch (err){ console.error(err); toast(err?.response?.data?.detail || 'Ошибка загрузки', 'err', 3600); }
   }
 
+  /* --------- ВЕРХНЯЯ ПАНЕЛЬ --------- */
+  function bindTopbar() {
+    const refreshBtn = $('#refreshBtn') || $('[data-action="refresh"]');
+    const themeBtn   = $('#themeToggle')   || $('[data-action="theme"]');
+    const logoutBtn  = $('#logoutBtn')  || $('[data-action="logout"]');
+    const helpBtn    = $('#helpBtn')    || $('[data-action="help"]');
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await loadAndRender(); // мягкое обновление списка
+        toast('Обновлено');
+      });
+    }
+
+    if (themeBtn) {
+      const applyTheme = (mode) => {
+        document.documentElement.dataset.theme = mode; // [data-theme="dark|light"] для CSS
+        localStorage.setItem('pf_theme', mode);
+      };
+      // init
+      const saved = localStorage.getItem('pf_theme') || 'dark';
+      applyTheme(saved);
+
+      themeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const curr = document.documentElement.dataset.theme || 'dark';
+        applyTheme(curr === 'dark' ? 'light' : 'dark');
+      });
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!confirm('Выйти из аккаунта?')) return;
+        localStorage.removeItem('pf_token');
+        window.location.href = 'login.html';
+      });
+    }
+
+    if (helpBtn) {
+      helpBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const helpModal = $('#helpModal');
+        if (helpModal) {
+          openModal(helpModal);
+        }
+      });
+    }
+  }
+
+  /* --------- СВЕРНУТЬ/РАЗВЕРНУТЬ РАЗДЕЛ «МОИ ОБЯЗАТЕЛЬСТВА» --------- */
+  function bindSectionToggle() {
+    if (!el.section) return;
+
+    // Пытаемся найти стрелку/тогглер разными селекторами
+    const tog =
+      $('#obSection [data-act="section-toggle"]') ||
+      $('#obSection .section-toggle') ||
+      $('#obSection .ob-section__toggle') ||
+      $('#obSection .chev') ||
+      $('#obSection .toggle') ||
+      null;
+
+    const body =
+      $('#obListWrap') ||
+      $('#obList') ||
+      $('#obSection .ob-section__body') ||
+      null;
+
+    const applyState = (open) => {
+      el.section.classList.toggle('open', open);
+      el.section.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (tog) tog.classList.toggle('rotated', open);
+      if (body) body.style.display = open ? '' : 'none';
+    };
+
+    // инициализация: по умолчанию открыто
+    applyState(true);
+
+    if (tog) {
+      tog.addEventListener('click', (e) => {
+        e.preventDefault();
+        const open = !(el.section.classList.contains('open'));
+        applyState(open);
+      });
+    }
+
+    // Клик по заголовку секции тоже может разворачивать
+    const header = $('#obSection .ob-section__head') || $('#obSection .ob-header');
+    if (header && !tog) {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, input, select, textarea')) return;
+        const open = !(el.section.classList.contains('open'));
+        applyState(open);
+      });
+    }
+  }
+
   el.addBtn.addEventListener('click', ()=>{ if(el.mInput) el.mInput.value=''; openModal(el.m); setTimeout(()=>el.mInput?.focus(),30); });
   el.mCancel?.addEventListener('click', ()=>closeModal(el.m));
   el.mCloseX?.addEventListener('click', ()=>closeModal(el.m));
   el.m?.addEventListener('click', e=>{ if(e.target===el.m) closeModal(el.m); });
+  
+  // Help modal handlers
+  $('#helpCloseBtn')?.addEventListener('click', ()=>closeModal($('#helpModal')));
+  $('#helpCloseX')?.addEventListener('click', ()=>closeModal($('#helpModal')));
+  $('#helpModal')?.addEventListener('click', e=>{ if(e.target.id==='helpModal') closeModal($('#helpModal')); });
+  
   el.mOk?.addEventListener('click', async ()=>{
     const name = (el.mInput?.value||'').trim();
     try{
@@ -201,6 +306,19 @@
   });
 
   el.search?.addEventListener('input', render);
+  
+  // Toggle all sections button
+  $('#toggleAllBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const section = $('#obSection');
+    if (section) {
+      const isOpen = section.classList.contains('open');
+      section.classList.toggle('open', !isOpen);
+      const btn = e.target;
+      btn.textContent = isOpen ? '⤴️ Все' : '⤵️ Все';
+      btn.title = isOpen ? 'Развернуть все секции' : 'Свернуть все секции';
+    }
+  });
 
   function render(){
     el.list.innerHTML = '';
@@ -265,7 +383,7 @@
               <th class="ob-col-done">✓</th>
               <th style="width:48px;">№</th>
               <th class="ob-col-date">Дата платежа</th>
-              <th class="ob-col-sum">Сумма</th>
+              <th class="ob-col-sум">Сумма</th>
               <th>Заметки</th>
             </tr></thead>
             <tbody></tbody>
@@ -377,7 +495,6 @@
     dateInp.addEventListener('input', ()=>{
       const v = (dateInp.value || '').trim();
       p.date = toIsoOrNull(v) || '';
-      // дату поменяли — тоже пересчитать
       updateComputed(tr.closest('.ob-card'), item);
     });
 
@@ -461,14 +578,61 @@
     // проценты в центре
     const show = Math.round(pct||0);
     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--ob-muted') || '#667085';
-    ctx.font = '800 20px ui-sans-serif, system-ui, -apple-system, Segoe UI';
+    ctx.font = '800 20px ui-sанс-serif, system-ui, -apple-system, Segoe UI';
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(show+'%', cx, cy);
   }
 
+  /* ---------------- hotkeys ---------------- */
+  function bindHotkeys() {
+    document.addEventListener('keydown', (e) => {
+      const activeModal = document.querySelector('.modal[style*="flex"]');
+      const isTyping = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
+      
+      if (activeModal || isTyping) return; // Не обрабатываем горячие клавиши в модалках или при вводе
+      
+      switch (e.key.toLowerCase()) {
+        case 'r':
+          e.preventDefault();
+          $('#refreshBtn')?.click();
+          break;
+        case 't':
+          e.preventDefault();
+          $('#themeToggle')?.click();
+          break;
+        case 's':
+          e.preventDefault();
+          $('#toggleAllBtn')?.click();
+          break;
+        case '?':
+        case '/':
+          e.preventDefault();
+          if (e.key === '?') {
+            $('#helpBtn')?.click();
+          } else {
+            $('#searchInput')?.focus();
+          }
+          break;
+      }
+    });
+  }
+
+  /* ---------------- auth status ---------------- */
+  function setAuthStatus() {
+    const authStatus = $('#authStatus');
+    if (authStatus) {
+      const name = localStorage.getItem('pf_tg_username') || localStorage.getItem('pf_email') || 'Гость';
+      authStatus.textContent = name;
+    }
+  }
+
   /* ---------------- init ---------------- */
-  (async ()=>{ 
-    await loadAndRender(); 
+  (async ()=>{
+    setAuthStatus();       // <<< установка статуса пользователя
+    bindTopbar();          // <<< починили кнопки верхней панели
+    bindSectionToggle();   // <<< стрелка «Мои обязательства»
+    bindHotkeys();         // <<< горячие клавиши
+    await loadAndRender();
   })();
 
 })();
