@@ -9,6 +9,8 @@
     if (!localStorage.getItem('pf_token')) {
       window.location.replace('login.html');
     }
+    // Initialize theme
+    document.documentElement.setAttribute('data-theme', localStorage.getItem('pf_theme') || 'dark');
   </script>
 
   <!-- libs -->

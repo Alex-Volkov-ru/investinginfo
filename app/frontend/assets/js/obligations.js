@@ -176,6 +176,7 @@
   const closeModal = box => { if(!box) return; box.style.display='';     document.body.style.overflow=''; };
 
   let items = [];
+  let currentRenamingItem = null;
 
   async function loadAndRender(){
     try { items = await apiList(); render(); }
@@ -290,6 +291,50 @@
   $('#helpCloseBtn')?.addEventListener('click', ()=>closeModal($('#helpModal')));
   $('#helpCloseX')?.addEventListener('click', ()=>closeModal($('#helpModal')));
   $('#helpModal')?.addEventListener('click', e=>{ if(e.target.id==='helpModal') closeModal($('#helpModal')); });
+  
+  // Rename modal handlers
+  $('#renameCancelBtn')?.addEventListener('click', ()=>{
+    closeModal($('#renameObModal'));
+    currentRenamingItem = null;
+  });
+  $('#renameCloseX')?.addEventListener('click', ()=>{
+    closeModal($('#renameObModal'));
+    currentRenamingItem = null;
+  });
+  $('#renameObModal')?.addEventListener('click', e=>{ 
+    if(e.target.id==='renameObModal') {
+      closeModal($('#renameObModal'));
+      currentRenamingItem = null;
+    }
+  });
+  // Функция сохранения переименования
+  const saveRename = () => {
+    const newName = $('#renameNameInput')?.value?.trim();
+    if (newName && currentRenamingItem) {
+      // Обновляем название в данных
+      currentRenamingItem.title = newName;
+      
+      // Находим DOM элемент и обновляем отображение
+      const activeCard = document.querySelector(`.ob-card[data-id="${currentRenamingItem.id}"]`);
+      if (activeCard) {
+        activeCard.querySelector('.ob-card__title').textContent = newName;
+      }
+      
+      toast('Название изменено');
+      closeModal($('#renameObModal'));
+      currentRenamingItem = null; // Очищаем ссылку
+    }
+  };
+
+  $('#renameOkBtn')?.addEventListener('click', saveRename);
+  
+  // Поддержка Enter в поле ввода
+  $('#renameNameInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveRename();
+    }
+  });
   
   el.mOk?.addEventListener('click', async ()=>{
     const name = (el.mInput?.value||'').trim();
@@ -410,8 +455,15 @@
     });
 
     root.querySelector('[data-act="rename"]').addEventListener('click', async ()=>{
-      const v = prompt('Название блока', item.title) || '';
-      if (v.trim()){ item.title=v.trim(); root.querySelector('.ob-card__title').textContent = item.title; }
+      // Сохраняем ссылку на текущий элемент
+      currentRenamingItem = item;
+      // Заполняем поле ввода текущим названием
+      const renameInput = $('#renameNameInput');
+      if (renameInput) {
+        renameInput.value = item.title;
+        openModal($('#renameObModal'));
+        setTimeout(() => renameInput.focus(), 30);
+      }
     });
 
     root.querySelector('[data-act="duplicate"]').addEventListener('click', async ()=>{
