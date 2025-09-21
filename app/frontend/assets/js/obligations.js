@@ -756,6 +756,406 @@
     bindSectionToggle();   // <<< стрелка «Мои обязательства»
     bindHotkeys();         // <<< горячие клавиши
     await loadAndRender();
+
+    // Компактный режим для обязательств
+    document.getElementById('compactToggle')?.addEventListener('click', ()=>{
+      const body = document.body;
+      const isCompact = body.classList.contains('compact-mode');
+      
+      if (isCompact) {
+        body.classList.remove('compact-mode');
+        localStorage.setItem('pf_compact', 'false');
+        document.getElementById('compactToggle').textContent = '📱';
+      } else {
+        body.classList.add('compact-mode');
+        localStorage.setItem('pf_compact', 'true');
+        document.getElementById('compactToggle').textContent = '📄';
+      }
+    });
+
+  // Загружаем сохраненный режим
+  if (localStorage.getItem('pf_compact') === 'true') {
+    document.body.classList.add('compact-mode');
+    document.getElementById('compactToggle').textContent = '📄';
+  }
+
+  // Инициализируем плашку до оплаты кредитов
+  initPaymentCountdown();
+
+  // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
+  const fmtMoney = (v, cur='RUB', d=2) => new Intl.NumberFormat('ru-RU', {style:'currency', currency:cur, maximumFractionDigits:d}).format(Number(v||0));
+
+  // ====== ПЛАШКА ДО ОПЛАТЫ КРЕДИТОВ ======
+  function initPaymentCountdown() {
+    // Удаляем старую плашку если есть
+    const oldCountdown = document.getElementById('paymentCountdown');
+    if (oldCountdown) {
+      oldCountdown.remove();
+    }
+
+    // Создаем плашку до оплаты кредитов
+    const countdownElement = document.createElement('div');
+    countdownElement.id = 'paymentCountdown';
+    countdownElement.className = 'payment-countdown';
+    countdownElement.title = 'Нажмите для просмотра деталей кредитов';
+    
+    // Добавляем стили
+    countdownElement.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 12px 16px;
+      min-width: 180px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    `;
+
+    countdownElement.innerHTML = `
+      <div class="countdown-header">
+        <div class="countdown-label">ДО ОПЛАТЫ КРЕДИТА:</div>
+      </div>
+      <div class="countdown-time" id="paymentCountdownTime">--</div>
+      <div class="countdown-progress">
+        <div class="progress-bar" id="paymentProgressBar"></div>
+      </div>
+    `;
+
+    // Добавляем в DOM
+    document.body.appendChild(countdownElement);
+
+    // Обновляем при изменении данных
+    updatePaymentCountdown();
+
+    // Обработчики событий
+    countdownElement.addEventListener('mouseenter', handleMouseEnter);
+    countdownElement.addEventListener('mouseleave', handleMouseLeave);
+    countdownElement.addEventListener('click', handleClick);
+
+    // Показываем/скрываем при скролле
+    let lastScrollY = window.scrollY;
+    window.addEventListener('scroll', () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        countdownElement.style.transform = 'translateY(100px)';
+        countdownElement.style.opacity = '0.5';
+      } else {
+        countdownElement.style.transform = 'translateY(0)';
+        countdownElement.style.opacity = '1';
+      }
+      lastScrollY = currentScrollY;
+    });
+  }
+
+  function updatePaymentCountdown() {
+    const countdownElement = document.getElementById('paymentCountdownTime');
+    const progressBar = document.getElementById('paymentProgressBar');
+    
+    if (!countdownElement || !progressBar) return;
+
+    // Находим ближайший платеж
+    const nearestPayment = findNearestPayment();
+    
+    if (!nearestPayment) {
+      countdownElement.textContent = 'Нет платежей';
+      progressBar.style.width = '0%';
+      return;
+    }
+
+    const now = new Date();
+    const timeDiff = nearestPayment.nextDate.getTime() - now.getTime();
+    
+    if (timeDiff <= 0) {
+      countdownElement.textContent = 'Сегодня!';
+      progressBar.style.width = '100%';
+      progressBar.style.background = 'var(--ok)';
+      return;
+    }
+
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+    // Форматирование времени
+    let timeText = '';
+    if (days > 0) {
+      timeText = `${days} дн.`;
+    } else if (hours > 0) {
+      timeText = `${hours} ч.`;
+    } else {
+      timeText = `${minutes} мин.`;
+    }
+
+    countdownElement.textContent = timeText;
+
+    // Прогресс-бар (показываем прогресс до следующего платежа)
+    const totalDays = nearestPayment.intervalDays || 30;
+    const daysPassed = totalDays - days;
+    const progress = Math.max(0, Math.min(100, (daysPassed / totalDays) * 100));
+    progressBar.style.width = `${progress}%`;
+
+    // Цвет прогресс-бара
+    if (days <= 3) {
+      progressBar.style.background = 'var(--danger)';
+    } else if (days <= 7) {
+      progressBar.style.background = 'var(--warn)';
+    } else {
+      progressBar.style.background = 'var(--ok)';
+    }
+  }
+
+  function findNearestPayment() {
+    if (!items || items.length === 0) return null;
+
+    const now = new Date();
+    let nearest = null;
+    let minDays = Infinity;
+
+    items.forEach(item => {
+      // Проверяем только кредиты (по названию)
+      const isCredit = item.title.toLowerCase().includes('кредит') || 
+                      item.title.toLowerCase().includes('займ') ||
+                      item.title.toLowerCase().includes('ипотека') ||
+                      item.title.toLowerCase().includes('автокредит');
+
+      if (!isCredit) return;
+
+      // Пытаемся найти дату следующего платежа
+      const nextDate = calculateNextPaymentDate(item);
+      if (!nextDate) return;
+
+      const daysDiff = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff < minDays && daysDiff >= 0) {
+        minDays = daysDiff;
+        nearest = {
+          item,
+          nextDate,
+          daysLeft: daysDiff,
+          intervalDays: 30 // По умолчанию 30 дней между платежами
+        };
+      }
+    });
+
+    return nearest;
+  }
+
+  function calculateNextPaymentDate(item) {
+    // Пытаемся найти дату в названии или описании
+    const text = `${item.title} ${item.notes || ''}`;
+    
+    // Ищем паттерны дат
+    const datePatterns = [
+      /(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})/,  // DD.MM.YYYY
+      /(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2})/,   // DD.MM.YY
+      /(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/,   // YYYY.MM.DD
+    ];
+
+    for (const pattern of datePatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        let day, month, year;
+        
+        if (pattern.source.includes('(\\d{4})')) {
+          // YYYY.MM.DD
+          year = parseInt(match[1]);
+          month = parseInt(match[2]) - 1;
+          day = parseInt(match[3]);
+        } else {
+          // DD.MM.YYYY или DD.MM.YY
+          day = parseInt(match[1]);
+          month = parseInt(match[2]) - 1;
+          year = parseInt(match[3]);
+          if (year < 100) year += 2000;
+        }
+
+        const date = new Date(year, month, day);
+        if (date > new Date()) {
+          return date;
+        }
+      }
+    }
+
+    // Если дата не найдена, используем текущую дату + 30 дней
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 30);
+    return defaultDate;
+  }
+
+  // Простые обработчики событий
+  function handleMouseEnter() {
+    console.log('Mouse enter - показываем tooltip');
+    showSimpleTooltip();
+  }
+
+  function handleMouseLeave() {
+    console.log('Mouse leave - скрываем tooltip');
+    hideSimpleTooltip();
+  }
+
+  function handleClick() {
+    console.log('Click - показываем модалку');
+    showSimpleModal();
+  }
+
+  function showSimpleTooltip() {
+    const credits = getCredits();
+    if (credits.length === 0) return;
+
+    const nearest = getNearestCredit(credits);
+    if (!nearest) return;
+
+    const tooltip = document.createElement('div');
+    tooltip.id = 'simpleTooltip';
+    tooltip.style.cssText = `
+      position: fixed;
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 8px 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 1001;
+      font-size: 12px;
+      max-width: 250px;
+    `;
+
+    tooltip.innerHTML = `
+      <div style="font-weight: bold; margin-bottom: 4px;">💳 ${nearest.credit.title}</div>
+      <div style="color: var(--muted); font-size: 11px;">Остаток: ${fmtMoney(nearest.credit.remaining || 0)}</div>
+      <div style="color: var(--accent); font-weight: bold;">${nearest.daysLeft} дней до оплаты</div>
+    `;
+
+    document.body.appendChild(tooltip);
+    positionTooltip(tooltip);
+  }
+
+  function hideSimpleTooltip() {
+    const tooltip = document.getElementById('simpleTooltip');
+    if (tooltip) {
+      tooltip.remove();
+    }
+  }
+
+  function positionTooltip(tooltip) {
+    const countdown = document.getElementById('paymentCountdown');
+    if (!countdown) return;
+
+    const countdownRect = countdown.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    
+    let left = countdownRect.left + (countdownRect.width / 2) - (tooltipRect.width / 2);
+    let top = countdownRect.top - tooltipRect.height - 10;
+
+    if (left < 10) left = 10;
+    if (left + tooltipRect.width > window.innerWidth - 10) {
+      left = window.innerWidth - tooltipRect.width - 10;
+    }
+    if (top < 10) {
+      top = countdownRect.bottom + 10;
+    }
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  }
+
+  function showSimpleModal() {
+    const credits = getCredits();
+    if (credits.length === 0) {
+      toast('Нет кредитов для отображения', 'info');
+      return;
+    }
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    const creditsHtml = credits.map(credit => {
+      const nextDate = calculateNextPaymentDate(credit);
+      const now = new Date();
+      const daysLeft = nextDate ? Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+      
+      return `
+        <div style="padding: 12px; border: 1px solid var(--stroke); border-radius: 8px; margin-bottom: 8px;">
+          <div style="font-weight: bold; margin-bottom: 4px;">${credit.title}</div>
+          <div style="color: var(--muted); font-size: 14px; margin-bottom: 4px;">Остаток: ${fmtMoney(credit.remaining || 0)}</div>
+          <div style="color: var(--accent); font-weight: bold;">${daysLeft} дней до оплаты</div>
+          ${nextDate ? `<div style="color: var(--muted); font-size: 12px;">Дата: ${nextDate.toLocaleDateString('ru-RU')}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    modal.innerHTML = `
+      <div class="modal__dialog" style="max-width: 500px;">
+        <div class="modal__header">
+          <h3>💳 Ваши кредиты</h3>
+          <button class="modal__close" onclick="this.closest('.modal').remove()">✕</button>
+        </div>
+        <div class="modal__body">
+          ${creditsHtml}
+          <div style="text-align: center; margin-top: 20px;">
+            <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Закрыть</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+  }
+
+  function getCredits() {
+    if (!items || items.length === 0) return [];
+    
+    return items.filter(item => {
+      const title = item.title.toLowerCase();
+      return title.includes('кредит') || 
+             title.includes('займ') ||
+             title.includes('ипотека') ||
+             title.includes('автокредит');
+    });
+  }
+
+  function getNearestCredit(credits) {
+    let nearest = null;
+    let minDays = Infinity;
+
+    credits.forEach(credit => {
+      const nextDate = calculateNextPaymentDate(credit);
+      if (!nextDate) return;
+
+      const now = new Date();
+      const daysLeft = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysLeft < minDays && daysLeft >= 0) {
+        minDays = daysLeft;
+        nearest = { credit, daysLeft };
+      }
+    });
+
+    return nearest;
+  }
+
+  // Обновляем плашку при изменении данных
+  const originalRender = render;
+  render = function() {
+    console.log('Render called, updating payment countdown');
+    originalRender();
+    updatePaymentCountdown();
+  };
+
+  // Добавляем глобальные функции для отладки
+  window.debugPaymentCountdown = {
+    getCredits: getCredits,
+    getNearestCredit: getNearestCredit,
+    showTooltip: showSimpleTooltip,
+    showModal: showSimpleModal,
+    update: updatePaymentCountdown
+  };
+
   })();
 
 })();

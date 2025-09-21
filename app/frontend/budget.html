@@ -23,6 +23,12 @@
   <!-- Chart.js загружается сразу для корректной работы -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   
+  <!-- Система черновиков -->
+  <script src="assets/js/drafts.js"></script>
+  
+  <!-- Обратный отсчет до зарплаты -->
+  <script src="assets/js/salary-countdown.js"></script>
+  
   <link rel="preload" href="assets/css/style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <link rel="preload" href="assets/css/budget.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript>
@@ -54,6 +60,8 @@
         <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
         <div class="select-wrap" style="min-width:170px"><input id="periodInput" type="month" /></div>
         <button id="refreshBtn" class="btn" title="Обновить данные">🔄 Обновить</button>
+        <button id="expensesBtn" class="btn btn-primary" title="Сколько потратил за месяц">💰 Траты</button>
+        <button id="draftsBtn" class="btn" title="Черновики">💾 Черновики</button>
         <button id="themeToggle" class="btn" title="Сменить тему">🌓 Тема</button>
         <button id="helpBtn" class="btn" title="Справка и горячие клавиши">❓ Справка</button>
       </div>
@@ -74,24 +82,24 @@
         </summary>
 
         <div class="kpis">
-          <div class="kpi">
+          <div class="kpi" data-summary="income">
             <div class="kpi__label">Доходы</div>
-            <div class="kpi__value" id="kpiIncome">0 ₽</div>
+            <div class="kpi__value summary-num" id="kpiIncome">0 ₽</div>
           </div>
 
-          <div class="kpi">
+          <div class="kpi" data-summary="expense">
             <div class="kpi__label">Расходы</div>
-            <div class="kpi__value" id="kpiExpense">0 ₽</div>
+            <div class="kpi__value summary-num" id="kpiExpense">0 ₽</div>
           </div>
 
-          <div class="kpi">
+          <div class="kpi" data-summary="balance">
             <div class="kpi__label">Остаток</div>
-            <div class="kpi__value" id="kpiNet">0 ₽</div>
+            <div class="kpi__value summary-num" id="kpiNet">0 ₽</div>
           </div>
 
-          <div class="kpi">
+          <div class="kpi" data-summary="savings">
             <div class="kpi__label">Накопительный счёт</div>
-            <div class="kpi__value" id="kpiSavings">0 ₽</div>
+            <div class="kpi__value summary-num" id="kpiSavings">0 ₽</div>
             <div class="kpi-actions"></div>
           </div>
 

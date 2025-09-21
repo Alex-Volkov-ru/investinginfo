@@ -43,6 +43,144 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); }
   (function initTheme(){ setTheme(localStorage.getItem('pf_theme') || 'dark'); })();
 
+  // ===== Черновики =====
+  function initDrafts() {
+    // Кнопка черновиков
+    document.getElementById('draftsBtn')?.addEventListener('click', () => {
+      window.draftManager.showDraftsModal();
+    });
+
+    // Автосохранение для формы транзакций
+    const transactionForm = document.getElementById('transactionForm');
+    if (transactionForm && window.draftManager) {
+      window.draftManager.enableAutoSave('transactionForm', () => {
+        const formData = new FormData(transactionForm);
+        const data = {};
+        for (let [key, value] of formData.entries()) {
+          data[key] = value;
+        }
+        return data;
+      });
+    }
+  }
+
+  // ===== Кнопка трат =====
+  function initExpensesButton() {
+    document.getElementById('expensesBtn')?.addEventListener('click', async () => {
+      try {
+        // Получаем текущий месяц
+        const currentMonth = document.getElementById('periodInput')?.value || 
+                            new Date().toISOString().slice(0, 7);
+        
+        // Получаем данные о тратах напрямую из DOM
+        let summary = {
+          income_total: 0,
+          expense_total: 0,
+          net_total: 0,
+          savings_transferred: 0
+        };
+
+        try {
+          // Пытаемся получить данные из API
+          const response = await axios.get(`/api/budget/summary/month?month=${currentMonth}`);
+          summary = response.data;
+        } catch (error) {
+          console.warn('API недоступен, читаем данные из DOM:', error);
+          
+          // Читаем данные напрямую из плашек на странице
+          const incomeCard = document.querySelector('[data-summary="income"] .summary-num');
+          const expenseCard = document.querySelector('[data-summary="expense"] .summary-num');
+          const balanceCard = document.querySelector('[data-summary="balance"] .summary-num');
+          const savingsCard = document.querySelector('[data-summary="savings"] .summary-num');
+          
+          if (incomeCard) {
+            const incomeText = incomeCard.textContent.replace(/[^\d,.-]/g, '').replace(',', '.');
+            summary.income_total = parseFloat(incomeText) || 0;
+          }
+          
+          if (expenseCard) {
+            const expenseText = expenseCard.textContent.replace(/[^\d,.-]/g, '').replace(',', '.');
+            summary.expense_total = parseFloat(expenseText) || 0;
+          }
+          
+          if (balanceCard) {
+            const balanceText = balanceCard.textContent.replace(/[^\d,.-]/g, '').replace(',', '.');
+            summary.net_total = parseFloat(balanceText) || 0;
+          }
+          
+          if (savingsCard) {
+            const savingsText = savingsCard.textContent.replace(/[^\d,.-]/g, '').replace(',', '.');
+            summary.savings_transferred = parseFloat(savingsText) || 0;
+          }
+        }
+        
+        // Создаем модалку с тратами
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        
+        const monthName = new Date(currentMonth + '-01').toLocaleDateString('ru-RU', { 
+          month: 'long', 
+          year: 'numeric' 
+        });
+        
+        modal.innerHTML = `
+          <div class="modal__dialog" style="max-width: 500px;">
+            <div class="modal__header">
+              <h3>💰 Траты за ${monthName}</h3>
+              <button class="modal__close" onclick="this.closest('.modal').remove()">✕</button>
+            </div>
+            <div class="modal__body">
+              ${summary.expense_total === 0 && summary.income_total === 0 ? `
+                <div style="text-align: center; padding: 20px; color: var(--muted);">
+                  <p>📊 Нет данных за этот период</p>
+                  <p>Добавьте транзакции, чтобы увидеть статистику</p>
+                </div>
+              ` : `
+                <div class="expenses-summary">
+                  <div class="expense-item">
+                    <div class="expense-label">Общие расходы:</div>
+                    <div class="expense-amount" style="color: var(--danger); font-size: 24px; font-weight: bold;">
+                      ${fmtMoney(summary.expense_total)}
+                    </div>
+                  </div>
+                  <div class="expense-item">
+                    <div class="expense-label">Доходы:</div>
+                    <div class="expense-amount" style="color: var(--ok); font-size: 20px;">
+                      ${fmtMoney(summary.income_total)}
+                    </div>
+                  </div>
+                  <div class="expense-item" style="border-top: 1px solid var(--stroke); padding-top: 10px; margin-top: 10px;">
+                    <div class="expense-label">Остаток:</div>
+                    <div class="expense-amount" style="color: var(--brand); font-size: 22px; font-weight: bold;">
+                      ${fmtMoney(summary.net_total)}
+                    </div>
+                  </div>
+                  <div class="expense-item">
+                    <div class="expense-label">Сбережения:</div>
+                    <div class="expense-amount" style="color: var(--warn); font-size: 18px;">
+                      ${fmtMoney(summary.savings_transferred)}
+                    </div>
+                  </div>
+                </div>
+              `}
+              <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Закрыть</button>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden';
+        
+      } catch (error) {
+        console.error('Ошибка загрузки трат:', error);
+        toast('Ошибка загрузки данных о тратах', 'err');
+      }
+    });
+  }
+
   // onThemeChanged — без лишних запросов: пересоздаём только инстансы чартов
   function onThemeChanged(){
     Object.keys(CHARTS).forEach(k=>{
@@ -948,4 +1086,15 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   })();
 
   window.addEventListener('beforeunload', ()=>{ clearTimeout(timerId); if(activeAbort) activeAbort.abort(); });
+
+  // Инициализация черновиков
+  initDrafts();
+  
+  // Инициализация кнопки трат
+  initExpensesButton();
+  
+  // Инициализация обратного отсчета до зарплаты
+  if (window.salaryCountdown) {
+    window.salaryCountdown.init();
+  }
 })();

@@ -54,6 +54,86 @@ body{
   transform: translateZ(0);
 }
 
+/* Компактный режим */
+.compact-mode {
+  --gap: 8px;
+  --radius: 12px;
+  --shadow: 0 4px 15px rgba(17,24,39,.08);
+}
+
+.compact-mode .container {
+  padding: 8px;
+}
+
+.compact-mode .chart-card {
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.compact-mode .summary-card {
+  padding: 8px;
+}
+
+.compact-mode .summary-title {
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+.compact-mode .summary-num {
+  font-size: clamp(16px,2.5vw,20px);
+}
+
+.compact-mode .btn {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.compact-mode .tabs-row {
+  gap: 4px;
+}
+
+.compact-mode .tab {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.compact-mode header {
+  padding: 8px 0;
+  gap: 6px;
+}
+
+.compact-mode .header-actions {
+  gap: 6px;
+}
+
+.compact-mode .search-wrap input {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+/* Кнопка переключения компактного режима */
+#compactToggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: var(--brand);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: all 0.3s ease;
+}
+
+#compactToggle:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-lg);
+}
+
 /* Оптимизация для мобильных устройств */
 @media (max-width: 768px) {
   .container {
@@ -72,6 +152,14 @@ body{
   
   .chart-card {
     margin-bottom: 12px;
+  }
+  
+  #compactToggle {
+    top: 10px;
+    right: 10px;
+    width: 35px;
+    height: 35px;
+    font-size: 14px;
   }
 }
 
@@ -155,6 +243,40 @@ h1{margin:0; font-weight:800; letter-spacing:-.3px; font-size: clamp(18px, 2.5vw
 .summary-card{position:relative; overflow:hidden; border:1px solid var(--stroke); border-radius:var(--radius); padding:14px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); box-shadow:var(--shadow)}
 .summary-title{font-size: clamp(11px,1.6vw,12px); color:var(--muted); text-transform:uppercase; letter-spacing:.25px; margin-bottom:6px}
 .summary-num{font-size: clamp(20px,3vw,26px); font-weight:800}
+
+/* Стили для плашки доходности */
+.profit-positive {
+  border-color: var(--ok) !important;
+  background: linear-gradient(180deg, rgba(6,214,160,.1), rgba(6,214,160,.02)) !important;
+}
+
+.profit-negative {
+  border-color: var(--accent) !important;
+  background: linear-gradient(180deg, rgba(247,37,133,.1), rgba(247,37,133,.02)) !important;
+}
+
+.profit-positive .summary-num {
+  color: var(--ok) !important;
+}
+
+.profit-negative .summary-num {
+  color: var(--accent) !important;
+}
+
+.profit-percent {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+  opacity: 0.8;
+}
+
+.profit-positive .profit-percent {
+  color: var(--ok);
+}
+
+.profit-negative .profit-percent {
+  color: var(--accent);
+}
 
 .title-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:6px 0 8px; }
 @media (max-width:560px){

@@ -305,6 +305,14 @@ function toISOFromAlt(inputVal){
 function animateNumbers(){
   document.querySelectorAll('[data-anim-num]')?.forEach(el=>{
     const to = Number(el.getAttribute('data-anim-num')||0);
+    
+    // Для P/L показываем сразу без анимации, чтобы было видно отрицательные числа
+    const isPL = el.closest('.summary-card')?.querySelector('.summary-title')?.textContent?.includes('P/L');
+    if (isPL) {
+      el.textContent = `${fmt(to)} ₽`;
+      return;
+    }
+    
     const dur = 700; const t0 = performance.now();
     const step = (t)=>{ const p = Math.min(1, (t-t0)/dur); const v = to*p; el.textContent = `${fmt(v)} ₽`; if(p<1) requestAnimationFrame(step); };
     requestAnimationFrame(step);
@@ -358,12 +366,29 @@ function renderSummary(){
     { key:'bonds',  title:'ОФЗ',    val: (portfolio.bonds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),   hint: topInsideHint(portfolio.bonds) },
     { key:'funds',  title:'Фонды',  val: (portfolio.funds||[]).reduce((s,i)=>s+((i.currentPrice??i.avgPrice??0)*(i.quantity||0)),0),   hint: topInsideHint(portfolio.funds) },
   ];
+  // Добавляем плашку P/L - используем уже готовую функцию totalPL()
+  const pl = totalPL(); // Возвращает {abs, pct} - абсолютное значение и процент
+
+  blocks.push({
+    key: 'profit',
+    title: 'P/L',
+    val: pl.abs, // Абсолютное значение P/L (может быть отрицательным)
+    hint: `P/L: ${pl.pct.toFixed(2)}%`
+  });
+
   const wrap = document.getElementById('portfolioSummary');
-  wrap.innerHTML = blocks.map(b=>`
-    <div class="summary-card animate-in" data-hint="${escHtml(b.hint)}">
-      <div class="summary-title">${b.title}</div>
-      <div class="summary-num" data-anim-num="${b.val}">0 ₽</div>
-    </div>`).join('');
+  wrap.innerHTML = blocks.map(b=>{
+    const isProfit = b.key === 'profit';
+    const profitClass = isProfit ? (pl.abs >= 0 ? 'profit-positive' : 'profit-negative') : '';
+    const profitIcon = isProfit ? (pl.abs >= 0 ? '📈' : '📉') : '';
+    
+    return `
+      <div class="summary-card animate-in ${profitClass}" data-hint="${escHtml(b.hint)}">
+        <div class="summary-title">${profitIcon} ${b.title}</div>
+        <div class="summary-num" data-anim-num="${b.val}">0 ₽</div>
+        ${isProfit ? `<div class="profit-percent">${pl.pct >= 0 ? '+' : ''}${pl.pct.toFixed(2)}%</div>` : ''}
+      </div>`;
+  }).join('');
   animateNumbers();
 }
 
@@ -1082,6 +1107,30 @@ function hookHeaderButtons(){
   });
 
   document.getElementById('helpBtn')?.addEventListener('click', openHelpModal);
+
+  // Компактный режим
+  document.getElementById('compactToggle')?.addEventListener('click', ()=>{
+    const body = document.body;
+    const isCompact = body.classList.contains('compact-mode');
+    
+    if (isCompact) {
+      body.classList.remove('compact-mode');
+      localStorage.setItem('pf_compact', 'false');
+      document.getElementById('compactToggle').textContent = '📱';
+      toast('Обычный режим');
+    } else {
+      body.classList.add('compact-mode');
+      localStorage.setItem('pf_compact', 'true');
+      document.getElementById('compactToggle').textContent = '📄';
+      toast('Компактный режим');
+    }
+  });
+
+  // Загружаем сохраненный режим
+  if (localStorage.getItem('pf_compact') === 'true') {
+    document.body.classList.add('compact-mode');
+    document.getElementById('compactToggle').textContent = '📄';
+  }
 }
 
 // ====== INIT ======
