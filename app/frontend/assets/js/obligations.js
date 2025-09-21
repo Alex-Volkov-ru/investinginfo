@@ -945,7 +945,16 @@
   }
 
   function calculateNextPaymentDate(item) {
-    // Пытаемся найти дату в названии или описании
+    // Сначала пытаемся взять дату из поля "Следующий платёж"
+    if (item.nextPayment) {
+      const nextPaymentDate = new Date(item.nextPayment);
+      if (!isNaN(nextPaymentDate.getTime()) && nextPaymentDate > new Date()) {
+        console.log(`Используем дату из поля nextPayment: ${item.nextPayment} для ${item.title}`);
+        return nextPaymentDate;
+      }
+    }
+
+    // Если поле nextPayment пустое или дата в прошлом, пытаемся найти дату в названии или описании
     const text = `${item.title} ${item.notes || ''}`;
     
     // Ищем паттерны дат
@@ -975,14 +984,16 @@
 
         const date = new Date(year, month, day);
         if (date > new Date()) {
+          console.log(`Нашли дату в тексте: ${date.toISOString().split('T')[0]} для ${item.title}`);
           return date;
         }
       }
     }
 
-    // Если дата не найдена, используем текущую дату + 30 дней
+    // Если ничего не нашли, используем текущую дату + 30 дней
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() + 30);
+    console.log(`Используем дефолтную дату: ${defaultDate.toISOString().split('T')[0]} для ${item.title}`);
     return defaultDate;
   }
 
