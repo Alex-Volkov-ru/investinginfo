@@ -9,39 +9,39 @@
 @media (max-width: 560px){ :root{ --gap:12px; } }
 
 :root[data-theme='light']{
-  --bg:#f5f7ff; --bg2:#ffffff; --card:#ffffff; --stroke:rgba(0,0,0,.10);
-  --text:#17202a; --muted:#6b7280; --brand:#4361ee; --brand2:#67e8f9;
-  --accent:#f72585; --ok:#06d6a0; --warn:#fbbf24;
+  --bg:#f8fafc; --bg2:#ffffff; --card:#ffffff; --stroke:rgba(0,0,0,.08);
+  --text:#1e293b; --muted:#64748b; --brand:#059669; --brand2:#10b981;
+  --accent:#dc2626; --ok:#059669; --warn:#d97706;
 }
 :root[data-theme='dark']{
-  --bg:#0f1224; --bg2:#0b0e1a; --card:#151935; --stroke:rgba(255,255,255,.10);
-  --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
-  --accent:#f86aa4; --ok:#26d3a9; --warn:#ffd166;
+  --bg:#0f172a; --bg2:#1e293b; --card:#334155; --stroke:rgba(255,255,255,.12);
+  --text:#f1f5f9; --muted:#94a3b8; --brand:#10b981; --brand2:#34d399;
+  --accent:#ef4444; --ok:#10b981; --warn:#f59e0b;
   color-scheme: dark;
 }
 
 /* ====== Палитра для обязательств (совместимость) ====== */
 :root{
     --ob-panel:#ffffff;
-    --ob-text:#1f2430;
-    --ob-muted:#667085;
-    --ob-border:#e6e8ef;
-    --ob-primary:#6c72ff;
-    --ob-danger:#e54b4b;
-    --ob-ring:#e9ebf2;
+    --ob-text:#1e293b;
+    --ob-muted:#64748b;
+    --ob-border:rgba(0,0,0,.08);
+    --ob-primary:#3b82f6;
+    --ob-danger:#dc2626;
+    --ob-ring:#f1f5f9;
     --ob-input-bg:#ffffff;
   }
   
   /* ====== Палитра (тёмная) ====== */
   html[data-theme="dark"]{
-    --ob-panel:#101626;
-    --ob-text:#e5e7eb;
-    --ob-muted:#9aa6b2;
-    --ob-border:rgba(255,255,255,.08);
-    --ob-primary:#7c83ff;
-    --ob-danger:#ff6b7a;
+    --ob-panel:#334155;
+    --ob-text:#f1f5f9;
+    --ob-muted:#94a3b8;
+    --ob-border:rgba(255,255,255,.12);
+    --ob-primary:#3b82f6;
+    --ob-danger:#ef4444;
     --ob-ring:#1e293b;
-    --ob-input-bg:#0b1222;
+    --ob-input-bg:#475569;
   }
   
 /* Секция с итогами - стиль как в инвестициях */
@@ -53,11 +53,11 @@
 .total-label{font-size:clamp(11px,1.6vw,12px);color:var(--muted);text-transform:uppercase;letter-spacing:.25px;margin-bottom:6px}
 .total-value{font-size:clamp(20px,3vw,26px);font-weight:800}
 
-/* Цветовая схема для плашек - как в инвестициях */
-.total-card:nth-child(1) .total-value{color:var(--brand)} /* ВСЕГО - синий */
+/* Цветовая схема для плашек - разнообразная палитра */
+.total-card:nth-child(1) .total-value{color:#3b82f6} /* ВСЕГО - синий */
 .total-card:nth-child(2) .total-value{color:var(--warn)} /* КРЕДИТЫ - оранжевый */
 .total-card:nth-child(3) .total-value{color:var(--ok)} /* ОПЛАЧЕНО - зеленый */
-.total-card:nth-child(4) .total-value{color:var(--accent)} /* ОСТАЛОСЬ - розовый */
+.total-card:nth-child(4) .total-value{color:var(--accent)} /* ОСТАЛОСЬ - красный */
 
 /* Адаптивность для мобильных */
 @media (max-width:768px){
@@ -251,7 +251,7 @@
 }
 
 .tooltip-item.nearest {
-  background: rgba(247, 37, 133, 0.1);
+  background: rgba(220, 38, 38, 0.1);
   border-left: 3px solid var(--accent);
 }
 
@@ -314,7 +314,7 @@
 }
 
 .payment-item.nearest {
-  background: rgba(247, 37, 133, 0.1);
+  background: rgba(220, 38, 38, 0.1);
   border-left: 4px solid var(--accent);
 }
 

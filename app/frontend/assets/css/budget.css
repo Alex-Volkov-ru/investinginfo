@@ -225,8 +225,8 @@ html[data-theme="light"] .budget-page .card{
 .btn-add{
   display:inline-flex; align-items:center; gap:8px;
   padding:10px 14px; border-radius:14px; font-weight:800;
-  background:linear-gradient(135deg, var(--brand), var(--brand2));
-  color:#0c0f21; border:0; box-shadow:var(--shadow);
+  background:var(--brand);
+  color:#ffffff; border:0; box-shadow:var(--shadow);
 }
 .btn-add .plus{ font-size:18px; line-height:1 }
 .btn-sm{ padding:6px 10px; font-size:12px; border-radius:10px; }
@@ -295,7 +295,7 @@ html[data-theme="light"] .budget-page .kpi{
 }
 .budget-page input::placeholder{ color:#7681a1 }
 .budget-page .btn{ font-weight:800 }
-.budget-page .btn-primary{ background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:1px solid transparent }
+.budget-page .btn-primary{ background:var(--brand); color:#ffffff; border:1px solid transparent }
 .budget-page .btn-danger{
   background:linear-gradient(135deg, #ff6b6b, #f43f5e); color:#fff;
   border:1px solid rgba(255,255,255,.08);
@@ -309,7 +309,7 @@ html[data-theme="light"] .budget-page .kpi{
   padding:8px 12px; border-radius:999px; cursor:pointer; font-weight:800
 }
 .budget-page .tab-btn--active{
-  background:linear-gradient(135deg, var(--brand), var(--brand2)); border:none; color:#0c0f21
+  background:var(--brand); border:none; color:#ffffff
 }
 
 /* таблицы */
@@ -430,7 +430,7 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 /* сегменты в модалках */
 .seg{ display:inline-flex; gap:8px; padding:6px; background:var(--input-bg); border:1px solid var(--stroke); border-radius:12px; margin-bottom:12px }
 .seg-btn{ border:0; padding:8px 12px; border-radius:999px; font-weight:800; cursor:pointer; background:transparent; color:var(--text); opacity:.8 }
-.seg-btn.is-active{ opacity:1; color:#0c0f21; background:linear-gradient(135deg, var(--brand), var(--brand2)) }
+.seg-btn.is-active{ opacity:1; color:#ffffff; background:var(--brand) }
 
 /* ====== Универсальная «корзина» ====== */
 .btn-del{ display:inline-flex; align-items:center; gap:8px; padding:8px 12px; }
@@ -479,7 +479,7 @@ html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
 .kpi-btn:hover{ transform: translateY(-1px); box-shadow: var(--shadow-lg, var(--shadow)); }
 .kpi-btn:active{ transform: translateY(0); }
 .kpi-btn__ico{ display:inline-block; width:1.1em; height:1.1em; line-height:1; font-weight:900; opacity:.9; }
-.kpi-btn--primary{ background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border-color:transparent; }
+.kpi-btn--primary{ background:var(--brand); color:#ffffff; border-color:transparent; }
 .kpi-btn--danger{ background:transparent; color:var(--accent); border-color:var(--accent); }
 .kpi-btn--danger:hover{ background: color-mix(in srgb, var(--accent) 12%, transparent); }
 @supports not (color-mix: in srgb, white, black){ .kpi-btn--danger:hover{ background: rgba(244,63,94,.12); } }
@@ -517,8 +517,8 @@ html[data-theme="light"] .dd__list{ --dialog-bg:#ffffff; }
   border:0; border-radius:10px; padding:8px 10px; font-weight:700; cursor:pointer;
 }
 .dd__opt:hover{ background: color-mix(in srgb, var(--brand) 14%, transparent); }
-@supports not (color-mix: in srgb, white, black){ .dd__opt:hover{ background: rgba(106,125,255,.14); } }
-.dd__opt.is-active{ background: linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; }
+@supports not (color-mix: in srgb, white, black){ .dd__opt:hover{ background: rgba(5,150,105,.14); } }
+.dd__opt.is-active{ background: var(--brand); color:#ffffff; }
 @media (max-width:520px){ .dd__list{ min-width: clamp(220px, 92vw, 480px); } }
 
 /* --- Obligations column sizes --- */
@@ -545,7 +545,7 @@ html[data-theme="light"] .dd__list{ --dialog-bg:#ffffff; }
 }
 .toast{
   padding:10px 14px; border-radius:12px; font-weight:800;
-  background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21;
+  background:var(--brand); color:#ffffff;
   box-shadow:var(--shadow-xl);
   transition:opacity .25s ease, transform .25s ease;
 }

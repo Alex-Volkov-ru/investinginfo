@@ -53,14 +53,32 @@
         <input id="searchInput" type="text" placeholder="Поиск по названию…" />
       </div>
       <div class="header-actions">
-        <button class="btn btn-ghost" id="toggleAllBtn" title="Свернуть/развернуть все секции">⤴️ Все</button>
+        <button class="btn btn-ghost" id="toggleAllBtn" title="Свернуть/развернуть все секции">
+          <span class="icon icon-compact"></span>
+          Все
+        </button>
         <div id="authStatus" class="auth-status">Гость</div>
-        <button id="logoutBtn" class="btn btn-danger" title="Выйти">🚪 Выйти</button>
+        <button id="logoutBtn" class="btn btn-danger" title="Выйти">
+          <span class="icon icon-logout"></span>
+          Выйти
+        </button>
         <div class="select-wrap" style="min-width:170px"><input id="periodInput" type="month" /></div>
-        <button id="refreshBtn" class="btn" title="Обновить данные">🔄 Обновить</button>
-        <button id="expensesBtn" class="btn btn-primary" title="Сколько потратил за месяц">💰 Траты</button>
-        <button id="themeToggle" class="btn" title="Сменить тему">🌓 Тема</button>
-        <button id="helpBtn" class="btn" title="Справка и горячие клавиши">❓ Справка</button>
+        <button id="refreshBtn" class="btn" title="Обновить данные">
+          <span class="icon icon-refresh"></span>
+          Обновить
+        </button>
+        <button id="expensesBtn" class="btn btn-primary" title="Сколько потратил за месяц">
+          <span class="icon icon-expenses"></span>
+          Траты
+        </button>
+        <button id="themeToggle" class="btn" title="Сменить тему">
+          <span class="icon icon-theme"></span>
+          Тема
+        </button>
+        <button id="helpBtn" class="btn" title="Справка и горячие клавиши">
+          <span class="icon icon-help"></span>
+          Справка
+        </button>
       </div>
     </header>
 

@@ -278,9 +278,19 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   function hsl(h,s,l,a=1){ return `hsla(${h} ${s}% ${l}% / ${a})`; }
   function catPalette(ctx, labels, kind){
     const n = Math.max(labels.length,1);
-    const start = kind==='inc' ? 170 : 330;
-    const spread = kind==='inc' ? 120 : 90;
-    return labels.map((_,i)=>{ const h=(start + (i*spread)/n)%360; const g=ctx.createLinearGradient(0,0,0,260); g.addColorStop(0,hsl(h,75,60)); g.addColorStop(1,hsl(h,75,42)); return g; });
+    // Для доходов используем зеленые и синие оттенки
+    // Для расходов используем красные и оранжевые оттенки
+    const baseColors = kind==='inc' 
+      ? ['rgba(16,185,129,.9)', 'rgba(59,130,246,.9)', 'rgba(34,197,94,.9)', 'rgba(99,102,241,.9)']
+      : ['rgba(239,68,68,.9)', 'rgba(245,158,11,.9)', 'rgba(220,38,38,.9)', 'rgba(251,146,60,.9)'];
+    
+    return labels.map((_,i)=>{ 
+      const color = baseColors[i % baseColors.length];
+      const g = ctx.createLinearGradient(0,0,0,260); 
+      g.addColorStop(0, color); 
+      g.addColorStop(1, color.replace('.9)', '.4)')); 
+      return g; 
+    });
   }
   const commonTooltip = { callbacks:{ label(c){ const v=Number(c.raw||0); const sum=(c.dataset.data||[]).reduce((s,x)=>s+Number(x||0),0)||1; const p=v/sum*100; return `${c.label}: ${fmtMoney(v)} (${nfPct.format(p)}%)`; } } };
 
@@ -308,8 +318,8 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
     if(!canvas) return null;
     const ctx = canvas.getContext('2d');
     const theme = getComputedStyle(document.documentElement);
-    const line = (theme.getPropertyValue('--brand') || '#6a7dff').trim();
-    const g = ctx.createLinearGradient(0,0,0,300); g.addColorStop(0,'rgba(67,97,238,.35)'); g.addColorStop(1,'rgba(67,97,238,.05)');
+    const line = (theme.getPropertyValue('--brand') || '#059669').trim();
+    const g = ctx.createLinearGradient(0,0,0,300); g.addColorStop(0,'rgba(239,68,68,.35)'); g.addColorStop(1,'rgba(239,68,68,.05)');
 
     if (CHARTS[key]){
       const ch = CHARTS[key];

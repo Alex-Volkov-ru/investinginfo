@@ -469,10 +469,22 @@
         </div>
         <div class="ob-card__actions">
           <span class="ob-badge">${escH(item.status)}</span>
-          <button class="btn" data-act="save">💾 Сохранить</button>
-          <button class="btn btn-ghost" data-act="rename">✏️ Переименовать</button>
-          <button class="btn btn-ghost" data-act="duplicate">🧬 Дублировать</button>
-          <button class="btn btn-danger" data-act="remove">🗑 Удалить</button>
+          <button class="btn" data-act="save">
+            <span class="icon icon-save"></span>
+            Сохранить
+          </button>
+          <button class="btn btn-ghost" data-act="rename">
+            <span class="icon icon-edit"></span>
+            Переименовать
+          </button>
+          <button class="btn btn-ghost" data-act="duplicate">
+            <span class="icon icon-duplicate"></span>
+            Дублировать
+          </button>
+          <button class="btn btn-danger" data-act="remove">
+            <span class="icon icon-delete"></span>
+            Удалить
+          </button>
         </div>
       </div>
 
@@ -578,7 +590,9 @@
         <div class="modal__dialog" style="max-width: 400px;">
           <div class="modal__header">
             <h3>🗑 Удаление обязательства</h3>
-            <button class="modal__close" onclick="closeModalProperly(this.closest('.modal'));">✕</button>
+            <button class="modal__close" onclick="closeModalProperly(this.closest('.modal'));">
+              <span class="icon icon-close"></span>
+            </button>
           </div>
           <div class="modal__body">
             <div style="text-align: center; padding: 20px;">
@@ -595,7 +609,8 @@
                   ❌ Отмена
                 </button>
                 <button class="btn btn-danger" id="confirmDeleteBtn">
-                  🗑 Удалить
+                  <span class="icon icon-delete"></span>
+                  Удалить
                 </button>
               </div>
             </div>
@@ -740,10 +755,11 @@
     ctx.clearRect(0,0,canvas.width,canvas.height);
     const cx=canvas.width/2, cy=canvas.height/2;
 
-    const colorPaid = cssVar('--ob-primary') || '#6c72ff';
-    const colorRest = cssVar('--ob-ring')    || '#e9ebf2';
-    const colorHole = cssVar('--ob-panel')   || '#fff';
-    const colorStroke = cssVar('--ob-border')|| '#e6e8ef';
+    // Получаем актуальные цвета из CSS переменных
+    const colorPaid = cssVar('--ob-primary') || '#3b82f6';  // Синий вместо зеленого
+    const colorRest = cssVar('--ob-ring')    || '#f1f5f9';
+    const colorHole = cssVar('--ob-panel')   || '#ffffff';
+    const colorStroke = cssVar('--ob-border')|| 'rgba(0,0,0,.08)';
 
     ctx.lineWidth = outR-inR;
     // фон
@@ -762,11 +778,37 @@
 
     // проценты в центре
     const show = Math.round(pct||0);
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--ob-muted') || '#667085';
-    ctx.font = '800 20px ui-sанс-serif, system-ui, -apple-system, Segoe UI';
+    ctx.fillStyle = cssVar('--ob-muted') || '#64748b';
+    ctx.font = '800 20px ui-sans-serif, system-ui, -apple-system, Segoe UI';
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(show+'%', cx, cy);
   }
+
+  // Функция для перерисовки всех графиков при смене темы
+  function redrawAllCharts(){
+    document.querySelectorAll('.ob-chart canvas').forEach(canvas => {
+      const root = canvas.closest('.ob-card');
+      if (root && root._paidPrincipal !== undefined && root._total !== undefined) {
+        drawChart(canvas, root._paidPrincipal, root._total, 
+          root._total > 0 ? (root._paidPrincipal / root._total * 100) : 0);
+      }
+    });
+  }
+
+  // Слушатель смены темы для перерисовки графиков
+  const themeObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+        // Небольшая задержка для применения CSS переменных
+        setTimeout(redrawAllCharts, 100);
+      }
+    });
+  });
+  
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
+  });
 
   /* ---------------- hotkeys ---------------- */
   function bindHotkeys() {
@@ -827,18 +869,18 @@
       if (isCompact) {
         body.classList.remove('compact-mode');
         localStorage.setItem('pf_compact', 'false');
-        document.getElementById('compactToggle').textContent = '📱';
+        document.getElementById('compactToggle').innerHTML = '<span class="icon icon-compact"></span>';
       } else {
         body.classList.add('compact-mode');
         localStorage.setItem('pf_compact', 'true');
-        document.getElementById('compactToggle').textContent = '📄';
+        document.getElementById('compactToggle').innerHTML = '<span class="icon icon-compact"></span>';
       }
     });
 
   // Загружаем сохраненный режим
   if (localStorage.getItem('pf_compact') === 'true') {
     document.body.classList.add('compact-mode');
-    document.getElementById('compactToggle').textContent = '📄';
+    document.getElementById('compactToggle').innerHTML = '<span class="icon icon-compact"></span>';
   }
 
   // Инициализируем плашку до оплаты кредитов

@@ -446,8 +446,14 @@ function renderSections(){
           <div class="asset-name">${title} ${it.figi?`<small style="color:var(--muted)">(${it.figi})</small>`:''}</div>
           <div class="asset-actions">
             <button class="btn" data-action="show" data-name="${it.name}" title="Показать/скрыть график">📈 График</button>
-            <button class="btn" data-action="edit" data-type="${cat}" data-index="${idx}">✏️ Изменить</button>
-            <button class="btn btn-danger" data-action="del" data-type="${cat}" data-index="${idx}">Удалить</button>
+            <button class="btn" data-action="edit" data-type="${cat}" data-index="${idx}">
+              <span class="icon icon-edit"></span>
+              Изменить
+            </button>
+            <button class="btn btn-danger" data-action="del" data-type="${cat}" data-index="${idx}">
+              <span class="icon icon-delete"></span>
+              Удалить
+            </button>
           </div>
         </div>
         <div class="asset-details">
@@ -559,9 +565,9 @@ function renderCharts(){
     const ctx1 = el1.getContext('2d');
     if (charts.c1) charts.c1.destroy();
     const bg = [
-      grad(ctx1,'rgba(67,97,238,.9)','rgba(67,97,238,.3)'),
-      grad(ctx1,'rgba(127,240,249,.9)','rgba(127,240,249,.35)'),
-      grad(ctx1,'rgba(6,214,160,.9)','rgba(6,214,160,.35)')
+      grad(ctx1,'rgba(59,130,246,.9)','rgba(59,130,246,.3)'),  // Синий
+      grad(ctx1,'rgba(16,185,129,.9)','rgba(16,185,129,.35)'), // Зеленый
+      grad(ctx1,'rgba(168,85,247,.9)','rgba(168,85,247,.35)')  // Фиолетовый
     ];
     charts.c1 = new Chart(ctx1, {
       type: 'doughnut',
@@ -615,13 +621,13 @@ function renderCharts(){
 
   if(document.getElementById('chartByTickerValue')) rebuild('chartByTickerValue', {
     type:'bar',
-    data:{ labels: labelsTickers, datasets:[{ data:values, borderRadius:10, unit:'₽', backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(67,97,238,.9)','rgba(127,240,249,.4)')} }] },
+    data:{ labels: labelsTickers, datasets:[{ data:values, borderRadius:10, unit:'₽', backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(59,130,246,.9)','rgba(147,197,253,.4)')} }] },
     options: barOpts
   });
 
   if(document.getElementById('chartByTickerQty')) rebuild('chartByTickerQty', {
     type:'bar',
-    data:{ labels: labelsTickers, datasets:[{ data:qtys, borderRadius:10, unit:'шт.', backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(6,214,160,.9)','rgba(67,97,238,.4)')} }] },
+    data:{ labels: labelsTickers, datasets:[{ data:qtys, borderRadius:10, unit:'шт.', backgroundColor:(c)=>{const ctx=c.chart.ctx;return grad(ctx,'rgba(168,85,247,.9)','rgba(196,181,253,.4)')} }] },
     options:{
       ...barOpts,
       scales:{
@@ -643,10 +649,10 @@ function makeLineChart(canvasId,label){
   const el = document.getElementById(canvasId); if(!el) return null;
   const ctx = el.getContext('2d');
   const g = ctx.createLinearGradient(0,0,0,300);
-  g.addColorStop(0,'rgba(67,97,238,.35)'); g.addColorStop(1,'rgba(67,97,238,.02)');
+  g.addColorStop(0,'rgba(59,130,246,.35)'); g.addColorStop(1,'rgba(59,130,246,.02)');
   charts[canvasId] = new Chart(ctx,{
     type:'line',
-    data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.5, fill:true, backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#4361ee', pointRadius:0, tension:.25 }] },
+    data:{ labels:[], datasets:[{ label, data:[], borderWidth:2.5, fill:true, backgroundColor:g, borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#059669', pointRadius:0, tension:.25 }] },
     options:{
       responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ mode:'index', intersect:false, callbacks:{ label:(c)=> `${fmt(c.parsed.y)} ₽` } } },
       scales:{
@@ -1116,12 +1122,12 @@ function hookHeaderButtons(){
     if (isCompact) {
       body.classList.remove('compact-mode');
       localStorage.setItem('pf_compact', 'false');
-      document.getElementById('compactToggle').textContent = '📱';
+      document.getElementById('compactToggle').innerHTML = '<span class="icon icon-compact"></span>';
       toast('Обычный режим');
     } else {
       body.classList.add('compact-mode');
       localStorage.setItem('pf_compact', 'true');
-      document.getElementById('compactToggle').textContent = '📄';
+      document.getElementById('compactToggle').innerHTML = '<span class="icon icon-compact"></span>';
       toast('Компактный режим');
     }
   });
@@ -1129,7 +1135,7 @@ function hookHeaderButtons(){
   // Загружаем сохраненный режим
   if (localStorage.getItem('pf_compact') === 'true') {
     document.body.classList.add('compact-mode');
-    document.getElementById('compactToggle').textContent = '📄';
+    document.getElementById('compactToggle').innerHTML = '<span class="icon icon-compact"></span>';
   }
 }
 

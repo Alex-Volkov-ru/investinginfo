@@ -41,11 +41,23 @@
       </div>
 
       <div class="header-actions">
-        <button id="refreshBtn" class="btn" title="Обновить данные (R)"><span>🔄 Обновить</span></button>
-        <button id="themeToggle" class="btn" title="Тёмная/светлая тема (T)"><span>🌓 Тема</span></button>
+        <button id="refreshBtn" class="btn" title="Обновить данные (R)">
+          <span class="icon icon-refresh"></span>
+          Обновить
+        </button>
+        <button id="themeToggle" class="btn" title="Тёмная/светлая тема (T)">
+          <span class="icon icon-theme"></span>
+          Тема
+        </button>
         <div id="authStatus" class="auth-status">Гость</div>
-        <button id="logoutBtn" class="btn btn-danger" title="Выйти из аккаунта"><span>⎋ Выйти</span></button>
-        <button id="helpBtn" class="btn" title="Справка и горячие клавиши (?)"><span>❓ Справка</span></button>
+        <button id="logoutBtn" class="btn btn-danger" title="Выйти из аккаунта">
+          <span class="icon icon-logout"></span>
+          Выйти
+        </button>
+        <button id="helpBtn" class="btn" title="Справка и горячие клавиши (?)">
+          <span class="icon icon-help"></span>
+          Справка
+        </button>
       </div>
     </header>
 
@@ -80,7 +92,10 @@
 
     <div class="title-row" style="margin-top:6px;">
       <div class="muted">▸</div>
-      <button id="toggleAllBtn" class="btn btn-ghost" title="Развернуть/свернуть все секции (S)">⤴️ Все</button>
+      <button id="toggleAllBtn" class="btn btn-ghost" title="Развернуть/свернуть все секции (S)">
+        <span class="icon icon-compact"></span>
+        Все
+      </button>
     </div>
 
     <!-- Мои обязательства -->
@@ -179,7 +194,9 @@
   </div>
 
   <!-- Кнопка компактного режима -->
-  <button id="compactToggle" title="Компактный режим">📱</button>
+  <button id="compactToggle" title="Компактный режим">
+    <span class="icon icon-compact"></span>
+  </button>
 
   <script src="https://cdn.jsdelivr.net/npm/axios@1.6.8/dist/axios.min.js"></script>
   <script src="assets/js/network-optimizer.js"></script>

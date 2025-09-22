@@ -38,7 +38,7 @@ class SalaryCountdown {
       <div class="countdown-content">
         <div class="countdown-header">
           <div class="countdown-label">До зарплаты:</div>
-          <button class="settings-btn" id="salarySettingsBtn" title="Настройки зарплаты">⚙️</button>
+          <button class="settings-btn" id="salarySettingsBtn" title="Настройки зарплаты"><span class="icon icon-settings"></span></button>
         </div>
         <div class="countdown-time" id="countdownTime">--</div>
         <div class="countdown-progress">
@@ -244,8 +244,8 @@ class SalaryCountdown {
     modal.innerHTML = `
       <div class="modal__dialog" style="max-width: 400px;">
         <div class="modal__header">
-          <h3>⚙️ Настройки зарплаты</h3>
-          <button class="modal__close" onclick="this.closest('.modal').remove()">✕</button>
+          <h3><span class="icon icon-settings"></span> Настройки зарплаты</h3>
+          <button class="modal__close" onclick="salaryCountdown.closeModal(this.closest('.modal'))"><span class="icon icon-close"></span></button>
         </div>
         <div class="modal__body">
           <p>Укажите дни получения зарплаты (например: 10, 25 или 15, 30):</p>
@@ -268,7 +268,7 @@ class SalaryCountdown {
             </button>
           </div>
           <div style="margin-top: 20px; text-align: center;">
-            <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Сохранить</button>
+            <button class="btn btn-primary" onclick="salaryCountdown.closeModal(this.closest('.modal'))">Сохранить</button>
           </div>
         </div>
       </div>
@@ -276,6 +276,21 @@ class SalaryCountdown {
     
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
+    
+    // Добавляем обработчик клика вне модального окна
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        this.closeModal(modal);
+      }
+    });
+  }
+
+  // Правильное закрытие модального окна с восстановлением скроллинга
+  closeModal(modal) {
+    if (modal && modal.parentNode) {
+      modal.remove();
+      document.body.style.overflow = '';
+    }
   }
 
   // Обновить день зарплаты

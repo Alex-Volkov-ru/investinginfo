@@ -1,7 +1,7 @@
 :root{
-  --bg:#0f1224; --card:#151935; --stroke:rgba(255,255,255,.12);
-  --text:#ecf0ff; --muted:#a0a7c9; --brand:#6a7dff; --brand2:#7ff0ff;
-  --accent:#f86aa4; --ok:#26d3a9;
+  --bg:#0f172a; --card:#334155; --stroke:rgba(255,255,255,.12);
+  --text:#f1f5f9; --muted:#94a3b8; --brand:#10b981; --brand2:#34d399;
+  --accent:#ef4444; --ok:#10b981;
 }
 
 *{box-sizing:border-box}
@@ -41,11 +41,11 @@ input:focus{outline:none; box-shadow:0 0 0 3px rgba(122,162,255,.28); border-col
 }
 .btn:hover{ transform:translateY(-1px); box-shadow:0 10px 30px rgba(0,0,0,.35) }
 .btn:disabled{ opacity:.6; cursor:default }
-.btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:none}
+.btn-primary{background:var(--brand); color:#ffffff; border:none}
 
 .tabs{display:flex; gap:8px; margin:0 0 12px}
 .tab{padding:8px 12px; border-radius:999px; background:#1b2146; border:1px solid var(--stroke); cursor:pointer; font-weight:800}
-.tab.active{background:linear-gradient(135deg, var(--brand), var(--brand2)); color:#0c0f21; border:none}
+.tab.active{background:var(--brand); color:#ffffff; border:none}
 
 .muted{color:var(--muted); font-size:12px}
 .err{color:#ff8383; font-weight:800; font-size:12px; display:none; margin-top:6px}
@@ -81,13 +81,13 @@ input:focus{outline:none; box-shadow:0 0 0 3px rgba(122,162,255,.28); border-col
 .loader-title{ text-align:center; font-weight:800; font-size:18px; margin-top:2px }
 .loader-sub{ text-align:center; color:var(--muted); font-size:12px; margin-top:2px }
 .progress{ height:8px; border-radius:999px; background:#1b2146; border:1px solid var(--stroke); overflow:hidden; margin-top:12px }
-.progress .bar{ height:100%; width:0%; background:linear-gradient(135deg, var(--brand), var(--brand2)); transition: width .35s ease }
+.progress .bar{ height:100%; width:0%; background:var(--brand); transition: width .35s ease }
 
 .bg-pulse{
   position:absolute; inset:0; z-index:1; pointer-events:none;
   background:
-    radial-gradient(900px 600px at 15% 10%, rgba(122,162,255,.24), transparent),
-    radial-gradient(900px 600px at 85% 90%, rgba(248,106,164,.18), transparent);
+    radial-gradient(900px 600px at 15% 10%, rgba(16,185,129,.24), transparent),
+    radial-gradient(900px 600px at 85% 90%, rgba(239,68,68,.18), transparent);
   animation: pulse 2.2s ease-in-out infinite;
 }
 @keyframes pulse{ 0%,100%{opacity:.6} 50%{opacity:.9} }
