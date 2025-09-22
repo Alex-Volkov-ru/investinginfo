@@ -43,26 +43,6 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('pf_theme', t); }
   (function initTheme(){ setTheme(localStorage.getItem('pf_theme') || 'dark'); })();
 
-  // ===== Черновики =====
-  function initDrafts() {
-    // Кнопка черновиков
-    document.getElementById('draftsBtn')?.addEventListener('click', () => {
-      window.draftManager.showDraftsModal();
-    });
-
-    // Автосохранение для формы транзакций
-    const transactionForm = document.getElementById('transactionForm');
-    if (transactionForm && window.draftManager) {
-      window.draftManager.enableAutoSave('transactionForm', () => {
-        const formData = new FormData(transactionForm);
-        const data = {};
-        for (let [key, value] of formData.entries()) {
-          data[key] = value;
-        }
-        return data;
-      });
-    }
-  }
 
   // ===== Кнопка трат =====
   function initExpensesButton() {
@@ -138,28 +118,35 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
                 </div>
               ` : `
                 <div class="expenses-summary">
-                  <div class="expense-item">
-                    <div class="expense-label">Общие расходы:</div>
-                    <div class="expense-amount" style="color: var(--danger); font-size: 24px; font-weight: bold;">
-                      ${fmtMoney(summary.expense_total)}
+                  <div class="expense-card expense-card-danger">
+                    <div class="expense-icon">💸</div>
+                    <div class="expense-content">
+                      <div class="expense-label">Общие расходы</div>
+                      <div class="expense-amount">${fmtMoney(summary.expense_total)}</div>
                     </div>
                   </div>
-                  <div class="expense-item">
-                    <div class="expense-label">Доходы:</div>
-                    <div class="expense-amount" style="color: var(--ok); font-size: 20px;">
-                      ${fmtMoney(summary.income_total)}
+                  
+                  <div class="expense-card expense-card-success">
+                    <div class="expense-icon">💰</div>
+                    <div class="expense-content">
+                      <div class="expense-label">Доходы</div>
+                      <div class="expense-amount">${fmtMoney(summary.income_total)}</div>
                     </div>
                   </div>
-                  <div class="expense-item" style="border-top: 1px solid var(--stroke); padding-top: 10px; margin-top: 10px;">
-                    <div class="expense-label">Остаток:</div>
-                    <div class="expense-amount" style="color: var(--brand); font-size: 22px; font-weight: bold;">
-                      ${fmtMoney(summary.net_total)}
+                  
+                  <div class="expense-card expense-card-primary">
+                    <div class="expense-icon">⚖️</div>
+                    <div class="expense-content">
+                      <div class="expense-label">Остаток</div>
+                      <div class="expense-amount">${fmtMoney(summary.net_total)}</div>
                     </div>
                   </div>
-                  <div class="expense-item">
-                    <div class="expense-label">Сбережения:</div>
-                    <div class="expense-amount" style="color: var(--warn); font-size: 18px;">
-                      ${fmtMoney(summary.savings_transferred)}
+                  
+                  <div class="expense-card expense-card-warning">
+                    <div class="expense-icon">🏦</div>
+                    <div class="expense-content">
+                      <div class="expense-label">Сбережения</div>
+                      <div class="expense-amount">${fmtMoney(summary.savings_transferred)}</div>
                     </div>
                   </div>
                 </div>
@@ -1087,8 +1074,6 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
 
   window.addEventListener('beforeunload', ()=>{ clearTimeout(timerId); if(activeAbort) activeAbort.abort(); });
 
-  // Инициализация черновиков
-  initDrafts();
   
   // Инициализация кнопки трат
   initExpensesButton();

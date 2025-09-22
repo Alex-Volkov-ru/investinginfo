@@ -36,6 +36,135 @@ header.app-header{ position: static !important; }
   --safe-right: env(safe-area-inset-right);
 }
 
+/* ===== Expenses Summary Modal Styles ===== */
+.expenses-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.expense-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--card);
+  transition: all 0.2s ease;
+}
+
+.expense-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.expense-icon {
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.expense-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.expense-label {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.expense-amount {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+/* Card color variants */
+.expense-card-danger {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.expense-card-danger .expense-icon {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.expense-card-danger .expense-amount {
+  color: #ef4444;
+}
+
+.expense-card-success {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.expense-card-success .expense-icon {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.expense-card-success .expense-amount {
+  color: #22c55e;
+}
+
+.expense-card-primary {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.expense-card-primary .expense-icon {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.expense-card-primary .expense-amount {
+  color: #3b82f6;
+}
+
+.expense-card-warning {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.expense-card-warning .expense-icon {
+  background: rgba(245, 158, 11, 0.2);
+}
+
+.expense-card-warning .expense-amount {
+  color: #f59e0b;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .expenses-summary {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .expense-card {
+    padding: 12px;
+  }
+  
+  .expense-icon {
+    font-size: 20px;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .expense-amount {
+    font-size: 16px;
+  }
+}
+
 /* ===== Obligations toggle – responsive sizes ===== */
 :root{
   --ob-toggle-w: 52px;
