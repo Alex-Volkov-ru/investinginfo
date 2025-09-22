@@ -172,8 +172,21 @@
   };
   if (!el.list || !el.addBtn) return;
 
-  const openModal = box => { if(!box) return; box.style.display='flex'; document.body.style.overflow='hidden'; };
-  const closeModal = box => { if(!box) return; box.style.display='';     document.body.style.overflow=''; };
+  const openModal = box => { 
+    if(!box) return; 
+    box.style.display='flex'; 
+    document.body.style.overflow='hidden'; 
+  };
+  const closeModal = box => { 
+    console.log('closeModal вызвана с:', box);
+    if(!box) return; 
+    box.style.display='';     
+    document.body.style.overflow=''; 
+    console.log('Модальное окно закрыто, overflow восстановлен');
+  };
+  
+  // Делаем функцию глобальной для использования в onclick
+  window.closeModal = closeModal;
 
   let items = [];
   let currentRenamingItem = null;
@@ -556,15 +569,64 @@
     });
 
     root.querySelector('[data-act="remove"]').addEventListener('click', async ()=>{
-      if(!confirm('Удалить блок?')) return;
-      try{
-        await apiDelete(item.id);
-        items = items.filter(x=>x.id!==item.id);
-        render();
-        toast('Удалено');
-      }catch(err){
-        console.error(err); toast(err?.response?.data?.detail || 'Не удалось удалить', 'err', 3600);
-      }
+      // Создаем кастомное модальное окно для подтверждения удаления
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.style.display = 'flex';
+      
+      modal.innerHTML = `
+        <div class="modal__dialog" style="max-width: 400px;">
+          <div class="modal__header">
+            <h3>🗑 Удаление обязательства</h3>
+            <button class="modal__close" onclick="closeModalProperly(this.closest('.modal'));">✕</button>
+          </div>
+          <div class="modal__body">
+            <div style="text-align: center; padding: 20px;">
+              <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+              <h4 style="margin-bottom: 12px; color: var(--danger);">Вы уверены?</h4>
+              <p style="color: var(--muted); margin-bottom: 20px;">
+                Обязательство <strong>"${item.title}"</strong> будет удалено навсегда.
+              </p>
+              <p style="color: var(--warn); font-size: 14px; margin-bottom: 24px;">
+                Это действие нельзя отменить!
+              </p>
+              <div style="display: flex; gap: 12px; justify-content: center;">
+                <button class="btn btn-ghost" onclick="closeModalProperly(this.closest('.modal'));">
+                  ❌ Отмена
+                </button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">
+                  🗑 Удалить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      document.body.style.overflow = 'hidden';
+      
+      // Обработчик подтверждения удаления
+      modal.querySelector('#confirmDeleteBtn').addEventListener('click', async () => {
+        console.log('Кнопка удаления нажата');
+        try{
+          await apiDelete(item.id);
+          items = items.filter(x=>x.id!==item.id);
+          render();
+          toast('Удалено');
+          console.log('Обязательство удалено, закрываем модальное окно');
+          closeModalProperly(modal);
+        }catch(err){
+          console.error(err); toast(err?.response?.data?.detail || 'Не удалось удалить', 'err', 3600);
+        }
+      });
+      
+      // Закрытие по клику вне модального окна
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          closeModalProperly(modal);
+        }
+      });
     });
 
     root.querySelectorAll('[data-key]').forEach(inp=>{
@@ -784,6 +846,21 @@
 
   // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
   const fmtMoney = (v, cur='RUB', d=2) => new Intl.NumberFormat('ru-RU', {style:'currency', currency:cur, maximumFractionDigits:d}).format(Number(v||0));
+  
+  // Универсальная функция для правильного закрытия модальных окон
+  const closeModalProperly = (modal) => {
+    console.log('closeModalProperly вызвана с:', modal);
+    if (modal) {
+      modal.remove();
+      document.body.style.overflow = '';
+      console.log('Модальное окно удалено, overflow восстановлен');
+    } else {
+      console.log('Модальное окно не найдено!');
+    }
+  };
+  
+  // Делаем функцию глобальной для использования в onclick
+  window.closeModalProperly = closeModalProperly;
 
   // ====== ПЛАШКА ДО ОПЛАТЫ КРЕДИТОВ ======
   function initPaymentCountdown() {
@@ -945,16 +1022,33 @@
   }
 
   function calculateNextPaymentDate(item) {
-    // Сначала пытаемся взять дату из поля "Следующий платёж"
-    if (item.nextPayment) {
-      const nextPaymentDate = new Date(item.nextPayment);
-      if (!isNaN(nextPaymentDate.getTime()) && nextPaymentDate > new Date()) {
-        console.log(`Используем дату из поля nextPayment: ${item.nextPayment} для ${item.title}`);
-        return nextPaymentDate;
+    const now = new Date();
+    
+    // Вычисляем дату по дню месяца из поля "Платёж не позднее — числа"
+    if (item.dueDay && item.dueDay >= 1 && item.dueDay <= 31) {
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+      
+      // Создаем дату платежа в текущем месяце
+      let paymentDate = new Date(currentYear, currentMonth, item.dueDay);
+      
+      // Если дата в текущем месяце уже прошла, берем следующий месяц
+      if (paymentDate <= now) {
+        paymentDate = new Date(currentYear, currentMonth + 1, item.dueDay);
       }
+      
+      // Проверяем что дата валидна (например, 31 февраля станет 3 марта)
+      if (paymentDate.getDate() !== item.dueDay) {
+        // Если день не совпадает, значит в месяце нет такого дня (например, 31 февраля)
+        // Берем последний день месяца
+        paymentDate = new Date(paymentDate.getFullYear(), paymentDate.getMonth() + 1, 0);
+      }
+      
+      console.log(`Вычисляем дату по дню ${item.dueDay}: ${paymentDate.toISOString().split('T')[0]} для ${item.title}`);
+      return paymentDate;
     }
 
-    // Если поле nextPayment пустое или дата в прошлом, пытаемся найти дату в названии или описании
+    // Если поле dueDay пустое или некорректное, пытаемся найти дату в названии или описании
     const text = `${item.title} ${item.notes || ''}`;
     
     // Ищем паттерны дат
@@ -983,7 +1077,7 @@
         }
 
         const date = new Date(year, month, day);
-        if (date > new Date()) {
+        if (date > now) {
           console.log(`Нашли дату в тексте: ${date.toISOString().split('T')[0]} для ${item.title}`);
           return date;
         }
@@ -1103,12 +1197,12 @@
       <div class="modal__dialog" style="max-width: 500px;">
         <div class="modal__header">
           <h3>💳 Ваши кредиты</h3>
-          <button class="modal__close" onclick="this.closest('.modal').remove()">✕</button>
+          <button class="modal__close" onclick="closeModalProperly(this.closest('.modal'));">✕</button>
         </div>
         <div class="modal__body">
           ${creditsHtml}
           <div style="text-align: center; margin-top: 20px;">
-            <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Закрыть</button>
+            <button class="btn btn-primary" onclick="closeModalProperly(this.closest('.modal'));">Закрыть</button>
           </div>
         </div>
       </div>
@@ -1116,6 +1210,13 @@
     
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
+    
+    // Закрытие по клику вне модального окна
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeModalProperly(modal);
+      }
+    });
   }
 
   function getCredits() {
