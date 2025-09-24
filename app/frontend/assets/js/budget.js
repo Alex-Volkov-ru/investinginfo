@@ -45,6 +45,19 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
 
 
   // ===== Кнопка трат =====
+  
+  // Функция для правильного закрытия модального окна трат
+  function closeExpensesModal() {
+    const modal = document.querySelector('.modal');
+    if (modal) {
+      modal.remove();
+      document.body.style.overflow = '';
+    }
+  }
+
+  // Делаем функцию глобальной для использования в onclick
+  window.closeExpensesModal = closeExpensesModal;
+
   function initExpensesButton() {
     document.getElementById('expensesBtn')?.addEventListener('click', async () => {
       try {
@@ -108,7 +121,7 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
           <div class="modal__dialog" style="max-width: 500px;">
             <div class="modal__header">
               <h3>💰 Траты за ${monthName}</h3>
-              <button class="modal__close" onclick="this.closest('.modal').remove()">✕</button>
+              <button class="modal__close" onclick="closeExpensesModal()">✕</button>
             </div>
             <div class="modal__body">
               ${summary.expense_total === 0 && summary.income_total === 0 ? `
@@ -152,7 +165,7 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
                 </div>
               `}
               <div style="margin-top: 20px; text-align: center;">
-                <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Закрыть</button>
+                <button class="btn btn-primary" onclick="closeExpensesModal()">Закрыть</button>
               </div>
             </div>
           </div>
@@ -160,6 +173,13 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
         
         document.body.appendChild(modal);
         document.body.style.overflow = 'hidden';
+        
+        // Добавляем обработчик клика вне модального окна
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            closeExpensesModal();
+          }
+        });
         
       } catch (error) {
         console.error('Ошибка загрузки трат:', error);
