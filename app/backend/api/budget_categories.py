@@ -58,6 +58,7 @@ def create_category(
             BudgetCategory.user_id == user.id,
             BudgetCategory.kind == payload.kind,
             BudgetCategory.name == payload.name,
+            BudgetCategory.is_active == True,  # Проверяем только активные категории
         )
         .limit(1)
     ).first()

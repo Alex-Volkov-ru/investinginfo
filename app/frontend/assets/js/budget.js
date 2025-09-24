@@ -732,6 +732,11 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
           <td class="col-cat" title="${cat || ''}"><span class="cell-clip">${cat || '—'}</span></td>
           <td class="t-right col-sum">${sum}</td>
           <td class="t-hide-sm col-desc" title="${desc}"><span class="cell-clip">${desc}</span></td>
+          <td class="t-right col-actions">
+            <button class="btn btn-danger btn-sm btn-del" data-id="${t.id}" data-act="del-tx" title="Удалить">
+              <span class="icon icon-delete"></span><span class="txt">Удалить</span>
+            </button>
+          </td>
         </tr>`;
     }
     tbody.innerHTML = html;
@@ -767,6 +772,11 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
             <td class="col-cat" title="${cat || ''}"><span class="cell-clip">${cat || '—'}</span></td>
             <td class="t-right col-sum">${sumStr}</td>
             <td class="t-hide-sm col-desc" title="${desc}"><span class="cell-clip">${desc}</span></td>
+            <td class="t-right col-actions">
+              <button class="btn btn-danger btn-sm btn-del" data-id="${t.id}" data-act="del-tx" title="Удалить">
+                <span class="icon icon-delete"></span><span class="txt">Удалить</span>
+              </button>
+            </td>
           </tr>`;
       }
       tbody.innerHTML = html;
@@ -786,6 +796,15 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   document.addEventListener('click', (e)=>{
     const target = e.target instanceof HTMLElement ? e.target : null;
     if (!target) return;
+    
+    // Обработка кнопок удаления транзакций
+    const delBtn = target.closest('[data-act="del-tx"]');
+    if (delBtn) {
+      const id = delBtn.getAttribute('data-id');
+      if (id) deleteTransaction(id);
+      return;
+    }
+    
     const tr = target.closest('tr[data-clickrow]');
     if (!tr) return;
     const inOb = !!tr.closest('#obTable');
@@ -914,6 +933,90 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
       await loadAccountsAndCats(activeAbort?.signal); renderCatTable(); await loadCharts(activeAbort?.signal);
     }catch(err){ toast(err?.response?.data?.detail || 'Ошибка при добавлении категории', 'err'); }
   });
+
+  // ===== Transaction actions =====
+  async function deleteTransaction(transactionId) {
+    // Создаем кастомное модальное окно для подтверждения
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.id = `deleteModal_${transactionId}`;
+    
+    modal.innerHTML = `
+      <div class="modal__dialog" style="max-width: 400px;">
+        <div class="modal__header">
+          <h3>⚠️ Вы уверены?</h3>
+          <button class="modal__close" onclick="closeDeleteModal('${transactionId}')">
+            <span class="icon icon-close"></span>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p style="margin: 0 0 20px 0; color: var(--text);">Это действие нельзя отменить!</p>
+          <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button class="btn btn-secondary" onclick="closeDeleteModal('${transactionId}')">
+              ❌ Отмена
+            </button>
+            <button class="btn btn-danger" onclick="confirmDeleteTransaction('${transactionId}')">
+              🗑 Удалить
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+  }
+
+  // Функция для закрытия модального окна удаления
+  function closeDeleteModal(transactionId) {
+    const modal = document.getElementById(`deleteModal_${transactionId}`);
+    if (modal) {
+      modal.remove();
+      document.body.style.overflow = '';
+    }
+  }
+
+  // Функция для подтверждения удаления
+  async function confirmDeleteTransaction(transactionId) {
+    console.log('Удаляем транзакцию ID:', transactionId);
+    try {
+      await api.delete(`/budget/transactions/${transactionId}`);
+      console.log('Транзакция успешно удалена с сервера');
+      toast('Транзакция удалена');
+      
+      // Закрываем модальное окно по ID
+      closeDeleteModal(transactionId);
+      
+      // Принудительно обновляем все данные
+      if (activeAbort) activeAbort.abort();
+      activeAbort = new AbortController();
+      const { signal } = activeAbort;
+      
+      await Promise.all([
+        loadSummary(signal),
+        loadCharts(signal), 
+        loadObligations(signal),
+        loadMonthTransactions(signal)
+      ]);
+      
+      // Обновляем фильтры и таблицы
+      console.log('Обновляем фильтры и таблицы');
+      rebuildCategoryFilters();
+      renderRecent();
+      renderLedger();
+      console.log('Все данные обновлены');
+      
+    } catch (err) {
+      if (!axios.isCancel(err)) {
+        toast(err?.response?.data?.detail || 'Не удалось удалить транзакцию', 'err');
+      }
+    }
+  }
+
+  // Делаем функции глобальными для использования в onclick
+  window.confirmDeleteTransaction = confirmDeleteTransaction;
+  window.closeDeleteModal = closeDeleteModal;
 
   // ===== Obligations actions =====
   async function addObligation(){

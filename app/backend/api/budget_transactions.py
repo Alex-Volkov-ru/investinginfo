@@ -205,3 +205,19 @@ def create_transaction(
         occurred_at=tx.occurred_at.isoformat() if hasattr(tx.occurred_at, "isoformat") else str(tx.occurred_at),
         description=tx.description,
     )
+
+
+@router.delete("/{transaction_id}")
+def delete_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Удалить транзакцию."""
+    tx = db.get(BudgetTransaction, transaction_id)
+    if not tx or tx.user_id != user.id:
+        raise HTTPException(404, detail="Транзакция не найдена")
+    
+    db.delete(tx)
+    db.commit()
+    return {"status": "ok"}
