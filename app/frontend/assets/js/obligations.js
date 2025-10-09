@@ -149,7 +149,7 @@
       root.querySelector('[data-bind="remain"]').textContent    = money(item.remaining || 0);
       root.querySelector('[data-bind="principal"]').textContent = money(item.paid_principal || 0);
       root.querySelector('[data-bind="paid"]').textContent      = money(item.paid_total || 0);
-      drawChart(root.querySelector('canvas'), item.paid_principal || 0, (+item.total||0), item.progress_pct || 0);
+      drawChart(root.querySelector('canvas'), item.remaining || 0, (+item.total||0), item.progress_pct || 0);
     } catch (e) {
       console.error('preview failed', e);
       // если превью недоступно — не рушим UI
@@ -721,8 +721,9 @@
       if(r<inR || r>outR) return null;
       const ang=(Math.atan2(dy,dx)+Math.PI*2+Math.PI/2)%(Math.PI*2);
       const total=+root._total||0;
-      const paidP=+root._paidPrincipal||0;
-      const paidAng= total>0 ? (Math.PI*2)*paidP/total : 0;
+      const remaining=+root._remaining||0;
+      const paidAmount = Math.max(0, total - remaining);
+      const paidAng= total>0 ? (Math.PI*2)*paidAmount/total : 0;
       return ang<=paidAng ? 'paid' : 'rest';
     }
 
@@ -730,9 +731,9 @@
       const hit=sectorAt(e);
       if(!hit){ tip.hidden=true; return; }
       const total=+root._total||0;
-      const paidP=+root._paidPrincipal||0;
-      const remain=Math.max(total-paidP,0);
-      const val = hit==='paid' ? paidP : remain;
+      const remaining=+root._remaining||0;
+      const paidAmount = Math.max(0, total - remaining);
+      const val = hit==='paid' ? paidAmount : remaining;
       const pct = total>0 ? Math.round(val/total*100) : 0;
       tip.innerHTML = `<b>${hit==='paid'?'Выплачено тела':'Осталось (тело)'}</b><br>${money(val)} (${pct}%)`;
       tip.hidden=false;
@@ -743,30 +744,33 @@
     canvas.addEventListener('mouseleave',()=>tip.hidden=true);
   }
 
-  function drawChart(canvas, paidPrincipal, total, pct){
+  function drawChart(canvas, remaining, total, pct){
     const root = canvas?.closest('.ob-card');
     const ctx=canvas.getContext('2d');
     const outR=canvas.width/2 - 6;
     const inR=outR*0.62;
 
-    root._paidPrincipal = paidPrincipal;
+    root._remaining = remaining;
     root._total = total;
 
     ctx.clearRect(0,0,canvas.width,canvas.height);
     const cx=canvas.width/2, cy=canvas.height/2;
 
     // Получаем актуальные цвета из CSS переменных
-    const colorPaid = cssVar('--ob-primary') || '#3b82f6';  // Синий вместо зеленого
-    const colorRest = cssVar('--ob-ring')    || '#f1f5f9';
+    const colorPaid = cssVar('--ob-primary') || '#3b82f6';  // Синий для оплаченной части
+    const colorRest = cssVar('--ob-ring')    || '#f1f5f9';  // Серый для оставшейся части
     const colorHole = cssVar('--ob-panel')   || '#ffffff';
     const colorStroke = cssVar('--ob-border')|| 'rgba(0,0,0,.08)';
 
     ctx.lineWidth = outR-inR;
-    // фон
+    
+    // Сначала рисуем фон (вся окружность)
     ctx.strokeStyle = colorRest;
     ctx.beginPath(); ctx.arc(cx,cy,(outR+inR)/2,-Math.PI/2,1.5*Math.PI); ctx.stroke();
 
-    const a = total>0 ? (Math.PI*2)*(paidPrincipal/total) : 0;
+    // Затем рисуем оплаченную часть поверх фона
+    const paidAmount = Math.max(0, total - remaining); // Вычисляем оплаченную сумму
+    const a = total>0 ? (Math.PI*2)*(paidAmount/total) : 0;
     if(a>0){
       ctx.strokeStyle = colorPaid;
       ctx.beginPath(); ctx.arc(cx,cy,(outR+inR)/2,-Math.PI/2,-Math.PI/2 + a); ctx.stroke();
@@ -776,21 +780,22 @@
     ctx.beginPath(); ctx.fillStyle=colorHole; ctx.strokeStyle=colorStroke;
     ctx.lineWidth=1; ctx.arc(cx,cy,inR,0,Math.PI*2); ctx.fill(); ctx.stroke();
 
-    // проценты в центре
-    const show = Math.round(pct||0);
+    // проценты в центре (показываем процент погашения)
+    const paidPercent = total>0 ? Math.round((paidAmount/total)*100) : 0;
     ctx.fillStyle = cssVar('--ob-muted') || '#64748b';
     ctx.font = '800 20px ui-sans-serif, system-ui, -apple-system, Segoe UI';
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(show+'%', cx, cy);
+    ctx.fillText(paidPercent+'%', cx, cy);
   }
 
   // Функция для перерисовки всех графиков при смене темы
   function redrawAllCharts(){
     document.querySelectorAll('.ob-chart canvas').forEach(canvas => {
       const root = canvas.closest('.ob-card');
-      if (root && root._paidPrincipal !== undefined && root._total !== undefined) {
-        drawChart(canvas, root._paidPrincipal, root._total, 
-          root._total > 0 ? (root._paidPrincipal / root._total * 100) : 0);
+      if (root && root._remaining !== undefined && root._total !== undefined) {
+        const paidAmount = Math.max(0, root._total - root._remaining);
+        drawChart(canvas, root._remaining, root._total, 
+          root._total > 0 ? (paidAmount / root._total * 100) : 0);
       }
     });
   }
