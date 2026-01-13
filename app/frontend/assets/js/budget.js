@@ -1227,21 +1227,38 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
     const yearSelect = $('#yearSelect');
     const loadBtn = $('#loadYearData');
 
-    // Заполняем список годов (от текущего до 2000, можно выбрать любой год)
-    const currentYear = new Date().getFullYear();
-    for (let year = currentYear; year >= 2000; year--) {
-      const option = document.createElement('option');
-      option.value = year;
-      option.textContent = year;
-      if (year === currentYear) option.selected = true;
-      yearSelect.appendChild(option);
+    if (!btn) {
+      console.warn('yearReportBtn not found');
+      return;
     }
 
-    // Открытие модального окна
-    btn?.addEventListener('click', (e) => {
+    // Заполняем список годов (от текущего до 2000, можно выбрать любой год)
+    const currentYear = new Date().getFullYear();
+    if (yearSelect) {
+      for (let year = currentYear; year >= 2000; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (year === currentYear) option.selected = true;
+        yearSelect.appendChild(option);
+      }
+    }
+
+    // Открытие модального окна (поддержка touch для мобильных)
+    const openYearReport = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       openModal('#yearReportModal', e);
       // Автоматически загружаем данные за текущий год
       loadYearData();
+    };
+    
+    btn.addEventListener('click', openYearReport);
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      openYearReport(e);
     });
 
     // Загрузка данных
