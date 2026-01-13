@@ -35,9 +35,7 @@ pydantic-settings==2.4.0
 email-validator==2.2.0
 
 redis>=5.0
-
-# Tinkoff Invest API SDK
-tinkoff-investments==0.2.0b115
+t-tech-investments==0.3.3
 protobuf>=4.25.3,<5.0.0
 grpcio>=1.56,<2
 
