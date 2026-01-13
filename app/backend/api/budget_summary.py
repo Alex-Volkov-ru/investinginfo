@@ -43,6 +43,18 @@ class ChartsOut(BaseModel):
     expense_by_day: List[ChartSlice]
 
 
+class YearSummaryOut(BaseModel):
+    year: int
+    income_total: float
+    expense_total: float
+    net_total: float
+    savings_transferred: float
+    savings: float
+    income_by_category: List[ChartSlice]
+    expense_by_category: List[ChartSlice]
+    monthly_data: List[dict]  # [{month: 1, income: 100, expense: 50}, ...]
+
+
 # ===== Helpers =====
 
 def _dates(from_: Optional[str], to: Optional[str]):
@@ -195,4 +207,150 @@ def charts(
         income_by_category=[{"name": n, "amount": float(v)} for (n, v) in rs_inc],
         expense_by_category=[{"name": n, "amount": float(v)} for (n, v) in rs_exp],
         expense_by_day=[{"name": d.isoformat(), "amount": float(v)} for (d, v) in rs_day],
+    )
+
+
+@router.get("/year", response_model=YearSummaryOut)
+def year_summary(
+    year: int = Query(..., description="Год (например, 2024)"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Годовая статистика: доходы, расходы, категории, данные по месяцам."""
+    d1 = date(year, 1, 1)
+    d2 = date(year, 12, 31)
+
+    # Общие суммы за год
+    income = db.scalar(
+        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "income",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+    ) or Decimal(0)
+
+    expense = db.scalar(
+        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "expense",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+    ) or Decimal(0)
+
+    savings_in = db.scalar(
+        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .join(BudgetAccount, BudgetAccount.id == BudgetTransaction.contra_account_id)
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "transfer",
+            BudgetAccount.is_savings.is_(True),
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+    ) or Decimal(0)
+
+    AccFrom = aliased(BudgetAccount)
+    AccTo = aliased(BudgetAccount)
+
+    savings_net = db.scalar(
+        select(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (AccTo.is_savings.is_(True), BudgetTransaction.amount),
+                        (AccFrom.is_savings.is_(True), -BudgetTransaction.amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            )
+        )
+        .join(AccFrom, AccFrom.id == BudgetTransaction.account_id)
+        .join(AccTo, AccTo.id == BudgetTransaction.contra_account_id)
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "transfer",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+    ) or Decimal(0)
+
+    # Доходы по категориям за год
+    rs_inc = db.execute(
+        select(BudgetCategory.name, func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "income",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+        .group_by(BudgetCategory.name)
+        .order_by(func.sum(BudgetTransaction.amount).desc())
+    ).all()
+
+    # Расходы по категориям за год
+    rs_exp = db.execute(
+        select(BudgetCategory.name, func.coalesce(func.sum(BudgetTransaction.amount), 0))
+        .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
+        .where(
+            BudgetTransaction.user_id == user.id,
+            BudgetTransaction.type == "expense",
+            BudgetTransaction.occurred_at >= d1,
+            BudgetTransaction.occurred_at <= d2,
+        )
+        .group_by(BudgetCategory.name)
+        .order_by(func.sum(BudgetTransaction.amount).desc())
+    ).all()
+
+    # Данные по месяцам
+    monthly_data = []
+    for month in range(1, 13):
+        month_start = date(year, month, 1)
+        if month == 12:
+            month_end = date(year, 12, 31)
+        else:
+            month_end = date(year, month + 1, 1) - timedelta(days=1)
+
+        month_income = db.scalar(
+            select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+            .where(
+                BudgetTransaction.user_id == user.id,
+                BudgetTransaction.type == "income",
+                BudgetTransaction.occurred_at >= month_start,
+                BudgetTransaction.occurred_at <= month_end,
+            )
+        ) or Decimal(0)
+
+        month_expense = db.scalar(
+            select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+            .where(
+                BudgetTransaction.user_id == user.id,
+                BudgetTransaction.type == "expense",
+                BudgetTransaction.occurred_at >= month_start,
+                BudgetTransaction.occurred_at <= month_end,
+            )
+        ) or Decimal(0)
+
+        monthly_data.append({
+            "month": month,
+            "income": float(month_income),
+            "expense": float(month_expense),
+            "net": float(month_income - month_expense),
+        })
+
+    return YearSummaryOut(
+        year=year,
+        income_total=float(income),
+        expense_total=float(expense),
+        net_total=float(income - expense),
+        savings_transferred=float(savings_in),
+        savings=float(savings_net),
+        income_by_category=[{"name": n, "amount": float(v)} for (n, v) in rs_inc],
+        expense_by_category=[{"name": n, "amount": float(v)} for (n, v) in rs_exp],
+        monthly_data=monthly_data,
     )

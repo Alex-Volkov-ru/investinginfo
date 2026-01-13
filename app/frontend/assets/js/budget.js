@@ -1215,4 +1215,267 @@ if (window.Chart) { Chart.defaults.responsive = true; Chart.defaults.maintainAsp
   if (window.salaryCountdown) {
     window.salaryCountdown.init();
   }
+
+  // ===== Годовой отчёт =====
+  let yearMonthlyChart = null;
+  let yearIncomeChart = null;
+  let yearExpenseChart = null;
+
+  function initYearReport() {
+    const btn = $('#yearReportBtn');
+    const modal = $('#yearReportModal');
+    const yearSelect = $('#yearSelect');
+    const loadBtn = $('#loadYearData');
+
+    // Заполняем список годов (от текущего до 2000, можно выбрать любой год)
+    const currentYear = new Date().getFullYear();
+    for (let year = currentYear; year >= 2000; year--) {
+      const option = document.createElement('option');
+      option.value = year;
+      option.textContent = year;
+      if (year === currentYear) option.selected = true;
+      yearSelect.appendChild(option);
+    }
+
+    // Открытие модального окна
+    btn?.addEventListener('click', (e) => {
+      openModal('#yearReportModal', e);
+      // Автоматически загружаем данные за текущий год
+      loadYearData();
+    });
+
+    // Загрузка данных
+    loadBtn?.addEventListener('click', loadYearData);
+    yearSelect?.addEventListener('change', () => {
+      if (!modal.hasAttribute('hidden')) loadYearData();
+    });
+  }
+
+  async function loadYearData() {
+    const year = parseInt($('#yearSelect').value) || new Date().getFullYear();
+    const token = localStorage.getItem('pf_token');
+    if (!token) return;
+
+    try {
+      const response = await axios.get(`/api/budget/summary/year?year=${year}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = response.data;
+
+      // Обновляем KPI
+      setText($('#yearIncome'), fmtMoney(data.income_total));
+      setText($('#yearExpense'), fmtMoney(data.expense_total));
+      setText($('#yearNet'), fmtMoney(data.net_total));
+      setText($('#yearSavings'), fmtMoney(data.savings));
+
+      // График по месяцам
+      updateYearMonthlyChart(data.monthly_data);
+
+      // Графики по категориям
+      updateYearIncomeChart(data.income_by_category);
+      updateYearExpenseChart(data.expense_by_category);
+
+      // Таблицы
+      updateYearIncomeTable(data.income_by_category, data.income_total);
+      updateYearExpenseTable(data.expense_by_category, data.expense_total);
+
+    } catch (error) {
+      console.error('Ошибка загрузки годовых данных:', error);
+      toast('Ошибка загрузки данных', 'err');
+    }
+  }
+
+  function updateYearMonthlyChart(monthlyData) {
+    const ctx = document.getElementById('yearMonthlyChart')?.getContext('2d');
+    if (!ctx) return;
+
+    const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const labels = monthlyData.map(d => months[d.month - 1]);
+    const incomeData = monthlyData.map(d => d.income);
+    const expenseData = monthlyData.map(d => d.expense);
+
+    if (yearMonthlyChart) yearMonthlyChart.destroy();
+
+    yearMonthlyChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Доходы',
+            data: incomeData,
+            backgroundColor: 'rgba(67, 97, 238, 0.6)',
+            borderColor: 'rgba(67, 97, 238, 1)',
+            borderWidth: 1
+          },
+          {
+            label: 'Расходы',
+            data: expenseData,
+            backgroundColor: 'rgba(239, 71, 111, 0.6)',
+            borderColor: 'rgba(239, 71, 111, 1)',
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return fmtMoney(value);
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: { display: true, position: 'top' },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': ' + fmtMoney(context.parsed.y);
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function updateYearIncomeChart(categories) {
+    const ctx = document.getElementById('yearIncomeChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (yearIncomeChart) yearIncomeChart.destroy();
+
+    yearIncomeChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: categories.map(c => c.name),
+        datasets: [{
+          data: categories.map(c => c.amount),
+          backgroundColor: [
+            'rgba(67, 97, 238, 0.8)',
+            'rgba(52, 211, 153, 0.8)',
+            'rgba(251, 191, 36, 0.8)',
+            'rgba(249, 115, 22, 0.8)',
+            'rgba(236, 72, 153, 0.8)',
+            'rgba(139, 92, 246, 0.8)',
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(34, 197, 94, 0.8)'
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right' },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percent = ((context.parsed / total) * 100).toFixed(1);
+                return context.label + ': ' + fmtMoney(context.parsed) + ' (' + percent + '%)';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function updateYearExpenseChart(categories) {
+    const ctx = document.getElementById('yearExpenseChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (yearExpenseChart) yearExpenseChart.destroy();
+
+    yearExpenseChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: categories.map(c => c.name),
+        datasets: [{
+          data: categories.map(c => c.amount),
+          backgroundColor: [
+            'rgba(239, 71, 111, 0.8)',
+            'rgba(255, 107, 107, 0.8)',
+            'rgba(255, 159, 64, 0.8)',
+            'rgba(255, 206, 84, 0.8)',
+            'rgba(75, 192, 192, 0.8)',
+            'rgba(153, 102, 255, 0.8)',
+            'rgba(255, 99, 132, 0.8)',
+            'rgba(54, 162, 235, 0.8)'
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right' },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percent = ((context.parsed / total) * 100).toFixed(1);
+                return context.label + ': ' + fmtMoney(context.parsed) + ' (' + percent + '%)';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function updateYearIncomeTable(categories, total) {
+    const tbody = $('#yearIncomeTable');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    categories.forEach(cat => {
+      const percent = total > 0 ? ((cat.amount / total) * 100).toFixed(1) : '0.0';
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${cat.name}</td>
+        <td class="t-right">${fmtMoney(cat.amount)}</td>
+        <td class="t-right muted">${percent}%</td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    if (categories.length === 0) {
+      const row = document.createElement('tr');
+      row.innerHTML = '<td colspan="3" class="muted t-center">Нет данных</td>';
+      tbody.appendChild(row);
+    }
+  }
+
+  function updateYearExpenseTable(categories, total) {
+    const tbody = $('#yearExpenseTable');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    categories.forEach(cat => {
+      const percent = total > 0 ? ((cat.amount / total) * 100).toFixed(1) : '0.0';
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${cat.name}</td>
+        <td class="t-right">${fmtMoney(cat.amount)}</td>
+        <td class="t-right muted">${percent}%</td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    if (categories.length === 0) {
+      const row = document.createElement('tr');
+      row.innerHTML = '<td colspan="3" class="muted t-center">Нет данных</td>';
+      tbody.appendChild(row);
+    }
+  }
+
+  // Инициализация годового отчета
+  initYearReport();
 })();
