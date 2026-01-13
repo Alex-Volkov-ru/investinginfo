@@ -9,7 +9,7 @@ WORKDIR /app
 
 # 1) ставим build deps, собираем колёса, потом чистим их в ЭТОМ ЖЕ слое
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc libpq-dev \
+    build-essential gcc libpq-dev git \
  && rm -rf /var/lib/apt/lists/*
 
 # зависимости
