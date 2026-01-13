@@ -415,94 +415,98 @@
   <!-- ===== YEAR REPORT MODAL ===== -->
   <div id="yearReportModal" class="modal" hidden>
     <div class="modal__backdrop" data-close></div>
-    <div class="modal__dialog" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal__dialog" style="max-width: 1200px;">
       <div class="modal__header">
         <h3>Годовой отчёт</h3>
         <button class="modal__close" data-close>&times;</button>
       </div>
-      <div class="form" style="padding: 20px;">
-        <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-          <label style="margin: 0;">Год:
-            <select id="yearSelect" style="min-width: 120px; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
-            </select>
-          </label>
+
+      <div class="form-group">
+        <label>Год</label>
+        <div>
+          <div class="select-wrap">
+            <select id="yearSelect"></select>
+          </div>
           <button id="loadYearData" class="btn btn-primary">Загрузить</button>
-          <span class="muted" style="font-size: 0.9em;">(можно выбрать любой год из списка)</span>
+          <span class="muted">(можно выбрать любой год из списка)</span>
         </div>
+      </div>
 
-        <!-- KPI плашки -->
-        <div class="kpis" style="margin-bottom: 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-          <div class="kpi">
-            <div class="kpi__label">Доходы за год</div>
-            <div class="kpi__value" id="yearIncome">0 ₽</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi__label">Расходы за год</div>
-            <div class="kpi__value" id="yearExpense">0 ₽</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi__label">Баланс</div>
-            <div class="kpi__value" id="yearNet">0 ₽</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi__label">Накопления</div>
-            <div class="kpi__value" id="yearSavings">0 ₽</div>
-          </div>
+      <!-- KPI плашки -->
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi__label">Доходы за год</div>
+          <div class="kpi__value summary-num" id="yearIncome">0 ₽</div>
         </div>
-
-        <!-- Графики -->
-        <div style="margin-bottom: 30px;">
-          <h3 class="muted" style="margin-bottom: 16px;">Доходы и расходы по месяцам</h3>
-          <div class="chart-box" style="height: 300px;">
-            <canvas id="yearMonthlyChart"></canvas>
-          </div>
+        <div class="kpi">
+          <div class="kpi__label">Расходы за год</div>
+          <div class="kpi__value summary-num" id="yearExpense">0 ₽</div>
         </div>
+        <div class="kpi">
+          <div class="kpi__label">Баланс</div>
+          <div class="kpi__value summary-num" id="yearNet">0 ₽</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi__label">Накопления</div>
+          <div class="kpi__value summary-num" id="yearSavings">0 ₽</div>
+        </div>
+      </div>
 
-        <div class="grid grid--2" style="margin-bottom: 30px;">
-          <div>
-            <h3 class="muted" style="margin-bottom: 16px;">Доходы по категориям</h3>
-            <div class="chart-box" style="height: 300px;">
-              <canvas id="yearIncomeChart"></canvas>
-            </div>
-          </div>
-          <div>
-            <h3 class="muted" style="margin-bottom: 16px;">Расходы по категориям</h3>
-            <div class="chart-box" style="height: 300px;">
-              <canvas id="yearExpenseChart"></canvas>
-            </div>
+      <!-- График по месяцам -->
+      <div class="chart-card">
+        <h3 class="zone-title">Доходы и расходы по месяцам</h3>
+        <div class="chart-box">
+          <canvas id="yearMonthlyChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Графики по категориям -->
+      <div class="portfolio-charts">
+        <div class="chart-card">
+          <h3 class="zone-title">Доходы по категориям</h3>
+          <div class="chart-box">
+            <canvas id="yearIncomeChart"></canvas>
           </div>
         </div>
-
-        <!-- Таблицы -->
-        <div class="grid grid--2" style="gap: 20px;">
-          <div>
-            <h3 class="muted" style="margin-bottom: 16px;">Доходы по категориям</h3>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Категория</th>
-                  <th class="t-right">Сумма</th>
-                  <th class="t-right">%</th>
-                </tr>
-              </thead>
-              <tbody id="yearIncomeTable"></tbody>
-            </table>
-          </div>
-          <div>
-            <h3 class="muted" style="margin-bottom: 16px;">Расходы по категориям</h3>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Категория</th>
-                  <th class="t-right">Сумма</th>
-                  <th class="t-right">%</th>
-                </tr>
-              </thead>
-              <tbody id="yearExpenseTable"></tbody>
-            </table>
+        <div class="chart-card">
+          <h3 class="zone-title">Расходы по категориям</h3>
+          <div class="chart-box">
+            <canvas id="yearExpenseChart"></canvas>
           </div>
         </div>
       </div>
+
+      <!-- Таблицы -->
+      <h3 class="zone-title">Детализация по категориям</h3>
+      <div class="grid grid--2">
+        <div class="card">
+          <h3 class="muted">Доходы по категориям</h3>
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="col-cat">Категория</th>
+                <th class="t-right col-sum">Сумма</th>
+                <th class="t-right">%</th>
+              </tr>
+            </thead>
+            <tbody id="yearIncomeTable"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3 class="muted">Расходы по категориям</h3>
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="col-cat">Категория</th>
+                <th class="t-right col-sum">Сумма</th>
+                <th class="t-right">%</th>
+              </tr>
+            </thead>
+            <tbody id="yearExpenseTable"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="modal__footer">
         <button class="btn btn-primary" data-close>Закрыть</button>
       </div>
