@@ -423,9 +423,10 @@ html[data-theme="light"] .budget-page .kpi{
   max-height: 90vh; overflow-y: auto;
 }
 html[data-theme="light"] .modal__dialog{ --dialog-bg:#ffffff }
-.modal__header{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px }
+.modal__header{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; position:sticky; top:0; z-index:10; background:var(--dialog-bg, #11182f); padding:20px 20px 12px; margin:-20px -20px 12px -20px; border-bottom:1px solid var(--stroke); }
 .modal__header h3{ margin:0; font-size:22px }
-.modal__close{ border:1px solid var(--stroke); width:34px; height:34px; border-radius:10px; background:var(--input-bg); color:var(--text) }
+.modal__close{ border:1px solid var(--stroke); width:34px; height:34px; border-radius:10px; background:var(--input-bg); color:var(--text); cursor:pointer; transition:all 0.2s ease; }
+.modal__close:hover{ background:var(--accent); border-color:var(--accent); color:#ffffff; }
 .modal__footer{ display:flex; justify-content:flex-end; margin-top:8px }
 
 /* Годовой отчет в модальном окне - используем стили как в инвестициях */
