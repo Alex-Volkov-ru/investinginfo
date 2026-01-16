@@ -336,11 +336,25 @@ def year_summary(
             )
         ) or Decimal(0)
 
+        # Сбережения за месяц
+        month_savings_in = db.scalar(
+            select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+            .join(BudgetAccount, BudgetAccount.id == BudgetTransaction.contra_account_id)
+            .where(
+                BudgetTransaction.user_id == user.id,
+                BudgetTransaction.type == "transfer",
+                BudgetAccount.is_savings.is_(True),
+                BudgetTransaction.occurred_at >= month_start,
+                BudgetTransaction.occurred_at <= month_end,
+            )
+        ) or Decimal(0)
+
         monthly_data.append({
             "month": month,
             "income": float(month_income),
             "expense": float(month_expense),
             "net": float(month_income - month_expense),
+            "savings": float(month_savings_in),
         })
 
     return YearSummaryOut(

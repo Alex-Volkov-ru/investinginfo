@@ -162,7 +162,8 @@ def create_transaction(
 
     elif payload.type in ("income", "expense"):
         if not payload.category_id:
-            raise HTTPException(400, detail="category_id обязателен для income/expense")
+            type_name = "доходов" if payload.type == "income" else "расходов"
+            raise HTTPException(400, detail=f"Для транзакций типа '{type_name}' необходимо выбрать категорию")
 
         category: BudgetCategory | None = db.get(BudgetCategory, payload.category_id)
         account: BudgetAccount | None = db.get(BudgetAccount, payload.account_id)

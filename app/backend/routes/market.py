@@ -244,26 +244,35 @@ async def quotes_by_tickers(payload: BatchTickersIn, user: User = Depends(get_cu
         token = _token_from_user(user)
         await run_in_threadpool(refresh_instruments_cache, token)
 
-    metas: list[dict] = []
-    for t in payload.tickers:
-        try:
-            m = await run_in_threadpool(_pick_figi_for_ticker, t, payload.class_hint)
-            metas.append({"ticker": t.strip().upper(), **m})
-        except HTTPException:
-            continue
-    if not metas:
-        return BatchQuotesOut(results=[])
+    # Создаем ключ кэша на основе тикеров и class_hint
+    tickers_sorted = sorted([t.strip().upper() for t in payload.tickers])
+    cache_key = f"quotes_batch:{':'.join(tickers_sorted)}:{payload.class_hint or 'all'}"
 
-    token = _token_from_user(user)
-    figis = [m["figi"] for m in metas]
-    prices_map = await run_in_threadpool(_get_last_prices_blocking, figis, token)
+    async def _load():
+        metas: list[dict] = []
+        for t in payload.tickers:
+            try:
+                m = await run_in_threadpool(_pick_figi_for_ticker, t, payload.class_hint)
+                metas.append({"ticker": t.strip().upper(), **m})
+            except HTTPException:
+                continue
+        if not metas:
+            return {"results": []}
 
-    out: list[QuoteOut] = []
-    for m in metas:
-        raw = prices_map.get(m["figi"])
-        if raw is None:
-            continue
-        qo = _normalize_quote(m["figi"], raw)
-        qo.ticker = m["ticker"]
-        out.append(qo)
-    return BatchQuotesOut(results=out)
+        token = _token_from_user(user)
+        figis = [m["figi"] for m in metas]
+        prices_map = await run_in_threadpool(_get_last_prices_blocking, figis, token)
+
+        out: list[dict] = []
+        for m in metas:
+            raw = prices_map.get(m["figi"])
+            if raw is None:
+                continue
+            qo = _normalize_quote(m["figi"], raw)
+            qo.ticker = m["ticker"]
+            out.append(qo.model_dump())
+        return {"results": out}
+
+    # Кэшируем на 60 секунд - обновляем котировки каждую минуту
+    data = await cached_json(cache_key, ttl_sec=60, loader=_load)
+    return BatchQuotesOut(**data)

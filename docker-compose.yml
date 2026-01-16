@@ -110,16 +110,38 @@ services:
       driver: "json-file"
       options: { max-size: "10m", max-file: "3" }
 
-  # Фронт со статикой и локальным прокси /api -> backend
-  frontend:
-    image: nginx:alpine
-    container_name: bigs-frontend
+  # React Frontend (dev mode with Vite)
+  frontend-dev:
+    build:
+      context: ./app/frontend-react
+      dockerfile: Dockerfile.dev
+    container_name: bigs-frontend-dev
     environment:
       TZ: ${TZ:-Europe/Moscow}
     volumes:
-      - ./app/frontend:/usr/share/nginx/html:ro
-      - ./env/localtime:/etc/localtime:ro
-      - ./env/frontend/local.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./app/frontend-react:/app
+      - /app/node_modules
+    ports:
+      - "${FRONTEND_DEV_PORT:-5173}:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks: [portfolio-net]
+    logging:
+      driver: "json-file"
+      options: { max-size: "5m", max-file: "2" }
+
+  # React Frontend (production build with nginx)
+  frontend:
+    build:
+      context: ./app/frontend-react
+      dockerfile: Dockerfile
+    image: bigs-frontend
+    container_name: bigs-frontend
+    environment:
+      TZ: ${TZ:-Europe/Moscow}
+    depends_on:
+      - backend
     ports:
       - "${APP_PORT:-8080}:80"
     restart: unless-stopped
