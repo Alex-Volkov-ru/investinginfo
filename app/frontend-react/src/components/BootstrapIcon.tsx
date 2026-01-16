@@ -4,10 +4,11 @@ interface BootstrapIconProps {
   name: string;
   className?: string;
   size?: number;
+  style?: React.CSSProperties;
 }
 
-export const BootstrapIcon: React.FC<BootstrapIconProps> = ({ name, className = '', size }) => {
-  const style = size ? { 
+export const BootstrapIcon: React.FC<BootstrapIconProps> = ({ name, className = '', size, style }) => {
+  const defaultStyle = size ? { 
     fontSize: `${size}px`, 
     width: `${size}px`, 
     height: `${size}px`,
@@ -16,6 +17,9 @@ export const BootstrapIcon: React.FC<BootstrapIconProps> = ({ name, className = 
     justifyContent: 'center',
     lineHeight: 1
   } : { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 };
-  return <i className={`bi bi-${name} ${className}`} style={style}></i>;
+  
+  const mergedStyle = style ? { ...defaultStyle, ...style } : defaultStyle;
+  
+  return <i className={`bi bi-${name} ${className}`} style={mergedStyle}></i>;
 };
 
