@@ -72,20 +72,31 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
 
   const chartOptions = {
     responsive: true,
-    maintainAspectRatio: true,
-    cutout: '60%', // Делаем график более тонким
+    maintainAspectRatio: false,
+    cutout: '65%', // Увеличиваем cutout для большего места под легенду
+    layout: {
+      padding: {
+        bottom: 10,
+        top: 10,
+        left: 10,
+        right: 10,
+      },
+    },
     plugins: {
       legend: {
-        position: 'bottom' as const,
+        position: 'right' as const,
+        align: 'center' as const,
         labels: {
-          padding: 20,
+          padding: 12,
           usePointStyle: true,
           pointStyle: 'circle',
           font: {
-            size: 13,
-            weight: 'bold' as const,
+            size: 11,
+            weight: 'normal' as const,
           },
           color: '#374151', // gray-700
+          boxWidth: 12,
+          boxHeight: 12,
           generateLabels: function (chart: any) {
             const data = chart.data;
             if (data.labels.length && data.datasets.length) {
@@ -94,8 +105,14 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
               return data.labels.map((label: string, i: number) => {
                 const value = dataset.data[i];
                 const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                // Обрезаем длинные названия категорий
+                const maxLabelLength = 20;
+                const truncatedLabel = label.length > maxLabelLength 
+                  ? label.substring(0, maxLabelLength) + '...' 
+                  : label;
                 return {
-                  text: `${label} (${percentage}%)`,
+                  text: `${truncatedLabel} (${percentage}%)`,
+                  fullText: `${label} (${percentage}%)`, // Сохраняем полный текст для tooltip
                   fillStyle: dataset.backgroundColor[i],
                   hidden: false,
                   index: i,
@@ -107,14 +124,14 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
         },
       },
       tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        padding: 12,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        padding: 10,
         titleFont: {
-          size: 14,
+          size: 13,
           weight: 'bold' as const,
         },
         bodyFont: {
-          size: 13,
+          size: 12,
         },
         borderColor: 'rgba(255, 255, 255, 0.1)',
         borderWidth: 1,
@@ -155,11 +172,11 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
           )}
         </div>
         {incomeData.length === 0 ? (
-          <div className="flex items-center justify-center h-64">
+          <div className="flex items-center justify-center h-96">
             <p className="text-gray-500 dark:text-gray-400">Нет данных</p>
           </div>
         ) : (
-          <div className="h-80">
+          <div className="h-96 min-h-[400px]">
             <Doughnut data={incomeChartData} options={chartOptions} />
           </div>
         )}
@@ -179,11 +196,11 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
           )}
         </div>
         {expenseData.length === 0 ? (
-          <div className="flex items-center justify-center h-64">
+          <div className="flex items-center justify-center h-96">
             <p className="text-gray-500 dark:text-gray-400">Нет данных</p>
           </div>
         ) : (
-          <div className="h-80 overflow-hidden">
+          <div className="h-96 min-h-[400px]">
             <Doughnut data={expenseChartData} options={chartOptions} />
           </div>
         )}
