@@ -83,7 +83,8 @@ class BudgetTransaction(Base):
     contra_account_id = Column(sa.BigInteger, ForeignKey("pf.budget_accounts.id", ondelete="SET NULL"), nullable=True)
     category_id = Column(sa.BigInteger, ForeignKey("pf.budget_categories.id", ondelete="SET NULL"), nullable=True)
 
-    amount = Column(Numeric(20, 2), nullable=False)
+    amount = Column(Numeric(20, 2), nullable=False)  # Оставляем для обратной совместимости и миграции
+    amount_encrypted = Column(Text, nullable=True)  # Зашифрованная сумма
     currency = Column(String(3), nullable=False, server_default="RUB")
     description = Column(Text, nullable=True)
 
