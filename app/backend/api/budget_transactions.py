@@ -10,6 +10,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user
+from app.backend.core.security import encrypt_amount, decrypt_amount
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 from app.backend.models.budget import (
@@ -103,6 +104,13 @@ def list_transactions(
     rows = db.execute(q).all()
     out: List[TransactionOut] = []
     for bt, cat in rows:
+        # Расшифровываем сумму (используем зашифрованную, если есть, иначе старую)
+        if bt.amount_encrypted:
+            decrypted_amount = decrypt_amount(bt.amount_encrypted)
+        else:
+            # Обратная совместимость со старыми записями
+            decrypted_amount = bt.amount
+        
         out.append(
             TransactionOut(
                 id=bt.id,
@@ -110,7 +118,7 @@ def list_transactions(
                 account_id=bt.account_id,
                 contra_account_id=bt.contra_account_id,
                 category=(CategoryOut(id=cat.id, name=cat.name) if cat else None),
-                amount=float(bt.amount),
+                amount=float(decrypted_amount),
                 currency=bt.currency,
                 occurred_at=bt.occurred_at.isoformat() if hasattr(bt.occurred_at, "isoformat") else str(bt.occurred_at),
                 description=bt.description,
@@ -151,7 +159,8 @@ def create_transaction(
             account_id=acc_from.id,
             contra_account_id=acc_to.id,
             category_id=None,
-            amount=payload.amount,
+            amount=payload.amount,  # Оставляем для обратной совместимости
+            amount_encrypted=encrypt_amount(payload.amount),  # Шифруем сумму
             currency=payload.currency,
             occurred_at=payload.occurred_at or date.today(),
             description=payload.description or None,
@@ -177,7 +186,8 @@ def create_transaction(
             account_id=account.id,
             contra_account_id=None,
             category_id=category.id,
-            amount=payload.amount,
+            amount=payload.amount,  # Оставляем для обратной совместимости
+            amount_encrypted=encrypt_amount(payload.amount),  # Шифруем сумму
             currency=payload.currency,
             occurred_at=payload.occurred_at or date.today(),
             description=payload.description or None,
@@ -195,13 +205,20 @@ def create_transaction(
         if c:
             cat = CategoryOut(id=c.id, name=c.name)
 
+    # Расшифровываем сумму (используем зашифрованную, если есть, иначе старую)
+    if tx.amount_encrypted:
+        decrypted_amount = decrypt_amount(tx.amount_encrypted)
+    else:
+        # Обратная совместимость со старыми записями
+        decrypted_amount = tx.amount
+    
     return TransactionOut(
         id=tx.id,
         type=tx.type,
         account_id=tx.account_id,
         contra_account_id=tx.contra_account_id,
         category=cat,
-        amount=float(tx.amount),
+        amount=float(decrypted_amount),
         currency=tx.currency,
         occurred_at=tx.occurred_at.isoformat() if hasattr(tx.occurred_at, "isoformat") else str(tx.occurred_at),
         description=tx.description,

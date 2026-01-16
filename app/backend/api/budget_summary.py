@@ -11,6 +11,7 @@ from sqlalchemy import select, func, case
 from sqlalchemy.orm import Session, aliased
 
 from app.backend.core.auth import get_current_user
+from app.backend.core.security import decrypt_amount
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 from app.backend.models.budget import (
@@ -79,6 +80,15 @@ def _dates(from_: Optional[str], to: Optional[str]):
 
 # ===== Routes =====
 
+def _get_decrypted_amount(tx: BudgetTransaction) -> Decimal:
+    """Получить расшифрованную сумму транзакции."""
+    if tx.amount_encrypted:
+        return decrypt_amount(tx.amount_encrypted)
+    else:
+        # Обратная совместимость со старыми записями
+        return tx.amount
+
+
 @router.get("/month", response_model=MonthSummaryOut)
 def month_summary(
     date_from: Optional[str] = Query(None, description="YYYY-MM-DD"),
@@ -88,28 +98,32 @@ def month_summary(
 ):
     d1, d2 = _dates(date_from, date_to)
 
-    income = db.scalar(
-        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+    # Загружаем транзакции и расшифровываем суммы на уровне приложения
+    income_txs = db.scalars(
+        select(BudgetTransaction)
         .where(
             BudgetTransaction.user_id == user.id,
             BudgetTransaction.type == "income",
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
-    ) or Decimal(0)
+    ).all()
+    income = sum(_get_decrypted_amount(tx) for tx in income_txs)
 
-    expense = db.scalar(
-        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+    expense_txs = db.scalars(
+        select(BudgetTransaction)
         .where(
             BudgetTransaction.user_id == user.id,
             BudgetTransaction.type == "expense",
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
-    ) or Decimal(0)
+    ).all()
+    expense = sum(_get_decrypted_amount(tx) for tx in expense_txs)
 
-    savings_in = db.scalar(
-        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+    # Переводы на сберегательные счета
+    savings_txs = db.scalars(
+        select(BudgetTransaction)
         .join(BudgetAccount, BudgetAccount.id == BudgetTransaction.contra_account_id)
         .where(
             BudgetTransaction.user_id == user.id,
@@ -118,33 +132,33 @@ def month_summary(
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
-    ) or Decimal(0)
+    ).all()
+    savings_in = sum(_get_decrypted_amount(tx) for tx in savings_txs)
 
+    # Чистые сбережения (входящие - исходящие)
     AccFrom = aliased(BudgetAccount)
     AccTo = aliased(BudgetAccount)
-
-    savings_net = db.scalar(
-        select(
-            func.coalesce(
-                func.sum(
-                    case(
-                        (AccTo.is_savings.is_(True), BudgetTransaction.amount),
-                        (AccFrom.is_savings.is_(True), -BudgetTransaction.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            )
-        )
+    all_transfer_txs = db.scalars(
+        select(BudgetTransaction)
         .join(AccFrom, AccFrom.id == BudgetTransaction.account_id)
-        .join(AccTo,   AccTo.id   == BudgetTransaction.contra_account_id)
+        .join(AccTo, AccTo.id == BudgetTransaction.contra_account_id)
         .where(
             BudgetTransaction.user_id == user.id,
             BudgetTransaction.type == "transfer",
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
-    ) or Decimal(0)
+    ).all()
+    
+    savings_net = Decimal(0)
+    for tx in all_transfer_txs:
+        amount = _get_decrypted_amount(tx)
+        acc_from = db.get(BudgetAccount, tx.account_id)
+        acc_to = db.get(BudgetAccount, tx.contra_account_id)
+        if acc_to and acc_to.is_savings:
+            savings_net += amount
+        elif acc_from and acc_from.is_savings:
+            savings_net -= amount
 
     return MonthSummaryOut(
         income_total=float(income),
@@ -164,9 +178,9 @@ def charts(
 ):
     d1, d2 = _dates(date_from, date_to)
 
-    # income by category
-    rs_inc = db.execute(
-        select(BudgetCategory.name, func.coalesce(func.sum(BudgetTransaction.amount), 0))
+    # Загружаем транзакции с категориями и расшифровываем суммы
+    income_txs = db.scalars(
+        select(BudgetTransaction)
         .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
         .where(
             BudgetTransaction.user_id == user.id,
@@ -174,12 +188,17 @@ def charts(
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
-        .group_by(BudgetCategory.name)
-        .order_by(BudgetCategory.name)
     ).all()
+    
+    income_by_cat: dict[str, Decimal] = {}
+    for tx in income_txs:
+        cat = db.get(BudgetCategory, tx.category_id)
+        if cat:
+            amount = _get_decrypted_amount(tx)
+            income_by_cat[cat.name] = income_by_cat.get(cat.name, Decimal(0)) + amount
 
-    rs_exp = db.execute(
-        select(BudgetCategory.name, func.coalesce(func.sum(BudgetTransaction.amount), 0))
+    expense_txs = db.scalars(
+        select(BudgetTransaction)
         .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
         .where(
             BudgetTransaction.user_id == user.id,
@@ -187,26 +206,36 @@ def charts(
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
-        .group_by(BudgetCategory.name)
-        .order_by(BudgetCategory.name)
     ).all()
+    
+    expense_by_cat: dict[str, Decimal] = {}
+    for tx in expense_txs:
+        cat = db.get(BudgetCategory, tx.category_id)
+        if cat:
+            amount = _get_decrypted_amount(tx)
+            expense_by_cat[cat.name] = expense_by_cat.get(cat.name, Decimal(0)) + amount
 
-    rs_day = db.execute(
-        select(BudgetTransaction.occurred_at, func.coalesce(func.sum(BudgetTransaction.amount), 0))
+    # Расходы по дням
+    expense_day_txs = db.scalars(
+        select(BudgetTransaction)
         .where(
             BudgetTransaction.user_id == user.id,
             BudgetTransaction.type == "expense",
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
-        .group_by(BudgetTransaction.occurred_at)
-        .order_by(BudgetTransaction.occurred_at.asc())
     ).all()
+    
+    expense_by_day: dict[date, Decimal] = {}
+    for tx in expense_day_txs:
+        day = tx.occurred_at.date() if hasattr(tx.occurred_at, "date") else tx.occurred_at
+        amount = _get_decrypted_amount(tx)
+        expense_by_day[day] = expense_by_day.get(day, Decimal(0)) + amount
 
     return ChartsOut(
-        income_by_category=[{"name": n, "amount": float(v)} for (n, v) in rs_inc],
-        expense_by_category=[{"name": n, "amount": float(v)} for (n, v) in rs_exp],
-        expense_by_day=[{"name": d.isoformat(), "amount": float(v)} for (d, v) in rs_day],
+        income_by_category=[{"name": n, "amount": float(v)} for n, v in sorted(income_by_cat.items())],
+        expense_by_category=[{"name": n, "amount": float(v)} for n, v in sorted(expense_by_cat.items())],
+        expense_by_day=[{"name": d.isoformat(), "amount": float(v)} for d, v in sorted(expense_by_day.items())],
     )
 
 
@@ -220,142 +249,71 @@ def year_summary(
     d1 = date(year, 1, 1)
     d2 = date(year, 12, 31)
 
-    # Общие суммы за год
-    income = db.scalar(
-        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
+    # Загружаем все транзакции за год и расшифровываем суммы
+    all_txs = db.scalars(
+        select(BudgetTransaction)
         .where(
             BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "income",
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
-    ) or Decimal(0)
-
-    expense = db.scalar(
-        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
-        .where(
-            BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "expense",
-            BudgetTransaction.occurred_at >= d1,
-            BudgetTransaction.occurred_at <= d2,
-        )
-    ) or Decimal(0)
-
-    savings_in = db.scalar(
-        select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
-        .join(BudgetAccount, BudgetAccount.id == BudgetTransaction.contra_account_id)
-        .where(
-            BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "transfer",
-            BudgetAccount.is_savings.is_(True),
-            BudgetTransaction.occurred_at >= d1,
-            BudgetTransaction.occurred_at <= d2,
-        )
-    ) or Decimal(0)
-
-    AccFrom = aliased(BudgetAccount)
-    AccTo = aliased(BudgetAccount)
-
-    savings_net = db.scalar(
-        select(
-            func.coalesce(
-                func.sum(
-                    case(
-                        (AccTo.is_savings.is_(True), BudgetTransaction.amount),
-                        (AccFrom.is_savings.is_(True), -BudgetTransaction.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            )
-        )
-        .join(AccFrom, AccFrom.id == BudgetTransaction.account_id)
-        .join(AccTo, AccTo.id == BudgetTransaction.contra_account_id)
-        .where(
-            BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "transfer",
-            BudgetTransaction.occurred_at >= d1,
-            BudgetTransaction.occurred_at <= d2,
-        )
-    ) or Decimal(0)
-
-    # Доходы по категориям за год
-    rs_inc = db.execute(
-        select(BudgetCategory.name, func.coalesce(func.sum(BudgetTransaction.amount), 0))
-        .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
-        .where(
-            BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "income",
-            BudgetTransaction.occurred_at >= d1,
-            BudgetTransaction.occurred_at <= d2,
-        )
-        .group_by(BudgetCategory.name)
-        .order_by(func.sum(BudgetTransaction.amount).desc())
     ).all()
 
-    # Расходы по категориям за год
-    rs_exp = db.execute(
-        select(BudgetCategory.name, func.coalesce(func.sum(BudgetTransaction.amount), 0))
-        .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
-        .where(
-            BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "expense",
-            BudgetTransaction.occurred_at >= d1,
-            BudgetTransaction.occurred_at <= d2,
-        )
-        .group_by(BudgetCategory.name)
-        .order_by(func.sum(BudgetTransaction.amount).desc())
-    ).all()
+    income = Decimal(0)
+    expense = Decimal(0)
+    savings_in = Decimal(0)
+    savings_net = Decimal(0)
+    income_by_cat: dict[str, Decimal] = {}
+    expense_by_cat: dict[str, Decimal] = {}
+    monthly_data_dict: dict[int, dict[str, Decimal]] = {m: {"income": Decimal(0), "expense": Decimal(0), "savings": Decimal(0)} for m in range(1, 13)}
 
-    # Данные по месяцам
+    for tx in all_txs:
+        amount = _get_decrypted_amount(tx)
+        tx_month = tx.occurred_at.month if hasattr(tx.occurred_at, "month") else (tx.occurred_at.date().month if hasattr(tx.occurred_at, "date") else 1)
+
+        if tx.type == "income":
+            income += amount
+            monthly_data_dict[tx_month]["income"] += amount
+            if tx.category_id:
+                cat = db.get(BudgetCategory, tx.category_id)
+                if cat:
+                    income_by_cat[cat.name] = income_by_cat.get(cat.name, Decimal(0)) + amount
+
+        elif tx.type == "expense":
+            expense += amount
+            monthly_data_dict[tx_month]["expense"] += amount
+            if tx.category_id:
+                cat = db.get(BudgetCategory, tx.category_id)
+                if cat:
+                    expense_by_cat[cat.name] = expense_by_cat.get(cat.name, Decimal(0)) + amount
+
+        elif tx.type == "transfer":
+            acc_to = db.get(BudgetAccount, tx.contra_account_id) if tx.contra_account_id else None
+            acc_from = db.get(BudgetAccount, tx.account_id) if tx.account_id else None
+            
+            if acc_to and acc_to.is_savings:
+                savings_in += amount
+                savings_net += amount
+                monthly_data_dict[tx_month]["savings"] += amount
+            elif acc_from and acc_from.is_savings:
+                savings_net -= amount
+                monthly_data_dict[tx_month]["savings"] -= amount
+
+    # Формируем данные по месяцам
     monthly_data = []
     for month in range(1, 13):
-        month_start = date(year, month, 1)
-        if month == 12:
-            month_end = date(year, 12, 31)
-        else:
-            month_end = date(year, month + 1, 1) - timedelta(days=1)
-
-        month_income = db.scalar(
-            select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
-            .where(
-                BudgetTransaction.user_id == user.id,
-                BudgetTransaction.type == "income",
-                BudgetTransaction.occurred_at >= month_start,
-                BudgetTransaction.occurred_at <= month_end,
-            )
-        ) or Decimal(0)
-
-        month_expense = db.scalar(
-            select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
-            .where(
-                BudgetTransaction.user_id == user.id,
-                BudgetTransaction.type == "expense",
-                BudgetTransaction.occurred_at >= month_start,
-                BudgetTransaction.occurred_at <= month_end,
-            )
-        ) or Decimal(0)
-
-        # Сбережения за месяц
-        month_savings_in = db.scalar(
-            select(func.coalesce(func.sum(BudgetTransaction.amount), 0))
-            .join(BudgetAccount, BudgetAccount.id == BudgetTransaction.contra_account_id)
-            .where(
-                BudgetTransaction.user_id == user.id,
-                BudgetTransaction.type == "transfer",
-                BudgetAccount.is_savings.is_(True),
-                BudgetTransaction.occurred_at >= month_start,
-                BudgetTransaction.occurred_at <= month_end,
-            )
-        ) or Decimal(0)
-
+        month_data = monthly_data_dict[month]
         monthly_data.append({
             "month": month,
-            "income": float(month_income),
-            "expense": float(month_expense),
-            "net": float(month_income - month_expense),
-            "savings": float(month_savings_in),
+            "income": float(month_data["income"]),
+            "expense": float(month_data["expense"]),
+            "net": float(month_data["income"] - month_data["expense"]),
+            "savings": float(month_data["savings"]),
         })
+
+    # Сортируем категории по сумме
+    income_by_cat_sorted = sorted(income_by_cat.items(), key=lambda x: x[1], reverse=True)
+    expense_by_cat_sorted = sorted(expense_by_cat.items(), key=lambda x: x[1], reverse=True)
 
     return YearSummaryOut(
         year=year,
@@ -364,7 +322,7 @@ def year_summary(
         net_total=float(income - expense),
         savings_transferred=float(savings_in),
         savings=float(savings_net),
-        income_by_category=[{"name": n, "amount": float(v)} for (n, v) in rs_inc],
-        expense_by_category=[{"name": n, "amount": float(v)} for (n, v) in rs_exp],
+        income_by_category=[{"name": n, "amount": float(v)} for (n, v) in income_by_cat_sorted],
+        expense_by_category=[{"name": n, "amount": float(v)} for (n, v) in expense_by_cat_sorted],
         monthly_data=monthly_data,
     )

@@ -13,6 +13,7 @@ def verify_password(raw: str, hashed: str) -> bool:
 
 
 import base64, hashlib
+from decimal import Decimal
 from cryptography.fernet import Fernet, InvalidToken
 from app.backend.core.config import get_settings
 
@@ -40,3 +41,30 @@ def decrypt_token(enc: str) -> str:
         return f.decrypt(enc.encode("utf-8")).decode("utf-8")
     except InvalidToken:
         return ""
+
+
+# ===== Шифрование сумм транзакций =====
+
+def encrypt_amount(amount: Decimal | float | str) -> str:
+    """
+    Шифрует сумму транзакции для безопасного хранения в БД.
+    """
+    if amount is None:
+        return ""
+    amount_str = str(amount)
+    f = _get_fernet()
+    return f.encrypt(amount_str.encode("utf-8")).decode("utf-8")
+
+
+def decrypt_amount(enc: str) -> Decimal:
+    """
+    Расшифровывает сумму транзакции из БД.
+    """
+    if not enc:
+        return Decimal("0")
+    f = _get_fernet()
+    try:
+        decrypted = f.decrypt(enc.encode("utf-8")).decode("utf-8")
+        return Decimal(decrypted)
+    except (InvalidToken, ValueError):
+        return Decimal("0")
