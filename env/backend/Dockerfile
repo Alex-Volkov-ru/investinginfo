@@ -7,7 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# 1) ставим build deps, собираем колёса, потом чистим их в ЭТОМ ЖЕ слое
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc libpq-dev git \
  && rm -rf /var/lib/apt/lists/*
@@ -16,6 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY ./app/backend/requirements.txt /app/requirements.txt
 RUN python -m pip install --upgrade pip \
  && pip install --no-cache-dir -r /app/requirements.txt
+RUN cd /tmp && git clone --depth 1 https://github.com/RussianInvestments/invest-python.git && \
+    cd invest-python && \
+    pip install --no-cache-dir --no-deps . && \
+    pip install --no-cache-dir cachetools deprecation python-dateutil && \
+    rm -rf /tmp/invest-python
 
 # 2) удаляем сборочные пакеты, ставим только рантайм libpq5
 RUN apt-get update \
@@ -26,7 +30,6 @@ RUN apt-get update \
 # код
 COPY ./app /app/app
 
-# непривилегированный пользователь
 RUN useradd -ms /bin/bash appuser
 USER appuser
 
