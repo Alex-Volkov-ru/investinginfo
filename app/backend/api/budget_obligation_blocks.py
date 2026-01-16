@@ -185,8 +185,8 @@ def create_block(payload: BlockDTO, db: Session = Depends(get_db), user: User = 
         status=payload.status or "Активный",
         notes=payload.notes or "",
     )
-    # по умолчанию 12 строк для удобства
-    for i in range(1, 13):
+    # по умолчанию 20 строк для удобства (можно добавлять больше)
+    for i in range(1, 21):
         block.payments.append(ObligationPayment(n=i, ok=False, amount=0, note=""))
 
     db.add(block)

@@ -268,24 +268,36 @@ FROM pf.budget_transactions t
 WHERE t.type = 'expense'
 GROUP BY 1,2;
 
--- ===== Автосоздание бюджетного счёта пользователю =====
-CREATE OR REPLACE FUNCTION pf.ensure_default_budget_account()
+-- ===== Автосоздание бюджетных счетов пользователю =====
+CREATE OR REPLACE FUNCTION pf.ensure_default_budget_accounts()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO pf.budget_accounts(user_id, title, currency)
-  VALUES (NEW.id, 'Основной счёт', 'RUB');
+  -- Создаем обычный счет
+  INSERT INTO pf.budget_accounts(user_id, title, currency, is_savings)
+  VALUES (NEW.id, 'Основной счёт', 'RUB', false);
+  
+  -- Создаем счет сбережений
+  INSERT INTO pf.budget_accounts(user_id, title, currency, is_savings)
+  VALUES (NEW.id, 'Сбережения', 'RUB', true);
+  
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trg_users_default_budget_account ON pf.users;
-CREATE TRIGGER trg_users_default_budget_account
+DROP TRIGGER IF EXISTS trg_users_default_budget_accounts ON pf.users;
+CREATE TRIGGER trg_users_default_budget_accounts
 AFTER INSERT ON pf.users
-FOR EACH ROW EXECUTE FUNCTION pf.ensure_default_budget_account();
+FOR EACH ROW EXECUTE FUNCTION pf.ensure_default_budget_accounts();
 
 -- Разовая инициализация для уже существующих пользователей
-INSERT INTO pf.budget_accounts (user_id, title, currency)
-SELECT u.id, 'Основной счёт', 'RUB'
+INSERT INTO pf.budget_accounts (user_id, title, currency, is_savings)
+SELECT u.id, 'Основной счёт', 'RUB', false
 FROM pf.users u
-LEFT JOIN pf.budget_accounts a ON a.user_id = u.id
+LEFT JOIN pf.budget_accounts a ON a.user_id = u.id AND a.is_savings = false
+WHERE a.id IS NULL;
+
+INSERT INTO pf.budget_accounts (user_id, title, currency, is_savings)
+SELECT u.id, 'Сбережения', 'RUB', true
+FROM pf.users u
+LEFT JOIN pf.budget_accounts a ON a.user_id = u.id AND a.is_savings = true
 WHERE a.id IS NULL;

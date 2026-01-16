@@ -90,8 +90,12 @@ jobs:
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/docker-compose.production.yml
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} Makefile \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/Makefile
+          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} nginx.conf \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/nginx.conf
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/nginx.conf \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/frontend/nginx.conf
+          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/local.conf \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/frontend/local.conf
           scp -r -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/pgsql/ \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/"
 
