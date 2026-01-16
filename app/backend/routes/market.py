@@ -6,8 +6,8 @@ from typing import Optional, Dict, List
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
-from t_tech.invest import Client
-from t_tech.invest.schemas import CandleInterval
+from tinkoff.invest import Client
+from tinkoff.invest.schemas import CandleInterval
 
 from app.backend.core.config import get_settings
 from app.backend.core.auth import get_current_user
