@@ -36,13 +36,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(lifespan=lifespan, title="Portfolio API", version="0.1.0")
 
+    # CORS: если указан "*", отключаем credentials для безопасности
     allow_credentials = not ("*" in settings.ALLOWED_ORIGINS)
+    allowed_origins = settings.ALLOWED_ORIGINS if settings.ALLOWED_ORIGINS else ["*"]
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.ALLOWED_ORIGINS if settings.ALLOWED_ORIGINS else ["*"],
+        allow_origins=allowed_origins,
         allow_credentials=allow_credentials,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Ограничиваем методы
+        allow_headers=["Authorization", "Content-Type"],  # Ограничиваем заголовки
+        expose_headers=["*"],
+        max_age=3600,  # Кэшируем preflight запросы на 1 час
     )
 
     # Роутеры

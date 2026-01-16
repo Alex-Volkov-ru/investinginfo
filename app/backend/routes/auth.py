@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.backend.core.security import verify_password, hash_password, encrypt_token
 from app.backend.core.auth import create_access_token
+from app.backend.core.cache import rate_limit
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 from app.backend.core.config import get_settings
@@ -62,7 +63,10 @@ class LoginOut(BaseModel):
     has_tinkoff: bool = False 
 
 @router.post("/login", response_model=LoginOut)
-def login(payload: LoginIn, db: Session = Depends(get_db)):
+async def login(payload: LoginIn, db: Session = Depends(get_db)):
+    # Rate limiting: максимум 5 попыток входа в минуту с одного IP/email
+    await rate_limit(f"login:email:{payload.email}", limit=5, window_sec=60)
+    
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(401, "Неверный email или пароль")
@@ -79,7 +83,10 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
     )
 
 @router.post("/register", response_model=LoginOut)
-def register(payload: RegisterIn, db: Session = Depends(get_db)):
+async def register(payload: RegisterIn, db: Session = Depends(get_db)):
+    # Rate limiting: максимум 3 регистрации в час с одного IP
+    await rate_limit(f"register:ip", limit=3, window_sec=3600)
+    
     # Проверяем, существует ли пользователь
     existing_user = db.query(User).filter(User.email == payload.email).first()
     if existing_user:
