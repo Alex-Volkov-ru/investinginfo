@@ -1,4 +1,4 @@
-version: "3.9"
+# version: "3.9"  # Устаревший атрибут, удален
 
 networks:
   portfolio-net:
@@ -113,13 +113,13 @@ services:
   # React Frontend (dev mode with Vite)
   frontend-dev:
     build:
-      context: ./app/frontend-react
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: ./env/frontend/Dockerfile.dev
     container_name: bigs-frontend-dev
     environment:
       TZ: ${TZ:-Europe/Moscow}
     volumes:
-      - ./app/frontend-react:/app
+      - ./app/frontend-react:/app/app/frontend-react
       - /app/node_modules
     ports:
       - "${FRONTEND_DEV_PORT:-5173}:5173"
@@ -134,8 +134,8 @@ services:
   # React Frontend (production build with nginx)
   frontend:
     build:
-      context: ./app/frontend-react
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./env/frontend/Dockerfile
     image: bigs-frontend
     container_name: bigs-frontend
     environment:
