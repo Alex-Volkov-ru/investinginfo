@@ -69,7 +69,7 @@ export const ObligationChart: React.FC<ObligationChartProps> = ({
   };
 
   return (
-    <div className="h-64 relative">
+    <div className="h-48 sm:h-64 relative">
       <Doughnut data={chartData} options={options} />
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2" style={{ padding: '20%' }}>
         <div className="text-[10px] text-gray-600 dark:text-gray-400 leading-none mb-1">Всего</div>

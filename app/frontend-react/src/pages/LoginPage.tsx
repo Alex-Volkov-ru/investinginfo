@@ -17,7 +17,20 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      // Определяем, открыто ли приложение в Telegram WebView
+      const isTelegram = typeof window !== 'undefined' && 
+        (window as any).Telegram?.WebApp?.initData || 
+        window.location.search.includes('tgWebAppStartParam');
+      
+      // Проверяем, есть ли в localStorage информация о мобильной версии
+      const isMobileRoute = localStorage.getItem('preferredMobileRoute') === 'true';
+      
+      // Если это Telegram или была сохранена мобильная версия, идем в мобильную версию
+      if (isTelegram || isMobileRoute) {
+        navigate('/mobile');
+      } else {
+        navigate('/');
+      }
     }
   }, [isAuthenticated, navigate]);
 

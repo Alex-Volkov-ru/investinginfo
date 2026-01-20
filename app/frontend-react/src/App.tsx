@@ -4,10 +4,14 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
+import { MobileLayout } from './components/MobileLayout';
 import LoginPage from './pages/LoginPage';
 import PortfolioPage from './pages/PortfolioPage';
 import BudgetPage from './pages/BudgetPage';
 import ObligationsPage from './pages/ObligationsPage';
+import PortfolioPageMobile from './pages/PortfolioPageMobile';
+import BudgetPageMobile from './pages/BudgetPageMobile';
+import ObligationsPageMobile from './pages/ObligationsPageMobile';
 
 function App() {
   return (
@@ -28,6 +32,36 @@ function App() {
               <Route index element={<PortfolioPage />} />
               <Route path="budget" element={<BudgetPage />} />
               <Route path="obligations" element={<ObligationsPage />} />
+            </Route>
+            <Route
+              path="/mobile"
+              element={
+                <ProtectedRoute>
+                  <MobileLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<PortfolioPageMobile />} />
+            </Route>
+            <Route
+              path="/budget_mobile"
+              element={
+                <ProtectedRoute>
+                  <MobileLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<BudgetPageMobile />} />
+            </Route>
+            <Route
+              path="/obligations_mobile"
+              element={
+                <ProtectedRoute>
+                  <MobileLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<ObligationsPageMobile />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
