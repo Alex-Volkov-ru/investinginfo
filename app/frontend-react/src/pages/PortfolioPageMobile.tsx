@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { BootstrapIcon } from '../components/BootstrapIcon';
 
 const PortfolioPageMobile = () => {
