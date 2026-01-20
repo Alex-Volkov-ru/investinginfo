@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BootstrapIcon } from './BootstrapIcon';
 
 export const MobileLayout: React.FC = () => {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
 
   const navigation = [
@@ -24,13 +24,20 @@ export const MobileLayout: React.FC = () => {
               <BootstrapIcon name="wallet2" className="text-primary-600 dark:text-primary-400 mr-2" size={24} />
               <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">BIGS</h1>
             </div>
-            <button
-              onClick={logout}
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 rounded-lg transition-colors"
-              title="Выход"
-            >
-              <BootstrapIcon name="box-arrow-right" size={20} />
-            </button>
+            <div className="flex items-center space-x-2">
+              {user?.email && (
+                <span className="text-xs text-gray-600 dark:text-gray-400 hidden sm:inline">
+                  {user.email}
+                </span>
+              )}
+              <button
+                onClick={logout}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 rounded-lg transition-colors"
+                title="Выход"
+              >
+                <BootstrapIcon name="box-arrow-right" size={20} />
+              </button>
+            </div>
           </div>
         </div>
 
