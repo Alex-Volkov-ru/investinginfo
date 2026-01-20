@@ -8,7 +8,6 @@ import {
   BudgetTransaction,
   MonthSummary,
   Charts,
-  BudgetObligation,
 } from '../types';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -203,8 +202,8 @@ const BudgetPageMobile = () => {
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Баланс</div>
-                  <div className={`text-xl font-bold ${summary.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {summary.balance.toLocaleString('ru-RU', {
+                  <div className={`text-xl font-bold ${summary.net_total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {summary.net_total.toLocaleString('ru-RU', {
                       style: 'currency',
                       currency: 'RUB',
                       maximumFractionDigits: 0,
@@ -226,7 +225,10 @@ const BudgetPageMobile = () => {
               {/* Charts */}
               {charts && (
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-                  <IncomeExpenseCharts charts={charts} />
+                  <IncomeExpenseCharts 
+                    incomeData={charts.income_by_category}
+                    expenseData={charts.expense_by_category}
+                  />
                 </div>
               )}
             </>

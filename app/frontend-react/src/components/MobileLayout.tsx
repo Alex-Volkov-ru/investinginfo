@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BootstrapIcon } from './BootstrapIcon';
 
 export const MobileLayout: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const location = useLocation();
 
   const navigation = [
