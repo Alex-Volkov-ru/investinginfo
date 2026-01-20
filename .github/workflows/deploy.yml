@@ -1,4 +1,4 @@
-name: 🚀 Deploy BIGS
+name: Deploy BIGS
 
 on:
   push:
@@ -11,19 +11,19 @@ permissions:
 
 jobs:
   build_backend:
-    name: 🐳 Build & Push Backend
+    name: Build & Push Backend
     runs-on: ubuntu-latest
     steps:
-      - name: 🔄 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔑 Login to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: 🏗️ Build & Push Backend Image
+      - name: Build & Push Backend Image
         uses: docker/build-push-action@v4
         with:
           context: .
@@ -31,24 +31,24 @@ jobs:
           push: true
           tags: ximikat01/bigs_backend:latest
 
-      - name: 📝 Итог (backend)
+      - name: Итог (backend)
         run: |
-          echo "✅ Backend собран и запушен: ximikat01/bigs_backend:latest" >> $GITHUB_STEP_SUMMARY
+          echo "Backend собран и запушен: ximikat01/bigs_backend:latest" >> $GITHUB_STEP_SUMMARY
 
   build_frontend:
-    name: 🐳 Build & Push Frontend
+    name: Build & Push Frontend
     runs-on: ubuntu-latest
     steps:
-      - name: 🔄 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔑 Login to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: 🏗️ Build & Push Frontend Image
+      - name: Build & Push Frontend Image
         uses: docker/build-push-action@v4
         with:
           context: .
@@ -56,36 +56,36 @@ jobs:
           push: true
           tags: ximikat01/bigs_frontend:latest
 
-      - name: 📝 Итог (frontend)
+      - name: Итог (frontend)
         run: |
-          echo "✅ Frontend собран и запушен: ximikat01/bigs_frontend:latest" >> $GITHUB_STEP_SUMMARY
+          echo "Frontend собран и запушен: ximikat01/bigs_frontend:latest" >> $GITHUB_STEP_SUMMARY
 
   deploy:
-    name: 🚀 Deploy on server
+    name: Deploy on server
     runs-on: ubuntu-latest
     needs: [ build_backend, build_frontend ]
     steps:
-      - name: 🔄 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔑 Setup SSH
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${{ secrets.SSH_PORT }} -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-          echo "✅ SSH подготовлен"
+          echo "SSH подготовлен"
 
-      - name: 📁 Ensure remote dirs exist
+      - name: Ensure remote dirs exist
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "mkdir -p '${{ secrets.PROJECT_DIR }}/env/frontend'"
-          echo "📂 Убедились, что каталог на сервере существует" >> $GITHUB_STEP_SUMMARY
+          echo "Убедились, что каталог на сервере существует" >> $GITHUB_STEP_SUMMARY
 
-      - name: 📤 Copy files & restart services
+      - name: Copy files & restart services
         run: |
-          echo "📦 Копируем файлы на сервер"
+          echo "Копируем файлы на сервер"
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/docker-compose.production.yml
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} Makefile \
@@ -99,7 +99,7 @@ jobs:
           scp -r -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/pgsql/ \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/"
 
-          echo "🚀 Перезапускаем стек контейнеров"
+          echo "Перезапускаем стек контейнеров"
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           set -e
@@ -109,41 +109,41 @@ jobs:
           docker compose -f docker-compose.production.yml up -d
           EOF
 
-      - name: 📝 Итог (deploy)
+      - name: Итог (deploy)
         run: |
-          echo "✅ Деплой успешно выполнен на сервере ${{ secrets.SSH_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "Деплой успешно выполнен на сервере ${{ secrets.SSH_HOST }}" >> $GITHUB_STEP_SUMMARY
 
   verify:
-    name: ✅ Verify deployment
+    name: Verify deployment
     runs-on: ubuntu-latest
     needs: deploy
     steps:
-      - name: 🔑 Setup SSH
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${{ secrets.SSH_PORT }} -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: 🔎 docker ps
+      - name: docker ps
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
-          echo "🧪 Проверка контейнеров выполнена" >> $GITHUB_STEP_SUMMARY
+          echo "Проверка контейнеров выполнена" >> $GITHUB_STEP_SUMMARY
 
   notify:
-    name: 📣 Notify Telegram
+    name: Notify Telegram
     runs-on: ubuntu-latest
     if: always()
     needs: [ deploy ]
     steps:
-      - name: 📢 Send message
+      - name: Send message
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
-            🚀 BIGS Deployment *${{ needs.deploy.result }}*
-            📦 Repo: https://github.com/${{ github.repository }}
-            🔗 Commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+            BIGS Deployment *${{ needs.deploy.result }}*
+            Repo: https://github.com/${{ github.repository }}
+            Commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
