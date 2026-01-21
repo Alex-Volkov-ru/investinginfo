@@ -24,10 +24,10 @@ export const Layout: React.FC = () => {
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
+            <Link to="/" className="flex items-center">
               <BootstrapIcon name="wallet2" className="text-primary-600 dark:text-primary-400 mr-2" size={32} />
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">BIGS</h1>
-            </div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">WealthTracker</h1>
+            </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-1">

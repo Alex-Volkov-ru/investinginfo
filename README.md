@@ -1,4 +1,4 @@
-# BIGS — Portfolio & Budget Management System https://avolkovshop.ru/
+# WealthTracker — Portfolio & Budget Management System https://avolkovshop.ru/
 
 > **Полнофункциональная система управления портфелем и бюджетом**: FastAPI backend + современный фронтенд (HTML/JS/CSS) + PostgreSQL + Redis + Nginx. Включает модули для инвестиций, бюджетирования и управления обязательствами. Полностью в Docker с поддержкой продакшена.
 

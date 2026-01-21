@@ -22,10 +22,10 @@ export const MobileLayout: React.FC = () => {
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
+            <Link to="/mobile" className="flex items-center">
               <BootstrapIcon name="wallet2" className="text-primary-600 dark:text-primary-400 mr-2" size={24} />
-              <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">BIGS</h1>
-            </div>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">WealthTracker</h1>
+            </Link>
             <div className="flex items-center space-x-2">
               <span className="text-xs text-gray-600 dark:text-gray-400">
                   {user?.tg_username || 'Гость'}
