@@ -445,7 +445,7 @@ const BudgetPageMobile = () => {
 
       {/* Transactions Tab */}
       {activeTab === 'transactions' && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {loading ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">Загрузка...</div>
           ) : transactions.length === 0 ? (
@@ -454,11 +454,11 @@ const BudgetPageMobile = () => {
             transactions.map((tx) => (
               <div
                 key={tx.id}
-                className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow flex justify-between items-center"
+                className="bg-white dark:bg-gray-800 rounded-lg px-3 py-2 shadow flex items-center gap-2"
               >
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-sm font-medium ${
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-sm font-semibold ${
                       tx.type === 'income' ? 'text-green-600 dark:text-green-400' : tx.type === 'expense' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'
                     }`}>
                       {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '→'}
@@ -467,22 +467,21 @@ const BudgetPageMobile = () => {
                         currency: tx.currency,
                       })}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-gray-500 dark:text-gray-100 whitespace-nowrap flex-shrink-0">
                       {format(new Date(tx.occurred_at), 'dd.MM.yyyy')}
                     </span>
                   </div>
                   {tx.description && (
-                    <div className="text-sm text-gray-900 dark:text-gray-100">{tx.description}</div>
+                    <div className="text-xs text-gray-900 dark:text-gray-100 truncate mt-0.5">
+                      {tx.description}
+                    </div>
                   )}
-                  <div className="text-xs text-gray-700 dark:text-gray-300 mt-1">
-                    {categories.find((c) => c.id === tx.category_id)?.name || '-'}
-                  </div>
                 </div>
                 <button
                   onClick={() => handleDeleteTransaction(tx.id)}
-                  className="ml-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-red-600 dark:text-red-400 active:bg-red-50 dark:active:bg-red-900/20 rounded-lg"
+                  className="flex-shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center text-red-600 dark:text-red-400 active:bg-red-50 dark:active:bg-red-900/20 rounded-lg"
                 >
-                  <BootstrapIcon name="trash" size={18} />
+                  <BootstrapIcon name="trash" size={16} />
                 </button>
               </div>
             ))
