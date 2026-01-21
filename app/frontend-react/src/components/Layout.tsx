@@ -62,7 +62,7 @@ export const Layout: React.FC = () => {
                   <BootstrapIcon name="moon-fill" size={20} />
                 )}
               </button>
-              <span className="text-sm text-gray-700 dark:text-gray-300">{user?.email}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">{user?.tg_username || 'Гость'}</span>
               <button
                 onClick={logout}
                 className="flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -124,7 +124,7 @@ export const Layout: React.FC = () => {
                     </>
                   )}
                 </button>
-                <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{user?.email}</div>
+                <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{user?.tg_username || 'Гость'}</div>
                 <button
                   onClick={() => {
                     logout();
