@@ -459,7 +459,7 @@ const BudgetPageMobile = () => {
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
                     <span className={`text-sm font-medium ${
-                      tx.type === 'income' ? 'text-green-600' : tx.type === 'expense' ? 'text-red-600' : 'text-blue-600'
+                      tx.type === 'income' ? 'text-green-600 dark:text-green-400' : tx.type === 'expense' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'
                     }`}>
                       {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '→'}
                       {tx.amount.toLocaleString('ru-RU', {
@@ -472,9 +472,9 @@ const BudgetPageMobile = () => {
                     </span>
                   </div>
                   {tx.description && (
-                    <div className="text-sm text-gray-600 dark:text-gray-400">{tx.description}</div>
+                    <div className="text-sm text-gray-900 dark:text-gray-100">{tx.description}</div>
                   )}
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <div className="text-xs text-gray-700 dark:text-gray-300 mt-1">
                     {categories.find((c) => c.id === tx.category_id)?.name || '-'}
                   </div>
                 </div>
