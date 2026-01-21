@@ -329,28 +329,28 @@ const BudgetPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Доходы</div>
-                    <div className="text-2xl font-bold text-green-600 mt-1">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
                       {summary.income_total.toLocaleString('ru-RU', {
                         style: 'currency',
                         currency: 'RUB',
                       })}
                     </div>
                   </div>
-                  <ArrowUpCircle className="h-8 w-8 text-green-600" />
+                  <ArrowUpCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
                 </div>
               </div>
               <div className="card">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Расходы</div>
-                    <div className="text-2xl font-bold text-red-600 mt-1">
+                    <div className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">
                       {summary.expense_total.toLocaleString('ru-RU', {
                         style: 'currency',
                         currency: 'RUB',
                       })}
                     </div>
                   </div>
-                  <ArrowDownCircle className="h-8 w-8 text-red-600" />
+                  <ArrowDownCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
                 </div>
               </div>
               <div className="card">
@@ -358,7 +358,7 @@ const BudgetPage = () => {
                   <div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Баланс</div>
                     <div className={`text-2xl font-bold mt-1 ${
-                      summary.net_total >= 0 ? 'text-green-600' : 'text-red-600'
+                      summary.net_total >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
                       {summary.net_total.toLocaleString('ru-RU', {
                         style: 'currency',
@@ -367,9 +367,9 @@ const BudgetPage = () => {
                     </div>
                   </div>
                   {summary.net_total >= 0 ? (
-                    <TrendingUp className="h-8 w-8 text-green-600" />
+                    <TrendingUp className="h-8 w-8 text-green-600 dark:text-green-400" />
                   ) : (
-                    <TrendingDown className="h-8 w-8 text-red-600" />
+                    <TrendingDown className="h-8 w-8 text-red-600 dark:text-red-400" />
                   )}
                 </div>
               </div>

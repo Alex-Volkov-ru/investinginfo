@@ -387,7 +387,7 @@ const BudgetPageMobile = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Доходы</div>
-                  <div className="text-xl font-bold text-green-600">
+                  <div className="text-xl font-bold text-green-600 dark:text-green-400">
                     {summary.income_total.toLocaleString('ru-RU', {
                       style: 'currency',
                       currency: 'RUB',
@@ -397,7 +397,7 @@ const BudgetPageMobile = () => {
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Расходы</div>
-                  <div className="text-xl font-bold text-red-600">
+                  <div className="text-xl font-bold text-red-600 dark:text-red-400">
                     {summary.expense_total.toLocaleString('ru-RU', {
                       style: 'currency',
                       currency: 'RUB',
@@ -407,7 +407,7 @@ const BudgetPageMobile = () => {
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Баланс</div>
-                  <div className={`text-xl font-bold ${summary.net_total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className={`text-xl font-bold ${summary.net_total >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {summary.net_total.toLocaleString('ru-RU', {
                       style: 'currency',
                       currency: 'RUB',
@@ -417,7 +417,7 @@ const BudgetPageMobile = () => {
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Сбережения</div>
-                  <div className="text-xl font-bold text-blue-600">
+                  <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
                     {summary.savings.toLocaleString('ru-RU', {
                       style: 'currency',
                       currency: 'RUB',
