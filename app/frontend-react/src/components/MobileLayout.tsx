@@ -1,9 +1,11 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { BootstrapIcon } from './BootstrapIcon';
 
 export const MobileLayout: React.FC = () => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
 
   const navigation = [
@@ -25,11 +27,20 @@ export const MobileLayout: React.FC = () => {
               <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">BIGS</h1>
             </div>
             <div className="flex items-center space-x-2">
-              {user?.email && (
-                <span className="text-xs text-gray-600 dark:text-gray-400 hidden sm:inline">
-                  {user.email}
-                </span>
-              )}
+              <span className="text-xs text-gray-600 dark:text-gray-400">
+                  {user?.tg_username || 'Гость'}
+              </span>
+              <button
+                onClick={toggleTheme}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 rounded-lg transition-colors"
+                title={theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
+              >
+                {theme === 'dark' ? (
+                  <BootstrapIcon name="sun-fill" size={20} />
+                ) : (
+                  <BootstrapIcon name="moon-fill" size={20} />
+                )}
+              </button>
               <button
                 onClick={logout}
                 className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 rounded-lg transition-colors"
