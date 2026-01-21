@@ -5,6 +5,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { useTheme } from '../contexts/ThemeContext';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -42,6 +43,10 @@ const expenseColors = [
 ];
 
 export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expenseData }) => {
+  const { theme } = useTheme();
+  
+  const getLabelColor = () => (theme === 'dark' ? '#d1d5db' : '#374151');
+  
   const incomeChartData = {
     labels: incomeData.map((item) => item.name),
     datasets: [
@@ -94,7 +99,7 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
             size: 11,
             weight: 'normal' as const,
           },
-          color: '#374151', // gray-700
+          color: getLabelColor(),
           boxWidth: 12,
           boxHeight: 12,
           generateLabels: function (chart: any) {
