@@ -50,5 +50,46 @@
       -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
     }
   }
+
+  /* Кастомный скроллбар для светлой темы */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
+
+  /* Кастомный скроллбар для темной темы */
+  .dark .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-gray-700;
+  }
+
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-600;
+  }
+
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+
+  /* Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(209 213 219) rgb(243 244 246);
+  }
+
+  .dark .custom-scrollbar {
+    scrollbar-color: rgb(75 85 99) rgb(55 65 81);
+  }
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, Trash2 } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, Trash2, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { budgetService } from '../services/budgetService';
 import {
@@ -44,7 +44,8 @@ const BudgetPage = () => {
   } | null>(null);
 
   const [newAccount, setNewAccount] = useState({ title: '', currency: 'RUB', is_savings: false });
-  const [newCategory, setNewCategory] = useState({ kind: 'expense' as 'income' | 'expense', name: '' });
+  const [newCategory, setNewCategory] = useState({ kind: 'expense' as 'income' | 'expense', name: '', monthly_limit: null as number | null });
+  const [editingCategory, setEditingCategory] = useState<BudgetCategory | null>(null);
   const [newTransaction, setNewTransaction] = useState({
     type: 'expense' as 'income' | 'expense' | 'transfer',
     account_id: 0,
@@ -61,6 +62,8 @@ const BudgetPage = () => {
     amount: 0,
     currency: 'RUB',
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const transactionsPerPage = 10;
 
   useEffect(() => {
     if (activeTab === 'year') {
@@ -148,9 +151,30 @@ const BudgetPage = () => {
     try {
       const category = await budgetService.createCategory(newCategory);
       setCategories([...categories, category]);
-      setNewCategory({ kind: 'expense', name: '' });
+      setNewCategory({ kind: 'expense', name: '', monthly_limit: null });
       setShowCategoryModal(false);
       toast.success('Категория создана');
+      loadData(); // Перезагружаем данные для обновления графиков
+    } catch (error) {
+      // Ошибка обработана в interceptor
+    }
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!editingCategory) return;
+    if (!editingCategory.name.trim()) {
+      toast.error('Введите название категории');
+      return;
+    }
+
+    try {
+      const updated = await budgetService.updateCategory(editingCategory.id, {
+        name: editingCategory.name,
+        monthly_limit: editingCategory.monthly_limit,
+      });
+      setCategories(categories.map(cat => cat.id === updated.id ? updated : cat));
+      setEditingCategory(null);
+      toast.success('Категория обновлена');
       loadData(); // Перезагружаем данные для обновления графиков
     } catch (error) {
       // Ошибка обработана в interceptor
@@ -241,6 +265,26 @@ const BudgetPage = () => {
       setShowAddModal(false);
       await loadData(); // Перезагружаем для обновления summary
       toast.success('Транзакция создана');
+      
+      // Проверяем лимит категории, если это расход с категорией
+      if (transaction.type === 'expense' && transaction.category_id) {
+        const category = categories.find(c => c.id === transaction.category_id);
+        if (category?.monthly_limit) {
+          const updatedTransactions = await budgetService.getTransactions({
+            date_from: `${selectedMonth.split('-')[0]}-${selectedMonth.split('-')[1]}-01`,
+            date_to: `${selectedMonth.split('-')[0]}-${selectedMonth.split('-')[1]}-${new Date(parseInt(selectedMonth.split('-')[0]), parseInt(selectedMonth.split('-')[1]), 0).getDate()}`,
+          });
+          const spent = updatedTransactions
+            .filter(tx => tx.type === 'expense' && tx.category_id === transaction.category_id)
+            .reduce((sum, tx) => sum + tx.amount, 0);
+          
+          if (spent > category.monthly_limit) {
+            toast.error(`Лимит категории "${category.name}" превышен! Потрачено: ${spent.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })} из ${category.monthly_limit.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}`, { duration: 6000 });
+          } else if (spent >= category.monthly_limit * 0.9) {
+            toast(`Приближение к лимиту категории "${category.name}": ${spent.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })} из ${category.monthly_limit.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}`, { icon: '⚠️', duration: 5000 });
+          }
+        }
+      }
     } catch (error) {
       // Ошибка обработана в interceptor
     }
@@ -248,6 +292,15 @@ const BudgetPage = () => {
 
   const incomeCategories = categories.filter((c) => c.kind === 'income' && c.is_active);
   const expenseCategories = categories.filter((c) => c.kind === 'expense' && c.is_active);
+
+  // Вычисляем суммы расходов по категориям за месяц
+  const categoryExpenses = transactions
+    .filter(tx => tx.type === 'expense' && tx.category_id)
+    .reduce((acc, tx) => {
+      const catId = tx.category_id!;
+      acc[catId] = (acc[catId] || 0) + tx.amount;
+      return acc;
+    }, {} as Record<number, number>);
 
   return (
     <div className="space-y-6">
@@ -417,8 +470,15 @@ const BudgetPage = () => {
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">Загрузка...</div>
           ) : transactions.length === 0 ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">Транзакций пока нет</div>
-          ) : (
-            <div className="overflow-x-auto">
+          ) : (() => {
+            const totalPages = Math.ceil(transactions.length / transactionsPerPage);
+            const startIndex = (currentPage - 1) * transactionsPerPage;
+            const endIndex = startIndex + transactionsPerPage;
+            const paginatedTransactions = transactions.slice(startIndex, endIndex);
+
+            return (
+              <>
+            <div className="overflow-x-auto custom-scrollbar">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
@@ -426,11 +486,12 @@ const BudgetPage = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Тип</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Сумма</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Описание</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Лимит</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Действия</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {transactions.map((tx) => (
+                  {paginatedTransactions.map((tx) => (
                     <tr key={tx.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {format(new Date(tx.occurred_at), 'dd.MM.yyyy')}
@@ -460,6 +521,61 @@ const BudgetPage = () => {
                         })}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{tx.description || '-'}</td>
+                      <td className="px-6 py-4 text-sm">
+                        {tx.type === 'expense' && tx.category_id && (() => {
+                          const category = categories.find(c => c.id === tx.category_id);
+                          if (!category?.monthly_limit) return <span className="text-gray-400 dark:text-gray-500">-</span>;
+                          
+                          const spent = categoryExpenses[category.id] || 0;
+                          const limit = category.monthly_limit;
+                          const percent = (spent / limit) * 100;
+                          const isOverLimit = spent > limit;
+                          const isNearLimit = percent >= 80 && percent <= 100;
+                          
+                          return (
+                            <div className="relative group">
+                              <div className="flex items-center space-x-2">
+                                <div className="flex-1 min-w-[100px]">
+                                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{category.name}</div>
+                                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 cursor-pointer">
+                                    <div
+                                      className={`h-2 rounded-full transition-all ${
+                                        isOverLimit
+                                          ? 'bg-red-500'
+                                          : isNearLimit
+                                          ? 'bg-yellow-500'
+                                          : 'bg-green-500'
+                                      }`}
+                                      style={{ width: `${Math.min(percent, 100)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Tooltip при наведении */}
+                              <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs rounded-lg shadow-xl">
+                                <div className="font-bold mb-2 text-sm text-gray-900 dark:text-white">{category.name}</div>
+                                <div className="space-y-1">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600 dark:text-gray-300">Потрачено:</span>
+                                    <span className="font-medium text-gray-900 dark:text-white">{spent.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600 dark:text-gray-300">Лимит:</span>
+                                    <span className="font-medium text-gray-900 dark:text-white">{limit.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}</span>
+                                  </div>
+                                  <div className="flex justify-between pt-1 border-t border-gray-200 dark:border-gray-700">
+                                    <span className="text-gray-600 dark:text-gray-300">Использовано:</span>
+                                    <span className={`font-bold ${isOverLimit ? 'text-red-600 dark:text-red-400' : isNearLimit ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                      {percent.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        {tx.type !== 'expense' && <span className="text-gray-400 dark:text-gray-500">-</span>}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
                           onClick={() => handleDeleteTransaction(tx.id)}
@@ -474,7 +590,69 @@ const BudgetPage = () => {
                 </tbody>
               </table>
             </div>
-          )}
+            
+            {/* Пагинация */}
+            {totalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Показано {startIndex + 1}-{Math.min(endIndex, transactions.length)} из {transactions.length}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Предыдущая
+                  </button>
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 2 && page <= currentPage + 2)
+                      ) {
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                              currentPage === page
+                                ? 'bg-primary-600 dark:bg-primary-500 text-white'
+                                : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      } else if (
+                        page === currentPage - 3 ||
+                        page === currentPage + 3
+                      ) {
+                        return (
+                          <span key={page} className="px-2 text-gray-500 dark:text-gray-400">
+                            ...
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+                  >
+                    Следующая
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </button>
+                </div>
+              </div>
+            )}
+            </>
+            );
+          })()}
           </div>
         </div>
       )}
@@ -859,21 +1037,69 @@ const BudgetPage = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400">Нет категорий расходов</p>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {expenseCategories.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="flex items-center justify-between py-2 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <span className="text-sm text-gray-900 dark:text-gray-100">{cat.name}</span>
-                    <button
-                      onClick={() => handleDeleteCategory(cat.id)}
-                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-600 transition-colors"
-                      title="Удалить категорию"
+                {expenseCategories.map((cat) => {
+                  const spent = categoryExpenses[cat.id] || 0;
+                  const limit = cat.monthly_limit;
+                  const percent = limit ? (spent / limit) * 100 : 0;
+                  const isOverLimit = limit && spent > limit;
+                  const isNearLimit = limit && percent >= 80 && percent <= 100;
+                  
+                  return (
+                    <div
+                      key={cat.id}
+                      className="py-2 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{cat.name}</span>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setEditingCategory(cat)}
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-600 transition-colors"
+                            title="Редактировать категорию"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCategory(cat.id)}
+                            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-600 transition-colors"
+                            title="Удалить категорию"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      {limit && (
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className={`${isOverLimit ? 'text-red-600 dark:text-red-400' : isNearLimit ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                              Потрачено: {spent.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })} / {limit.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
+                            </span>
+                            <span className={`font-medium ${isOverLimit ? 'text-red-600 dark:text-red-400' : isNearLimit ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                              {percent.toFixed(0)}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all ${
+                                isOverLimit
+                                  ? 'bg-red-500'
+                                  : isNearLimit
+                                  ? 'bg-yellow-500'
+                                  : 'bg-green-500'
+                              }`}
+                              style={{ width: `${Math.min(percent, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      {!limit && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Лимит не установлен
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1103,7 +1329,7 @@ const BudgetPage = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Название</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Название</label>
                 <input
                   type="text"
                   value={newCategory.name}
@@ -1112,6 +1338,25 @@ const BudgetPage = () => {
                   placeholder="Название категории"
                 />
               </div>
+              {newCategory.kind === 'expense' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Лимит на месяц (руб.)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newCategory.monthly_limit || ''}
+                    onChange={(e) => setNewCategory({ ...newCategory, monthly_limit: e.target.value ? parseFloat(e.target.value) : null })}
+                    className="input"
+                    placeholder="Не установлен"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Оставьте пустым, если лимит не нужен
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex justify-end space-x-3 mt-6">
               <button onClick={() => setShowCategoryModal(false)} className="btn btn-secondary">
@@ -1119,6 +1364,54 @@ const BudgetPage = () => {
               </button>
               <button onClick={handleCreateCategory} className="btn btn-primary">
                 Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {editingCategory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Редактировать категорию</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Название</label>
+                <input
+                  type="text"
+                  value={editingCategory.name}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                  className="input"
+                  placeholder="Название категории"
+                />
+              </div>
+              {editingCategory.kind === 'expense' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Лимит на месяц (руб.)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editingCategory.monthly_limit || ''}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, monthly_limit: e.target.value ? parseFloat(e.target.value) : null })}
+                    className="input"
+                    placeholder="Не установлен"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Оставьте пустым, если лимит не нужен
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button onClick={() => setEditingCategory(null)} className="btn btn-secondary">
+                Отмена
+              </button>
+              <button onClick={handleUpdateCategory} className="btn btn-primary">
+                Сохранить
               </button>
             </div>
           </div>
