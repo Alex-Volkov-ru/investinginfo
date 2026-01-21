@@ -215,15 +215,23 @@ export const YearDashboard: React.FC<YearDashboardProps> = ({
 
   // График 3: Доходы по категориям (Doughnut)
   const topIncomeCategories = data.income_by_category.slice(0, 10);
+  const incomeColorsArray = [
+    '#10B981', '#059669', '#047857', '#065F46', '#064E3B',
+    '#34D399', '#6EE7B7', '#A7F3D0', '#D1FAE5', '#ECFDF5',
+  ];
+  const incomeTotal = topIncomeCategories.reduce((sum, c) => sum + c.amount, 0);
+  const incomeLegendItems = topIncomeCategories.map((c, index) => ({
+    name: c.name,
+    amount: c.amount,
+    percentage: incomeTotal > 0 ? ((c.amount / incomeTotal) * 100).toFixed(1) : '0',
+    color: incomeColorsArray[index % incomeColorsArray.length],
+  }));
   const incomeCategoryData: ChartData<'doughnut'> = {
     labels: topIncomeCategories.map((c) => c.name),
     datasets: [
       {
         data: topIncomeCategories.map((c) => c.amount),
-        backgroundColor: [
-          '#10B981', '#059669', '#047857', '#065F46', '#064E3B',
-          '#34D399', '#6EE7B7', '#A7F3D0', '#D1FAE5', '#ECFDF5',
-        ],
+        backgroundColor: incomeColorsArray,
         borderColor: getBorderColor(),
         borderWidth: 2,
       },
@@ -235,33 +243,7 @@ export const YearDashboard: React.FC<YearDashboardProps> = ({
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'right' as const,
-        labels: {
-          color: getLabelColor(),
-          generateLabels: (chart: any) => {
-            const data = chart.data;
-            if (data.labels && data.datasets.length) {
-              const dataset = data.datasets[0];
-              const total = (dataset.data as number[]).reduce((a, b) => a + b, 0);
-              return data.labels.map((label: any, i: number) => {
-                const value = (dataset.data[i] as number) || 0;
-                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
-                const bgColorValue = Array.isArray(dataset.backgroundColor)
-                  ? (dataset.backgroundColor[i] as string)
-                  : typeof dataset.backgroundColor === 'string'
-                  ? dataset.backgroundColor
-                  : '#000000';
-                return {
-                  text: `${label}: ${percentage}%`,
-                  fillStyle: bgColorValue,
-                  hidden: false,
-                  index: i,
-                };
-              });
-            }
-            return [];
-          },
-        },
+        display: false, // Отключаем встроенную легенду
       },
       tooltip: {
         backgroundColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)',
@@ -294,15 +276,23 @@ export const YearDashboard: React.FC<YearDashboardProps> = ({
 
   // График 4: Расходы по категориям (Doughnut)
   const topExpenseCategories = data.expense_by_category.slice(0, 10);
+  const expenseColorsArray = [
+    '#EF4444', '#DC2626', '#B91C1C', '#991B1B', '#7F1D1D',
+    '#F87171', '#FCA5A5', '#FECACA', '#FEE2E2', '#FEF2F2',
+  ];
+  const expenseTotal = topExpenseCategories.reduce((sum, c) => sum + c.amount, 0);
+  const expenseLegendItems = topExpenseCategories.map((c, index) => ({
+    name: c.name,
+    amount: c.amount,
+    percentage: expenseTotal > 0 ? ((c.amount / expenseTotal) * 100).toFixed(1) : '0',
+    color: expenseColorsArray[index % expenseColorsArray.length],
+  }));
   const expenseCategoryData: ChartData<'doughnut'> = {
     labels: topExpenseCategories.map((c) => c.name),
     datasets: [
       {
         data: topExpenseCategories.map((c) => c.amount),
-        backgroundColor: [
-          '#EF4444', '#DC2626', '#B91C1C', '#991B1B', '#7F1D1D',
-          '#F87171', '#FCA5A5', '#FECACA', '#FEE2E2', '#FEF2F2',
-        ],
+        backgroundColor: expenseColorsArray,
         borderColor: getBorderColor(),
         borderWidth: 2,
       },
@@ -314,33 +304,7 @@ export const YearDashboard: React.FC<YearDashboardProps> = ({
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'right' as const,
-        labels: {
-          color: getLabelColor(),
-          generateLabels: (chart: any) => {
-            const data = chart.data;
-            if (data.labels && data.datasets.length) {
-              const dataset = data.datasets[0];
-              const total = (dataset.data as number[]).reduce((a, b) => a + b, 0);
-              return data.labels.map((label: any, i: number) => {
-                const value = (dataset.data[i] as number) || 0;
-                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
-                const bgColorValue = Array.isArray(dataset.backgroundColor)
-                  ? (dataset.backgroundColor[i] as string)
-                  : typeof dataset.backgroundColor === 'string'
-                  ? dataset.backgroundColor
-                  : '#000000';
-                return {
-                  text: `${label}: ${percentage}%`,
-                  fillStyle: bgColorValue,
-                  hidden: false,
-                  index: i,
-                };
-              });
-            }
-            return [];
-          },
-        },
+        display: false, // Отключаем встроенную легенду
       },
       tooltip: {
         backgroundColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)',
@@ -864,8 +828,25 @@ export const YearDashboard: React.FC<YearDashboardProps> = ({
               </div>
             </div>
           </div>
-          <div className="h-64 overflow-hidden">
-            <Doughnut data={incomeCategoryData} options={incomeCategoryOptions} />
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 h-64 overflow-hidden">
+              <Doughnut data={incomeCategoryData} options={incomeCategoryOptions} />
+            </div>
+            <div className="flex-shrink-0 lg:w-48">
+              <ul className="space-y-2">
+                {incomeLegendItems.map((item, index) => (
+                  <li key={index} className="flex items-center space-x-2">
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
+                      {item.name}: {item.percentage}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -891,8 +872,25 @@ export const YearDashboard: React.FC<YearDashboardProps> = ({
               </div>
             </div>
           </div>
-          <div className="h-64 overflow-hidden">
-            <Doughnut data={expenseCategoryData} options={expenseCategoryOptions} />
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 h-64 overflow-hidden">
+              <Doughnut data={expenseCategoryData} options={expenseCategoryOptions} />
+            </div>
+            <div className="flex-shrink-0 lg:w-48">
+              <ul className="space-y-2">
+                {expenseLegendItems.map((item, index) => (
+                  <li key={index} className="flex items-center space-x-2">
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
+                      {item.name}: {item.percentage}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
 
