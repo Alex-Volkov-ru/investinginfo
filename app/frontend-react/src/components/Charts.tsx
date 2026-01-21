@@ -1,9 +1,12 @@
+import { useMemo } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   ArcElement,
   Tooltip,
   Legend,
+  ChartOptions,
+  ChartData,
 } from 'chart.js';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -45,40 +48,66 @@ const expenseColors = [
 export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expenseData }) => {
   const { theme } = useTheme();
   
-  const getLabelColor = () => (theme === 'dark' ? '#d1d5db' : '#374151');
+  const borderColor = theme === 'dark' ? '#1f2937' : '#ffffff';
+  const tooltipBg = theme === 'dark' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.9)';
+  const tooltipTextColor = theme === 'dark' ? '#1f2937' : '#ffffff';
   
-  const incomeChartData = {
+  // Подготовка данных для графиков
+  const incomeChartData: ChartData<'doughnut'> = useMemo(() => ({
     labels: incomeData.map((item) => item.name),
     datasets: [
       {
         data: incomeData.map((item) => item.amount),
         backgroundColor: incomeData.map((_, index) => incomeColors[index % incomeColors.length]),
         borderWidth: 3,
-        borderColor: '#1f2937', // gray-800 для темной темы
+        borderColor: borderColor,
         hoverBorderWidth: 4,
         hoverBorderColor: '#ffffff',
       },
     ],
-  };
+  }), [incomeData, borderColor]);
 
-  const expenseChartData = {
+  const expenseChartData: ChartData<'doughnut'> = useMemo(() => ({
     labels: expenseData.map((item) => item.name),
     datasets: [
       {
         data: expenseData.map((item) => item.amount),
         backgroundColor: expenseData.map((_, index) => expenseColors[index % expenseColors.length]),
         borderWidth: 3,
-        borderColor: '#1f2937', // gray-800 для темной темы
+        borderColor: borderColor,
         hoverBorderWidth: 4,
         hoverBorderColor: '#ffffff',
       },
     ],
-  };
+  }), [expenseData, borderColor]);
 
-  const chartOptions = {
+  // Вычисляем проценты для кастомной легенды
+  const incomeTotal = incomeData.reduce((sum, item) => sum + item.amount, 0);
+  const expenseTotal = expenseData.reduce((sum, item) => sum + item.amount, 0);
+
+  const incomeLegendItems = useMemo(() => {
+    return incomeData.map((item, index) => ({
+      name: item.name,
+      amount: item.amount,
+      percentage: incomeTotal > 0 ? ((item.amount / incomeTotal) * 100).toFixed(1) : '0',
+      color: incomeColors[index % incomeColors.length],
+    }));
+  }, [incomeData, incomeTotal]);
+
+  const expenseLegendItems = useMemo(() => {
+    return expenseData.map((item, index) => ({
+      name: item.name,
+      amount: item.amount,
+      percentage: expenseTotal > 0 ? ((item.amount / expenseTotal) * 100).toFixed(1) : '0',
+      color: expenseColors[index % expenseColors.length],
+    }));
+  }, [expenseData, expenseTotal]);
+
+  // Опции графиков БЕЗ легенды (легенда будет HTML)
+  const chartOptions: ChartOptions<'doughnut'> = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '65%', // Увеличиваем cutout для большего места под легенду
+    cutout: '65%',
     layout: {
       padding: {
         bottom: 10,
@@ -89,48 +118,13 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
     },
     plugins: {
       legend: {
-        position: 'right' as const,
-        align: 'center' as const,
-        labels: {
-          padding: 12,
-          usePointStyle: true,
-          pointStyle: 'circle',
-          font: {
-            size: 11,
-            weight: 'normal' as const,
-          },
-          color: getLabelColor(),
-          boxWidth: 12,
-          boxHeight: 12,
-          generateLabels: function (chart: any) {
-            const data = chart.data;
-            if (data.labels.length && data.datasets.length) {
-              const dataset = data.datasets[0];
-              const total = dataset.data.reduce((a: number, b: number) => a + b, 0);
-              return data.labels.map((label: string, i: number) => {
-                const value = dataset.data[i];
-                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
-                // Обрезаем длинные названия категорий
-                const maxLabelLength = 20;
-                const truncatedLabel = label.length > maxLabelLength 
-                  ? label.substring(0, maxLabelLength) + '...' 
-                  : label;
-                return {
-                  text: `${truncatedLabel} (${percentage}%)`,
-                  fullText: `${label} (${percentage}%)`, // Сохраняем полный текст для tooltip
-                  fillStyle: dataset.backgroundColor[i],
-                  hidden: false,
-                  index: i,
-                };
-              });
-            }
-            return [];
-          },
-        },
+        display: false, // Отключаем встроенную легенду
       },
       tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        backgroundColor: tooltipBg,
         padding: 10,
+        titleColor: tooltipTextColor,
+        bodyColor: tooltipTextColor,
         titleFont: {
           size: 13,
           weight: 'bold' as const,
@@ -148,7 +142,7 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
           },
           label: function (context: any) {
             const value = context.parsed || 0;
-            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+            const total = (context.dataset.data as number[]).reduce((a, b) => a + b, 0);
             const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
             return `${value.toLocaleString('ru-RU', {
               style: 'currency',
@@ -158,10 +152,11 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
         },
       },
     },
-  };
+  }), [tooltipBg, tooltipTextColor]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Доходы */}
       <div className="card">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
@@ -169,7 +164,7 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
           </h3>
           {incomeData.length > 0 && (
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Всего: {incomeData.reduce((sum, item) => sum + item.amount, 0).toLocaleString('ru-RU', {
+              Всего: {incomeTotal.toLocaleString('ru-RU', {
                 style: 'currency',
                 currency: 'RUB',
               })}
@@ -181,11 +176,36 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
             <p className="text-gray-500 dark:text-gray-400">Нет данных</p>
           </div>
         ) : (
-          <div className="h-96 min-h-[400px]">
-            <Doughnut data={incomeChartData} options={chartOptions} />
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 h-96 min-h-[400px]">
+              <Doughnut data={incomeChartData} options={chartOptions} />
+            </div>
+            <div className="flex-shrink-0 md:w-48">
+              <ul className="space-y-3">
+                {incomeLegendItems.map((item, index) => {
+                  const maxLabelLength = 20;
+                  const truncatedLabel = item.name.length > maxLabelLength
+                    ? item.name.substring(0, maxLabelLength) + '...'
+                    : item.name;
+                  return (
+                    <li key={index} className="flex items-center space-x-2">
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
+                        {truncatedLabel} ({item.percentage}%)
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Расходы */}
       <div className="card">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
@@ -193,7 +213,7 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
           </h3>
           {expenseData.length > 0 && (
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Всего: {expenseData.reduce((sum, item) => sum + item.amount, 0).toLocaleString('ru-RU', {
+              Всего: {expenseTotal.toLocaleString('ru-RU', {
                 style: 'currency',
                 currency: 'RUB',
               })}
@@ -205,12 +225,34 @@ export const IncomeExpenseCharts: React.FC<ChartsProps> = ({ incomeData, expense
             <p className="text-gray-500 dark:text-gray-400">Нет данных</p>
           </div>
         ) : (
-          <div className="h-96 min-h-[400px]">
-            <Doughnut data={expenseChartData} options={chartOptions} />
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 h-96 min-h-[400px]">
+              <Doughnut data={expenseChartData} options={chartOptions} />
+            </div>
+            <div className="flex-shrink-0 md:w-48">
+              <ul className="space-y-3">
+                {expenseLegendItems.map((item, index) => {
+                  const maxLabelLength = 20;
+                  const truncatedLabel = item.name.length > maxLabelLength
+                    ? item.name.substring(0, maxLabelLength) + '...'
+                    : item.name;
+                  return (
+                    <li key={index} className="flex items-center space-x-2">
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
+                        {truncatedLabel} ({item.percentage}%)
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
 };
-
