@@ -450,7 +450,7 @@ const BudgetPage = () => {
                       </td>
                       <td
                         className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                          tx.type === 'income' ? 'text-green-600' : 'text-red-600'
+                          tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                         }`}
                       >
                         {tx.type === 'income' ? '+' : '-'}
@@ -459,7 +459,7 @@ const BudgetPage = () => {
                           currency: tx.currency,
                         })}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{tx.description || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{tx.description || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
                           onClick={() => handleDeleteTransaction(tx.id)}
@@ -838,7 +838,7 @@ const BudgetPage = () => {
                     key={cat.id}
                     className="flex items-center justify-between py-2 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{cat.name}</span>
+                    <span className="text-sm text-gray-900 dark:text-gray-100">{cat.name}</span>
                     <button
                       onClick={() => handleDeleteCategory(cat.id)}
                       className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-600 transition-colors"
@@ -864,7 +864,7 @@ const BudgetPage = () => {
                     key={cat.id}
                     className="flex items-center justify-between py-2 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{cat.name}</span>
+                    <span className="text-sm text-gray-900 dark:text-gray-100">{cat.name}</span>
                     <button
                       onClick={() => handleDeleteCategory(cat.id)}
                       className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-600 transition-colors"
