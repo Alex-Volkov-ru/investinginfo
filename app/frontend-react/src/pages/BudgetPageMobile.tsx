@@ -555,6 +555,10 @@ const BudgetPageMobile = () => {
                               style={{ width: `${Math.min(percent, 100)}%` }}
                             />
                           </div>
+                          {/* Дополнительная информация о лимите */}
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {spent.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })} / {limit.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
+                          </div>
                         </div>
                       );
                     })()}
