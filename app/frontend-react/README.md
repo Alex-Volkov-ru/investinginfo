@@ -1,4 +1,4 @@
-# BIGS Frontend
+# WealthTracker Frontend
 
 React + TypeScript + Vite фронтенд для системы управления портфелем и бюджетом.
 
