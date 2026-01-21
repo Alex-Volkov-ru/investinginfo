@@ -105,6 +105,7 @@ export interface BudgetCategory {
   name: string;
   parent_id?: number;
   is_active: boolean;
+  monthly_limit?: number | null;
   created_at: string;
 }
 

@@ -36,8 +36,17 @@ export const budgetService = {
     kind: 'income' | 'expense';
     name: string;
     parent_id?: number;
+    monthly_limit?: number | null;
   }): Promise<BudgetCategory> {
     const response = await apiClient.post<BudgetCategory>('/budget/categories', data);
+    return response.data;
+  },
+
+  async updateCategory(categoryId: number, data: {
+    name?: string;
+    monthly_limit?: number | null;
+  }): Promise<BudgetCategory> {
+    const response = await apiClient.put<BudgetCategory>(`/budget/categories/${categoryId}`, data);
     return response.data;
   },
 

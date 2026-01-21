@@ -54,6 +54,7 @@ class TransactionOut(BaseModel):
     type: TransactionType
     account_id: int
     contra_account_id: Optional[int]
+    category_id: Optional[int] = None
     category: Optional[CategoryOut] = None
     amount: float
     currency: str
@@ -117,6 +118,7 @@ def list_transactions(
                 type=bt.type,
                 account_id=bt.account_id,
                 contra_account_id=bt.contra_account_id,
+                category_id=bt.category_id,
                 category=(CategoryOut(id=cat.id, name=cat.name) if cat else None),
                 amount=float(decrypted_amount),
                 currency=bt.currency,
@@ -217,6 +219,7 @@ def create_transaction(
         type=tx.type,
         account_id=tx.account_id,
         contra_account_id=tx.contra_account_id,
+        category_id=tx.category_id,
         category=cat,
         amount=float(decrypted_amount),
         currency=tx.currency,

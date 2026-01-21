@@ -23,11 +23,17 @@ class CategoryOut(BaseModel):
     name: str
     parent_id: Optional[int] = None
     is_active: bool
+    monthly_limit: Optional[float] = None
 
 class CategoryCreate(BaseModel):
     kind: KindStr
     name: NameStr
     parent_id: Optional[int] = None
+    monthly_limit: Optional[float] = None
+
+class CategoryUpdate(BaseModel):
+    name: Optional[NameStr] = None
+    monthly_limit: Optional[float] = None
 
 @router.get("", response_model=List[CategoryOut])
 def list_categories(
@@ -41,7 +47,8 @@ def list_categories(
     rows = db.execute(q.order_by(BudgetCategory.kind, BudgetCategory.name)).scalars().all()
     return [
         CategoryOut(
-            id=r.id, kind=r.kind, name=r.name, parent_id=r.parent_id, is_active=r.is_active
+            id=r.id, kind=r.kind, name=r.name, parent_id=r.parent_id, is_active=r.is_active,
+            monthly_limit=float(r.monthly_limit) if r.monthly_limit is not None else None
         ) for r in rows
     ]
 
@@ -71,11 +78,39 @@ def create_category(
         name=payload.name,
         parent_id=payload.parent_id,
         is_active=True,
+        monthly_limit=payload.monthly_limit,
     )
     db.add(cat)
     db.commit()
     db.refresh(cat)
-    return CategoryOut(id=cat.id, kind=cat.kind, name=cat.name, parent_id=cat.parent_id, is_active=cat.is_active)
+    return CategoryOut(
+        id=cat.id, kind=cat.kind, name=cat.name, parent_id=cat.parent_id, is_active=cat.is_active,
+        monthly_limit=float(cat.monthly_limit) if cat.monthly_limit is not None else None
+    )
+
+
+@router.put("/{category_id}", response_model=CategoryOut)
+def update_category(
+    category_id: int,
+    payload: CategoryUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    cat = db.get(BudgetCategory, category_id)
+    if not cat or cat.user_id != user.id:
+        raise HTTPException(status_code=404, detail="category not found")
+
+    if payload.name is not None:
+        cat.name = payload.name
+    if payload.monthly_limit is not None:
+        cat.monthly_limit = payload.monthly_limit
+
+    db.commit()
+    db.refresh(cat)
+    return CategoryOut(
+        id=cat.id, kind=cat.kind, name=cat.name, parent_id=cat.parent_id, is_active=cat.is_active,
+        monthly_limit=float(cat.monthly_limit) if cat.monthly_limit is not None else None
+    )
 
 
 @router.delete("/{category_id}", status_code=204)

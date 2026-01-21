@@ -58,6 +58,7 @@ class BudgetCategory(Base):
 
     parent_id = Column(sa.BigInteger, ForeignKey("pf.budget_categories.id", ondelete="SET NULL"), nullable=True)
     is_active = Column(Boolean, nullable=False, server_default=sa.text("true"))
+    monthly_limit = Column(Numeric(20, 2), nullable=True)  # Месячный лимит для категорий расходов
 
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now())
 
