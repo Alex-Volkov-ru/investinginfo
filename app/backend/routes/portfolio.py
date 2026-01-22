@@ -6,6 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user
+from app.backend.core.constants import (
+    DEFAULT_CURRENCY,
+    DEFAULT_PORTFOLIO_TYPE,
+    DEFAULT_INSTRUMENT_CLASS,
+    ERROR_PORTFOLIO_ACCESS_DENIED,
+    ERROR_POSITION_NOT_FOUND,
+    ERROR_FIGI_REQUIRED,
+    HTTP_400_BAD_REQUEST,
+    HTTP_403_FORBIDDEN,
+    HTTP_404_NOT_FOUND,
+)
 from app.backend.db.session import get_db
 from app.backend.models.portfolio import Portfolio, Position
 from app.backend.models.instrument import Instrument
@@ -16,8 +27,8 @@ router = APIRouter()
 
 class PortfolioCreateIn(BaseModel):
     title: str
-    type: str = "broker"
-    currency: str = "RUB"
+    type: str = DEFAULT_PORTFOLIO_TYPE
+    currency: str = DEFAULT_CURRENCY
     # примем user_id для совместимости, но игнорируем
     user_id: int | None = None
 
@@ -68,7 +79,7 @@ class PositionFullOut(PositionOut):
 def _ensure_portfolio_of_user(db: Session, portfolio_id: int, user_id: int) -> Portfolio:
     pf = db.query(Portfolio).filter(Portfolio.id == portfolio_id, Portfolio.user_id == user_id).first()
     if not pf:
-        raise HTTPException(403, "Нет доступа к этому портфелю")
+        raise HTTPException(HTTP_403_FORBIDDEN, ERROR_PORTFOLIO_ACCESS_DENIED)
     return pf
 
 # ====== Endpoints ======
@@ -134,7 +145,7 @@ def upsert_position(payload: PositionUpsertIn, user=Depends(get_current_user), d
 
     figi = (payload.figi or "").strip()
     if not figi:
-        raise HTTPException(400, "Требуется figi (разрешай тикер через /resolve)")
+        raise HTTPException(HTTP_400_BAD_REQUEST, ERROR_FIGI_REQUIRED)
 
     # гарантируем наличие инструмента в каталоге
     inst = db.get(Instrument, figi)
@@ -145,7 +156,7 @@ def upsert_position(payload: PositionUpsertIn, user=Depends(get_current_user), d
             name=payload.name,
             currency=payload.currency,
             nominal=payload.nominal,
-            class_=payload.class_hint or "other",  # в модели column='class'
+            class_=payload.class_hint or DEFAULT_INSTRUMENT_CLASS,  # в модели column='class'
         )
         db.add(inst)
 
@@ -203,7 +214,7 @@ def upsert_position(payload: PositionUpsertIn, user=Depends(get_current_user), d
 def delete_position(position_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
     pos = db.get(Position, position_id)
     if not pos:
-        raise HTTPException(404, "Позиция не найдена")
+        raise HTTPException(HTTP_404_NOT_FOUND, ERROR_POSITION_NOT_FOUND)
     _ensure_portfolio_of_user(db, pos.portfolio_id, user.id)
     db.delete(pos); db.commit()
     return

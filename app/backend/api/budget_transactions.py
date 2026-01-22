@@ -11,6 +11,22 @@ from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user
 from app.backend.core.security import encrypt_amount, decrypt_amount
+from app.backend.core.constants import (
+    DEFAULT_CURRENCY,
+    MONTH_END_CALC_DAY,
+    MONTH_END_CALC_OFFSET,
+    TRANSACTION_TYPE_INCOME,
+    TRANSACTION_TYPE_EXPENSE,
+    TRANSACTION_TYPE_TRANSFER,
+    ERROR_INVALID_TRANSFER_PARAMS,
+    ERROR_ACCOUNTS_UNAVAILABLE,
+    ERROR_ACCOUNT_INACTIVE,
+    ERROR_CATEGORY_REQUIRED_TEMPLATE,
+    ERROR_UNKNOWN_TRANSACTION_TYPE,
+    ERROR_TRANSACTION_NOT_FOUND,
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+)
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 from app.backend.models.budget import (
@@ -24,7 +40,7 @@ router = APIRouter(prefix="/budget/transactions", tags=["budget: transactions"])
 
 # ===== Schemas =====
 
-TransactionType = Literal["income", "expense", "transfer"]
+TransactionType = Literal[TRANSACTION_TYPE_INCOME, TRANSACTION_TYPE_EXPENSE, TRANSACTION_TYPE_TRANSFER]
 
 
 class TransactionCreate(BaseModel):
@@ -34,7 +50,7 @@ class TransactionCreate(BaseModel):
     category_id: Optional[int] = None
 
     amount: Decimal = Field(..., gt=0)
-    currency: str = "RUB"
+    currency: str = DEFAULT_CURRENCY
     occurred_at: Optional[str] = None
     description: Optional[str] = None
 
@@ -74,7 +90,7 @@ def _dates(from_: Optional[str], to: Optional[str]):
     if to:
         d2 = date.fromisoformat(to)
     else:
-        next_month_first = (d1.replace(day=28) + timedelta(days=4)).replace(day=1)
+        next_month_first = (d1.replace(day=MONTH_END_CALC_DAY) + timedelta(days=MONTH_END_CALC_OFFSET)).replace(day=1)
         d2 = next_month_first - timedelta(days=1)
 
     return d1, d2
@@ -143,21 +159,21 @@ def create_transaction(
     Запрещён перевод в тот же самый счёт.
     Оба счёта должны принадлежать пользователю и быть активными.
     """
-    if payload.type == "transfer":
+    if payload.type == TRANSACTION_TYPE_TRANSFER:
         if not payload.contra_account_id or payload.contra_account_id == payload.account_id:
-            raise HTTPException(400, detail="Неверные параметры перевода")
+            raise HTTPException(HTTP_400_BAD_REQUEST, detail=ERROR_INVALID_TRANSFER_PARAMS)
 
         acc_from: BudgetAccount | None = db.get(BudgetAccount, payload.account_id)
         acc_to: BudgetAccount | None = db.get(BudgetAccount, payload.contra_account_id)
 
         if not acc_from or not acc_to or acc_from.user_id != user.id or acc_to.user_id != user.id:
-            raise HTTPException(400, detail="Счета недоступны")
+            raise HTTPException(HTTP_400_BAD_REQUEST, detail=ERROR_ACCOUNTS_UNAVAILABLE)
         if getattr(acc_from, "is_active", True) is False or getattr(acc_to, "is_active", True) is False:
-            raise HTTPException(400, detail="Один из счетов неактивен")
+            raise HTTPException(HTTP_400_BAD_REQUEST, detail=ERROR_ACCOUNT_INACTIVE)
 
         tx = BudgetTransaction(
             user_id=user.id,
-            type="transfer",
+            type=TRANSACTION_TYPE_TRANSFER,
             account_id=acc_from.id,
             contra_account_id=acc_to.id,
             category_id=None,
@@ -171,16 +187,16 @@ def create_transaction(
         db.commit()
         db.refresh(tx)
 
-    elif payload.type in ("income", "expense"):
+    elif payload.type in (TRANSACTION_TYPE_INCOME, TRANSACTION_TYPE_EXPENSE):
         if not payload.category_id:
-            type_name = "доходов" if payload.type == "income" else "расходов"
-            raise HTTPException(400, detail=f"Для транзакций типа '{type_name}' необходимо выбрать категорию")
+            type_name = "доходов" if payload.type == TRANSACTION_TYPE_INCOME else "расходов"
+            raise HTTPException(HTTP_400_BAD_REQUEST, detail=ERROR_CATEGORY_REQUIRED_TEMPLATE.format(type_name=type_name))
 
         category: BudgetCategory | None = db.get(BudgetCategory, payload.category_id)
         account: BudgetAccount | None = db.get(BudgetAccount, payload.account_id)
 
         if not category or not account or account.user_id != user.id or category.user_id != user.id:
-            raise HTTPException(400, detail="Счёт/категория недоступны")
+            raise HTTPException(HTTP_400_BAD_REQUEST, detail=ERROR_ACCOUNTS_UNAVAILABLE)
 
         tx = BudgetTransaction(
             user_id=user.id,
@@ -199,7 +215,7 @@ def create_transaction(
         db.refresh(tx)
 
     else:
-        raise HTTPException(400, detail="Неизвестный тип операции")
+        raise HTTPException(HTTP_400_BAD_REQUEST, detail=ERROR_UNKNOWN_TRANSACTION_TYPE)
 
     cat = None
     if tx.category_id:
@@ -237,7 +253,7 @@ def delete_transaction(
     """Удалить транзакцию."""
     tx = db.get(BudgetTransaction, transaction_id)
     if not tx or tx.user_id != user.id:
-        raise HTTPException(404, detail="Транзакция не найдена")
+        raise HTTPException(HTTP_404_NOT_FOUND, detail=ERROR_TRANSACTION_NOT_FOUND)
     
     db.delete(tx)
     db.commit()

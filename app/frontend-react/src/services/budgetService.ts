@@ -8,6 +8,7 @@ import {
   BudgetObligation,
   ObligationBlock,
   YearSummary,
+  UpcomingPayment,
 } from '../types';
 
 export const budgetService = {
@@ -153,6 +154,14 @@ export const budgetService = {
 
   async previewObligationBlock(data: ObligationBlock): Promise<ObligationBlock> {
     const response = await apiClient.post<ObligationBlock>('/budget/obligation-blocks/preview', data);
+    return response.data;
+  },
+
+  // Upcoming Payments
+  async getUpcomingPayments(daysAhead: number = 7): Promise<UpcomingPayment[]> {
+    const response = await apiClient.get<UpcomingPayment[]>('/budget/obligation-blocks/upcoming-payments', {
+      params: { days_ahead: daysAhead },
+    });
     return response.data;
   },
 };

@@ -9,6 +9,24 @@ from sqlalchemy.orm import Session
 from app.backend.core.security import verify_password, hash_password, encrypt_token
 from app.backend.core.auth import create_access_token
 from app.backend.core.cache import rate_limit
+from app.backend.core.constants import (
+    MIN_PASSWORD_LENGTH,
+    PASSWORD_PATTERN_LETTERS,
+    PASSWORD_PATTERN_DIGITS,
+    MIN_USERNAME_LENGTH,
+    PHONE_PATTERN,
+    LOGIN_RATE_LIMIT,
+    LOGIN_RATE_WINDOW_SEC,
+    REGISTER_RATE_LIMIT,
+    REGISTER_RATE_WINDOW_SEC,
+    ERROR_PASSWORD_WEAK,
+    ERROR_USERNAME_SHORT,
+    ERROR_PHONE_FORMAT,
+    ERROR_INVALID_CREDENTIALS,
+    ERROR_USER_EXISTS,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_409_CONFLICT,
+)
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 from app.backend.core.config import get_settings
@@ -30,8 +48,8 @@ class RegisterIn(BaseModel):
     @field_validator("password")
     @classmethod
     def password_strong(cls, v: str) -> str:
-        if len(v) < 6 or not re.search(r"[A-Za-z]", v) or not re.search(r"\d", v):
-            raise ValueError("Пароль должен содержать минимум 6 символов, буквы и цифры")
+        if len(v) < MIN_PASSWORD_LENGTH or not re.search(PASSWORD_PATTERN_LETTERS, v) or not re.search(PASSWORD_PATTERN_DIGITS, v):
+            raise ValueError(ERROR_PASSWORD_WEAK)
         return v
 
     @field_validator("tg_username")
@@ -40,8 +58,8 @@ class RegisterIn(BaseModel):
         if v is None:
             return v
         v = v.strip()
-        if len(v) < 2:
-            raise ValueError("Имя слишком короткое")
+        if len(v) < MIN_USERNAME_LENGTH:
+            raise ValueError(ERROR_USERNAME_SHORT)
         return v
 
     @field_validator("phone")
@@ -50,8 +68,8 @@ class RegisterIn(BaseModel):
         if not v:
             return None
         v = v.strip()
-        if not re.fullmatch(r"\+?\d{10,15}", v):
-            raise ValueError("Телефон в формате +7999123... или 10–15 цифр")
+        if not re.fullmatch(PHONE_PATTERN, v):
+            raise ValueError(ERROR_PHONE_FORMAT)
         return v
 
 class LoginOut(BaseModel):
@@ -64,12 +82,12 @@ class LoginOut(BaseModel):
 
 @router.post("/login", response_model=LoginOut)
 async def login(payload: LoginIn, db: Session = Depends(get_db)):
-    # Rate limiting: максимум 5 попыток входа в минуту с одного IP/email
-    await rate_limit(f"login:email:{payload.email}", limit=5, window_sec=60)
+    # Rate limiting: максимум попыток входа в минуту с одного IP/email
+    await rate_limit(f"login:email:{payload.email}", limit=LOGIN_RATE_LIMIT, window_sec=LOGIN_RATE_WINDOW_SEC)
     
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(401, "Неверный email или пароль")
+        raise HTTPException(HTTP_401_UNAUTHORIZED, ERROR_INVALID_CREDENTIALS)
     token = create_access_token(user.id, settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     # Обновляем last_login_at
     user.last_login_at = datetime.now(timezone.utc)
@@ -84,13 +102,13 @@ async def login(payload: LoginIn, db: Session = Depends(get_db)):
 
 @router.post("/register", response_model=LoginOut)
 async def register(payload: RegisterIn, db: Session = Depends(get_db)):
-    # Rate limiting: максимум 3 регистрации в час с одного IP
-    await rate_limit(f"register:ip", limit=3, window_sec=3600)
+    # Rate limiting: максимум регистраций в час с одного IP
+    await rate_limit(f"register:ip", limit=REGISTER_RATE_LIMIT, window_sec=REGISTER_RATE_WINDOW_SEC)
     
     # Проверяем, существует ли пользователь
     existing_user = db.query(User).filter(User.email == payload.email).first()
     if existing_user:
-        raise HTTPException(409, "Пользователь с таким email уже существует")
+        raise HTTPException(HTTP_409_CONFLICT, ERROR_USER_EXISTS)
     
     # Создаем нового пользователя
     user = User(

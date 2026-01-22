@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { BootstrapIcon } from './BootstrapIcon';
+import { PaymentReminders } from './PaymentReminders';
 
 export const MobileLayout: React.FC = () => {
   const { user, logout } = useAuth();
@@ -30,6 +31,7 @@ export const MobileLayout: React.FC = () => {
               <span className="text-xs text-gray-600 dark:text-gray-400">
                   {user?.tg_username || 'Гость'}
               </span>
+              <PaymentReminders isMobile={true} />
               <button
                 onClick={toggleTheme}
                 className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 rounded-lg transition-colors"

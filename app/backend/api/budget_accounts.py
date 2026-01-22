@@ -8,6 +8,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user
+from app.backend.core.constants import (
+    DEFAULT_CURRENCY,
+    ERROR_ACCOUNT_NOT_FOUND,
+    HTTP_404_NOT_FOUND,
+)
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 from app.backend.models.budget import BudgetAccount
@@ -26,7 +31,7 @@ class AccountOut(BaseModel):
 
 class AccountCreate(BaseModel):
     title: TitleStr
-    currency: CurStr = "RUB"
+    currency: CurStr = DEFAULT_CURRENCY
     is_savings: bool = False
 
 class AccountPatch(BaseModel):
@@ -86,7 +91,7 @@ def patch_account(
 ):
     acc = db.get(BudgetAccount, account_id)
     if not acc or acc.user_id != user.id:
-        raise HTTPException(status_code=404, detail="account not found")
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=ERROR_ACCOUNT_NOT_FOUND)
 
     if payload.title is not None:
         acc.title = payload.title
@@ -115,7 +120,7 @@ def delete_account(
 ):
     acc = db.get(BudgetAccount, account_id)
     if not acc or acc.user_id != user.id:
-        raise HTTPException(status_code=404, detail="account not found")
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=ERROR_ACCOUNT_NOT_FOUND)
 
     db.delete(acc)
     db.commit()

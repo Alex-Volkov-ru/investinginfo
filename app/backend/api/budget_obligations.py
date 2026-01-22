@@ -11,6 +11,11 @@ from sqlalchemy.orm import Session
 
 from app.backend.db.session import get_db
 from app.backend.core.auth import get_current_user
+from app.backend.core.constants import (
+    DEFAULT_CURRENCY,
+    ERROR_NOT_FOUND,
+    HTTP_404_NOT_FOUND,
+)
 from app.backend.models.user import User
 from app.backend.models.budget import BudgetObligation
 
@@ -26,7 +31,7 @@ class ObligationCreateIn(BaseModel):
     title: TitleStr
     due_date: date
     amount: float = Field(ge=0)
-    currency: Currency3 = "RUB"
+    currency: Currency3 = DEFAULT_CURRENCY
 
 
 class ObligationUpdateIn(BaseModel):
@@ -99,7 +104,7 @@ def update_obligation(
 ):
     row = db.get(BudgetObligation, oid)
     if not row or row.user_id != user.id:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(HTTP_404_NOT_FOUND, ERROR_NOT_FOUND)
 
     if payload.title is not None:
         row.title = payload.title
@@ -126,7 +131,7 @@ def delete_obligation(
 ):
     row = db.get(BudgetObligation, oid)
     if not row or row.user_id != user.id:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(HTTP_404_NOT_FOUND, ERROR_NOT_FOUND)
     db.delete(row)
     db.commit()
     return {"status": "ok"}

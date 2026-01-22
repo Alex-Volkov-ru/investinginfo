@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Save, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, AlertCircle, Calendar } from 'lucide-react';
 import { budgetService } from '../services/budgetService';
-import { ObligationBlock, ObligationPayment } from '../types';
+import { ObligationBlock, ObligationPayment, UpcomingPayment } from '../types';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { ObligationChart } from '../components/ObligationChart';
@@ -16,6 +16,7 @@ const ObligationsPage = () => {
   const [editingPayments, setEditingPayments] = useState<Record<number, ObligationPayment[]>>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [upcomingPayments, setUpcomingPayments] = useState<UpcomingPayment[]>([]);
 
   const [newBlock, setNewBlock] = useState<ObligationBlock>({
     title: '',
@@ -33,6 +34,7 @@ const ObligationsPage = () => {
 
   useEffect(() => {
     loadData();
+    loadUpcomingPayments();
   }, []);
 
   const loadData = async () => {
@@ -45,6 +47,49 @@ const ObligationsPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadUpcomingPayments = async () => {
+    try {
+      const data = await budgetService.getUpcomingPayments(3); // Только на 3 дня
+      setUpcomingPayments(data);
+    } catch (error) {
+      // Ошибка обработана в interceptor
+    }
+  };
+
+  const getNextPaymentInfo = (block: ObligationBlock): UpcomingPayment | null => {
+    // Ищем в списке upcomingPayments
+    const found = upcomingPayments.find(p => p.block_id === block.id);
+    if (found) return found;
+
+    // Если не нашли, вычисляем локально
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Ищем первый неоплаченный платеж
+    const unpaid = block.payments
+      .filter(p => !p.ok && p.date)
+      .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime());
+    
+    if (unpaid.length > 0) {
+      const nextDate = new Date(unpaid[0].date!);
+      const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysUntil >= 0 && daysUntil <= 7) {
+        return {
+          block_id: block.id!,
+          block_title: block.title || '',
+          payment_date: unpaid[0].date!,
+          amount: unpaid[0].amount,
+          days_until: daysUntil,
+          is_urgent: daysUntil <= 1,
+          is_warning: daysUntil > 1 && daysUntil <= 3,
+        };
+      }
+    }
+    
+    return null;
   };
 
   const handleUpdatePayments = async (blockId: number) => {
@@ -62,6 +107,7 @@ const ObligationsPage = () => {
       setBlocks(blocks.map((b) => (b.id === updated.id ? updated : b)));
       setEditingPayments({ ...editingPayments, [blockId]: [] });
       toast.success('Платежи обновлены');
+      await loadUpcomingPayments();
     } catch (error) {
       // Ошибка обработана в interceptor
     }
@@ -190,6 +236,7 @@ const ObligationsPage = () => {
       resetBlockForm();
       setShowBlockModal(false);
       toast.success('Кредитный блок создан');
+      await loadUpcomingPayments();
     } catch (error) {
       // Ошибка обработана в interceptor
     }
@@ -211,6 +258,7 @@ const ObligationsPage = () => {
       setEditingBlock(null);
       setShowBlockModal(false);
       toast.success('Кредитный блок обновлен');
+      await loadUpcomingPayments();
     } catch (error) {
       // Ошибка обработана в interceptor
     }
@@ -222,6 +270,7 @@ const ObligationsPage = () => {
         await budgetService.deleteObligationBlock(id);
         setBlocks(blocks.filter((b) => b.id !== id));
         toast.success('Кредитный блок удален');
+        await loadUpcomingPayments();
       } catch (error) {
         // Ошибка обработана в interceptor
       }
@@ -275,6 +324,68 @@ const ObligationsPage = () => {
         </button>
       </div>
 
+      {/* Баннер с напоминаниями */}
+      {upcomingPayments.length > 0 && (
+        <div className={`rounded-lg p-4 mb-4 border-l-4 ${
+          upcomingPayments.some(p => p.is_urgent)
+            ? 'bg-red-50 dark:bg-red-900/20 border-red-500'
+            : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500'
+        }`}>
+          <div className="flex items-start">
+            <AlertCircle className={`h-5 w-5 mr-3 flex-shrink-0 mt-0.5 ${
+              upcomingPayments.some(p => p.is_urgent)
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-yellow-600 dark:text-yellow-400'
+            }`} />
+            <div className="flex-1">
+              <h3 className={`font-semibold mb-2 ${
+                upcomingPayments.some(p => p.is_urgent)
+                  ? 'text-red-900 dark:text-red-100'
+                  : 'text-yellow-900 dark:text-yellow-100'
+              }`}>
+                {upcomingPayments.some(p => p.is_urgent)
+                  ? '⚠️ Срочные платежи!'
+                  : '⏰ Ближайшие платежи'}
+              </h3>
+              <div className="space-y-2">
+                {upcomingPayments.map((payment) => (
+                  <div
+                    key={`${payment.block_id}-${payment.payment_date}`}
+                    className="flex justify-between items-center"
+                  >
+                    <div>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {payment.block_title}
+                      </span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">
+                        {format(new Date(payment.payment_date), 'dd.MM.yyyy')}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className="font-bold text-gray-900 dark:text-gray-100">
+                        {payment.amount.toLocaleString('ru-RU', {
+                          style: 'currency',
+                          currency: 'RUB',
+                        })}
+                      </span>
+                      <span className={`px-2 py-1 text-xs font-bold rounded ${
+                        payment.is_urgent
+                          ? 'bg-red-500 text-white'
+                          : 'bg-yellow-500 text-white'
+                      }`}>
+                        {payment.days_until === 0 ? 'СЕГОДНЯ' :
+                         payment.days_until === 1 ? 'ЗАВТРА' :
+                         `${payment.days_until} дн.`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card">
@@ -311,8 +422,27 @@ const ObligationsPage = () => {
             return (
               <div key={block.id} className="card">
                 <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{block.title}</h3>
+                  <div className="flex-1">
+                    <div className="flex items-center">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{block.title}</h3>
+                      {(() => {
+                        const nextPayment = getNextPaymentInfo(block);
+                        if (!nextPayment) return null;
+                        
+                        return (
+                          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ml-2 ${
+                            nextPayment.is_urgent
+                              ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                              : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200'
+                          }`}>
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {nextPayment.days_until === 0 ? 'Сегодня' :
+                             nextPayment.days_until === 1 ? 'Завтра' :
+                             `${nextPayment.days_until} дн.`}
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                       Статус: {block.status} | Ставка: {block.rate}%
                     </div>
@@ -493,7 +623,9 @@ const ObligationsPage = () => {
                                     checked={payment.ok || false}
                                     onChange={(e) => {
                                       const updated = payments.map((p) =>
-                                        p.n === payment.n ? { ...p, ok: e.target.checked } : p
+                                        (payment.id && p.id === payment.id) || (!payment.id && p.n === payment.n)
+                                          ? { ...p, ok: e.target.checked } 
+                                          : p
                                       );
                                       setEditingPayments({ ...editingPayments, [block.id!]: updated });
                                     }}

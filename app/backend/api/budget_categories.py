@@ -8,14 +8,24 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user
+from app.backend.core.constants import (
+    CATEGORY_NAME_MIN_LENGTH,
+    CATEGORY_NAME_MAX_LENGTH,
+    CATEGORY_KIND_MIN_LENGTH,
+    CATEGORY_KIND_MAX_LENGTH,
+    ERROR_CATEGORY_NOT_FOUND,
+    ERROR_CATEGORY_EXISTS,
+    HTTP_404_NOT_FOUND,
+    HTTP_409_CONFLICT,
+)
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 from app.backend.models.budget import BudgetCategory
 
 router = APIRouter(prefix="/budget/categories", tags=["budget: categories"])
 
-NameStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
-KindStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=6, max_length=7)]  # income/expense
+NameStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=CATEGORY_NAME_MIN_LENGTH, max_length=CATEGORY_NAME_MAX_LENGTH)]
+KindStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=CATEGORY_KIND_MIN_LENGTH, max_length=CATEGORY_KIND_MAX_LENGTH)]  # income/expense
 
 class CategoryOut(BaseModel):
     id: int
@@ -70,7 +80,7 @@ def create_category(
         .limit(1)
     ).first()
     if exists:
-        raise HTTPException(status_code=409, detail="category already exists")
+        raise HTTPException(status_code=HTTP_409_CONFLICT, detail=ERROR_CATEGORY_EXISTS)
 
     cat = BudgetCategory(
         user_id=user.id,
@@ -98,7 +108,7 @@ def update_category(
 ):
     cat = db.get(BudgetCategory, category_id)
     if not cat or cat.user_id != user.id:
-        raise HTTPException(status_code=404, detail="category not found")
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=ERROR_CATEGORY_NOT_FOUND)
 
     if payload.name is not None:
         cat.name = payload.name
@@ -121,7 +131,7 @@ def delete_category(
 ):
     cat = db.get(BudgetCategory, category_id)
     if not cat or cat.user_id != user.id:
-        raise HTTPException(status_code=404, detail="category not found")
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=ERROR_CATEGORY_NOT_FOUND)
 
     cat.is_active = False
     db.commit()

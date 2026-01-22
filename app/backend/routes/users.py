@@ -10,6 +10,18 @@ from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user
 from app.backend.core.security import hash_password, encrypt_token
+from app.backend.core.constants import (
+    MIN_PASSWORD_LENGTH,
+    PASSWORD_PATTERN_LETTERS,
+    PASSWORD_PATTERN_DIGITS,
+    MIN_USERNAME_LENGTH,
+    PHONE_PATTERN,
+    ERROR_PASSWORD_WEAK,
+    ERROR_USERNAME_SHORT,
+    ERROR_PHONE_FORMAT,
+    ERROR_USER_EXISTS,
+    HTTP_409_CONFLICT,
+)
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 
@@ -27,8 +39,8 @@ class UserCreateIn(BaseModel):
     @field_validator("password")
     @classmethod
     def password_strong(cls, v: str) -> str:
-        if len(v) < 6 or not re.search(r"[A-Za-z]", v) or not re.search(r"\d", v):
-            raise ValueError("Пароль слишком слабый")
+        if len(v) < MIN_PASSWORD_LENGTH or not re.search(PASSWORD_PATTERN_LETTERS, v) or not re.search(PASSWORD_PATTERN_DIGITS, v):
+            raise ValueError(ERROR_PASSWORD_WEAK)
         return v
 
     @field_validator("tg_username")
@@ -37,8 +49,8 @@ class UserCreateIn(BaseModel):
         if v is None:
             return v
         v = v.strip()
-        if len(v) < 2:
-            raise ValueError("Имя слишком короткое")
+        if len(v) < MIN_USERNAME_LENGTH:
+            raise ValueError(ERROR_USERNAME_SHORT)
         return v
 
     @field_validator("phone")
@@ -47,8 +59,8 @@ class UserCreateIn(BaseModel):
         if not v:
             return None
         v = v.strip()
-        if not re.fullmatch(r"\+?\d{10,15}", v):
-            raise ValueError("Телефон в формате +7999123... или 10–15 цифр")
+        if not re.fullmatch(PHONE_PATTERN, v):
+            raise ValueError(ERROR_PHONE_FORMAT)
         return v
 
 class UserMeOut(BaseModel):
@@ -65,7 +77,7 @@ class TokenUpdateIn(BaseModel):
 @router.post("/register", response_model=UserMeOut)
 def register(payload: UserCreateIn, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == payload.email).first():
-        raise HTTPException(409, "Пользователь с таким email уже существует")
+        raise HTTPException(HTTP_409_CONFLICT, ERROR_USER_EXISTS)
 
     u = User(
         email=payload.email,
