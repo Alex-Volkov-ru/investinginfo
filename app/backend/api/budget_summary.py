@@ -12,6 +12,13 @@ from sqlalchemy.orm import Session, aliased
 
 from app.backend.core.auth import get_current_user
 from app.backend.core.security import decrypt_amount
+from app.backend.core.constants import (
+    MONTH_END_CALC_DAY,
+    MONTH_END_CALC_OFFSET,
+    TRANSACTION_TYPE_INCOME,
+    TRANSACTION_TYPE_EXPENSE,
+    TRANSACTION_TYPE_TRANSFER,
+)
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 from app.backend.models.budget import (
@@ -72,7 +79,7 @@ def _dates(from_: Optional[str], to: Optional[str]):
     if to:
         d2 = date.fromisoformat(to)
     else:
-        next_month_first = (d1.replace(day=28) + timedelta(days=4)).replace(day=1)
+        next_month_first = (d1.replace(day=MONTH_END_CALC_DAY) + timedelta(days=MONTH_END_CALC_OFFSET)).replace(day=1)
         d2 = next_month_first - timedelta(days=1)
 
     return d1, d2
@@ -103,7 +110,7 @@ def month_summary(
         select(BudgetTransaction)
         .where(
             BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "income",
+            BudgetTransaction.type == TRANSACTION_TYPE_INCOME,
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
@@ -114,7 +121,7 @@ def month_summary(
         select(BudgetTransaction)
         .where(
             BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "expense",
+            BudgetTransaction.type == TRANSACTION_TYPE_EXPENSE,
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
@@ -127,7 +134,7 @@ def month_summary(
         .join(BudgetAccount, BudgetAccount.id == BudgetTransaction.contra_account_id)
         .where(
             BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "transfer",
+            BudgetTransaction.type == TRANSACTION_TYPE_TRANSFER,
             BudgetAccount.is_savings.is_(True),
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
@@ -144,7 +151,7 @@ def month_summary(
         .join(AccTo, AccTo.id == BudgetTransaction.contra_account_id)
         .where(
             BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "transfer",
+            BudgetTransaction.type == TRANSACTION_TYPE_TRANSFER,
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
@@ -184,7 +191,7 @@ def charts(
         .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
         .where(
             BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "income",
+            BudgetTransaction.type == TRANSACTION_TYPE_INCOME,
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
@@ -202,7 +209,7 @@ def charts(
         .join(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
         .where(
             BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "expense",
+            BudgetTransaction.type == TRANSACTION_TYPE_EXPENSE,
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
@@ -220,7 +227,7 @@ def charts(
         select(BudgetTransaction)
         .where(
             BudgetTransaction.user_id == user.id,
-            BudgetTransaction.type == "expense",
+            BudgetTransaction.type == TRANSACTION_TYPE_EXPENSE,
             BudgetTransaction.occurred_at >= d1,
             BudgetTransaction.occurred_at <= d2,
         )
@@ -271,7 +278,7 @@ def year_summary(
         amount = _get_decrypted_amount(tx)
         tx_month = tx.occurred_at.month if hasattr(tx.occurred_at, "month") else (tx.occurred_at.date().month if hasattr(tx.occurred_at, "date") else 1)
 
-        if tx.type == "income":
+        if tx.type == TRANSACTION_TYPE_INCOME:
             income += amount
             monthly_data_dict[tx_month]["income"] += amount
             if tx.category_id:
@@ -279,7 +286,7 @@ def year_summary(
                 if cat:
                     income_by_cat[cat.name] = income_by_cat.get(cat.name, Decimal(0)) + amount
 
-        elif tx.type == "expense":
+        elif tx.type == TRANSACTION_TYPE_EXPENSE:
             expense += amount
             monthly_data_dict[tx_month]["expense"] += amount
             if tx.category_id:
@@ -287,7 +294,7 @@ def year_summary(
                 if cat:
                     expense_by_cat[cat.name] = expense_by_cat.get(cat.name, Decimal(0)) + amount
 
-        elif tx.type == "transfer":
+        elif tx.type == TRANSACTION_TYPE_TRANSFER:
             acc_to = db.get(BudgetAccount, tx.contra_account_id) if tx.contra_account_id else None
             acc_from = db.get(BudgetAccount, tx.account_id) if tx.account_id else None
             

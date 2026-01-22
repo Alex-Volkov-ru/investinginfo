@@ -61,7 +61,7 @@ def decrypt_amount(enc: str) -> Decimal:
     Расшифровывает сумму транзакции из БД.
     """
     if not enc:
-        return Decimal("0")
+        return Decimal(0)
     f = _get_fernet()
     try:
         decrypted = f.decrypt(enc.encode("utf-8")).decode("utf-8")

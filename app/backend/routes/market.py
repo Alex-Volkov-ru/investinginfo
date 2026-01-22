@@ -13,6 +13,28 @@ from app.backend.core.config import get_settings
 from app.backend.core.auth import get_current_user
 from app.backend.core.security import decrypt_token
 from app.backend.core.cache import cached_json, rate_limit
+from app.backend.core.constants import (
+    BOND_DEFAULT_NOMINAL,
+    NANO_TO_FLOAT_DIVISOR,
+    PERCENT_TO_DECIMAL,
+    INSTRUMENTS_CACHE_TTL_SEC,
+    QUOTE_RATE_LIMIT,
+    QUOTE_RATE_WINDOW_SEC,
+    QUOTE_CACHE_TTL_SEC,
+    CANDLES_RATE_LIMIT,
+    CANDLES_RATE_WINDOW_SEC,
+    CANDLES_CACHE_TTL_SEC,
+    CANDLES_DEFAULT_DAYS,
+    BATCH_QUOTES_CACHE_TTL_SEC,
+    ERROR_EMPTY_TICKER,
+    ERROR_CACHE_EMPTY,
+    ERROR_FIGI_NOT_FOUND_TEMPLATE,
+    ERROR_NO_DATA_TEMPLATE,
+    ERROR_NO_TINKOFF_TOKEN,
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+    HTTP_503_SERVICE_UNAVAILABLE,
+)
 from app.backend.models.user import User
 
 settings = get_settings()
@@ -21,7 +43,7 @@ router = APIRouter()
 def q2f(q) -> float:
     if q is None:
         return 0.0
-    return float(getattr(q, "units", 0)) + float(getattr(q, "nano", 0)) / 1e9
+    return float(getattr(q, "units", 0)) + float(getattr(q, "nano", 0)) / NANO_TO_FLOAT_DIVISOR
 
 INTERVAL_MAP = {
     "1min": CandleInterval.CANDLE_INTERVAL_1_MIN,
@@ -49,7 +71,7 @@ def _add_many(cache_t: Dict[str, List[dict]], cache_f: Dict[str, dict], items, c
             "ticker": t,
         }
         if cls == "bond":
-            nominal = q2f(getattr(it, "nominal", None)) or 1000.0
+            nominal = q2f(getattr(it, "nominal", None)) or BOND_DEFAULT_NOMINAL
             rec["nominal"] = nominal
         cache_t.setdefault(t, []).append({k: rec.get(k) for k in ("figi", "class", "name", "currency", "isin", "nominal", "ticker")})
         if rec["figi"]:
@@ -115,14 +137,14 @@ async def _startup():
 def _token_from_user(user: User) -> str:
     token = decrypt_token(getattr(user, "tinkoff_token_enc", "") or "")
     if not token:
-        raise HTTPException(400, "У пользователя не задан Tinkoff токен")
+        raise HTTPException(HTTP_400_BAD_REQUEST, ERROR_NO_TINKOFF_TOKEN)
     return token
 
 def _get_last_price_blocking(figi: str, token: str) -> float:
     with Client(token) as client:
         lp = client.market_data.get_last_prices(figi=[figi])
         if not lp.last_prices:
-            raise HTTPException(404, f"Нет данных по FIGI={figi}")
+            raise HTTPException(HTTP_404_NOT_FOUND, ERROR_NO_DATA_TEMPLATE.format(figi=figi))
         return q2f(lp.last_prices[0].price)
 
 def _get_last_prices_blocking(figis: List[str], token: str) -> Dict[str, float]:
@@ -137,14 +159,14 @@ def _get_candles_blocking(figi: str, from_dt: datetime, to_dt: datetime, interva
 def _pick_figi_for_ticker(ticker: str, class_hint: str | None = None) -> dict:
     t = ticker.strip().upper()
     if not t:
-        raise HTTPException(400, "Пустой тикер")
+        raise HTTPException(HTTP_400_BAD_REQUEST, ERROR_EMPTY_TICKER)
     if not INSTR_CACHE:
-        raise HTTPException(503, "Кэш инструментов пуст, попробуйте позже")
+        raise HTTPException(HTTP_503_SERVICE_UNAVAILABLE, ERROR_CACHE_EMPTY)
     cand = INSTR_CACHE.get(t, [])
     if class_hint:
         cand = [x for x in cand if x["class"] == class_hint]
     if not cand:
-        raise HTTPException(404, f"FIGI по тикеру {t} не найден")
+        raise HTTPException(HTTP_404_NOT_FOUND, ERROR_FIGI_NOT_FOUND_TEMPLATE.format(ticker=t))
     return cand[0]
 
 def _normalize_quote(figi: str, raw_price: float) -> QuoteOut:
@@ -158,9 +180,9 @@ def _normalize_quote(figi: str, raw_price: float) -> QuoteOut:
         "class": cls,
     }
     if cls == "bond":
-        nominal = meta.get("nominal") or 1000.0
+        nominal = meta.get("nominal") or BOND_DEFAULT_NOMINAL
         price_percent = raw_price
-        price_clean = price_percent * nominal / 100.0
+        price_clean = price_percent * nominal / PERCENT_TO_DECIMAL
         return QuoteOut(price=price_clean, price_percent=price_percent, nominal=nominal, **out_common)
     return QuoteOut(price=raw_price, **out_common)
 
@@ -170,7 +192,7 @@ def _normalize_quote(figi: str, raw_price: float) -> QuoteOut:
 async def resolve(ticker: str, user: User = Depends(get_current_user)):
     t = ticker.strip().upper()
     if not t:
-        raise HTTPException(400, "Пустой тикер")
+        raise HTTPException(HTTP_400_BAD_REQUEST, ERROR_EMPTY_TICKER)
 
     if not INSTR_CACHE:
         token = _token_from_user(user)
@@ -187,19 +209,19 @@ async def resolve(ticker: str, user: User = Depends(get_current_user)):
                 for i in items
             ]
         }
-    data = await cached_json(key, ttl_sec=12 * 60 * 60, loader=_load)
+    data = await cached_json(key, ttl_sec=INSTRUMENTS_CACHE_TTL_SEC, loader=_load)
     return ResolveOut(**data)
 
 @router.get("/quote/{figi}", response_model=QuoteOut)
 async def get_quote(figi: str, user: User = Depends(get_current_user)):
     token = _token_from_user(user)
-    await rate_limit(f"user:{user.id}:quote:{figi}", limit=30, window_sec=60)
+    await rate_limit(f"user:{user.id}:quote:{figi}", limit=QUOTE_RATE_LIMIT, window_sec=QUOTE_RATE_WINDOW_SEC)
 
     key = f"quote:{figi}"
     async def _load():
         raw = await run_in_threadpool(_get_last_price_blocking, figi, token)
         return _normalize_quote(figi, raw).model_dump()
-    data = await cached_json(key, ttl_sec=60, loader=_load)
+    data = await cached_json(key, ttl_sec=QUOTE_CACHE_TTL_SEC, loader=_load)
     return QuoteOut(**data)
 
 @router.get("/candles/{figi}", response_model=list[CandleOut])
@@ -215,9 +237,9 @@ async def get_candles(
     to_dt = (datetime.fromisoformat((to or datetime.now(timezone.utc).isoformat()).replace("Z", "+00:00"))
              if to else datetime.now(timezone.utc))
     from_dt = (datetime.fromisoformat((from_ or "").replace("Z", "+00:00"))
-               if from_ else to_dt - timedelta(days=30))
+               if from_ else to_dt - timedelta(days=CANDLES_DEFAULT_DAYS))
 
-    await rate_limit(f"user:{user.id}:candles:{figi}:{interval}", limit=60, window_sec=60)
+    await rate_limit(f"user:{user.id}:candles:{figi}:{interval}", limit=CANDLES_RATE_LIMIT, window_sec=CANDLES_RATE_WINDOW_SEC)
 
     key = f"candles:{figi}:{interval}:{from_dt.isoformat()}:{to_dt.isoformat()}"
 
@@ -226,7 +248,7 @@ async def get_candles(
         return [CandleOut(time=c.time, open=q2f(c.open), high=q2f(c.high), low=q2f(c.low), close=q2f(c.close), volume=c.volume).model_dump()
                 for c in candles]
 
-    data = await cached_json(key, ttl_sec=120, loader=_load)
+    data = await cached_json(key, ttl_sec=CANDLES_CACHE_TTL_SEC, loader=_load)
     return [CandleOut(**it) for it in data]
 
 class BatchTickersIn(BaseModel):
@@ -273,6 +295,6 @@ async def quotes_by_tickers(payload: BatchTickersIn, user: User = Depends(get_cu
             out.append(qo.model_dump())
         return {"results": out}
 
-    # Кэшируем на 60 секунд - обновляем котировки каждую минуту
-    data = await cached_json(cache_key, ttl_sec=60, loader=_load)
+    # Кэшируем на заданное время - обновляем котировки периодически
+    data = await cached_json(cache_key, ttl_sec=BATCH_QUOTES_CACHE_TTL_SEC, loader=_load)
     return BatchQuotesOut(**data)

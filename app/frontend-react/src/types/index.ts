@@ -184,6 +184,16 @@ export interface ObligationBlock {
   progress_pct?: number;
 }
 
+export interface UpcomingPayment {
+  block_id: number;
+  block_title: string;
+  payment_date: string;
+  amount: number;
+  days_until: number;
+  is_urgent: boolean;
+  is_warning: boolean;
+}
+
 export interface YearSummary {
   year: number;
   income_total: number;

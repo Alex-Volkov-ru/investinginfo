@@ -9,6 +9,13 @@ from sqlalchemy import text
 
 from app.backend.core.config import get_settings
 from app.backend.core.cache import close_redis
+from app.backend.core.constants import (
+    APP_TITLE,
+    APP_VERSION,
+    ALLOWED_HTTP_METHODS,
+    ALLOWED_HTTP_HEADERS,
+    CORS_PREFLIGHT_MAX_AGE,
+)
 from app.backend.db.session import engine
 
 from app.backend.routes.init import api_router
@@ -34,7 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log.info("Server shutdown")
 
 def create_app() -> FastAPI:
-    app = FastAPI(lifespan=lifespan, title="Portfolio API", version="0.1.0")
+    app = FastAPI(lifespan=lifespan, title=APP_TITLE, version=APP_VERSION)
 
     # CORS: если указан "*", отключаем credentials для безопасности
     allow_credentials = not ("*" in settings.ALLOWED_ORIGINS)
@@ -44,10 +51,10 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=allowed_origins,
         allow_credentials=allow_credentials,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Ограничиваем методы
-        allow_headers=["Authorization", "Content-Type"],  # Ограничиваем заголовки
+        allow_methods=ALLOWED_HTTP_METHODS,
+        allow_headers=ALLOWED_HTTP_HEADERS,
         expose_headers=["*"],
-        max_age=3600,  # Кэшируем preflight запросы на 1 час
+        max_age=CORS_PREFLIGHT_MAX_AGE,
     )
 
     # Роутеры
