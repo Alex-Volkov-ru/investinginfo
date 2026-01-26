@@ -80,7 +80,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "mkdir -p '${{ secrets.PROJECT_DIR }}/env/frontend' && mkdir -p /opt/backups && chmod 755 /opt/backups && mkdir -p /root/bigs/scripts && touch /var/log/bigs-backup.log && chmod 644 /var/log/bigs-backup.log"
+            "mkdir -p '${{ secrets.PROJECT_DIR }}/env/frontend' && mkdir -p /opt/backups && chmod 777 /opt/backups && mkdir -p /root/bigs/scripts && touch /var/log/bigs-backup.log && chmod 644 /var/log/bigs-backup.log"
           echo "Убедились, что каталоги на сервере существуют" >> $GITHUB_STEP_SUMMARY
 
       - name: Copy files & restart services
