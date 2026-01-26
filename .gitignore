@@ -140,3 +140,8 @@ dmypy.json
 
 static/
 media/
+
+# Backups
+backups/
+*.sql
+*.sql.gz

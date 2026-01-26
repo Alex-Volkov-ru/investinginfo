@@ -7,6 +7,7 @@ networks:
 volumes:
   pg_data:
   frontend_volume:
+  backups_volume:
 
 services:
   db:
@@ -85,6 +86,10 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       REDIS_URL: ${REDIS_URL:-redis://bigs-redis:6379/0}
+      BACKUP_DIR: ${BACKUP_DIR:-/opt/backups}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - /opt/backups:/opt/backups
     command: >
       uvicorn app.backend.main:app
       --host 0.0.0.0 --port 8000
