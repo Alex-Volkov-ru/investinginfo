@@ -40,7 +40,7 @@ endif
 FLYWAY_RUN := $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) run --rm $(FLYWAY_SVC)
 
 # --- phony ---
-.PHONY: up down logs wait-db migrate drop reset create recreate truncate test_data psql help
+.PHONY: up down logs wait-db migrate drop reset create recreate truncate test_data psql backup-list backup-restore backup-create help
 
 # --- compose lifecycle ---
 up:
@@ -81,6 +81,47 @@ test_data:
 psql:
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec $(DB_SVC) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
 
+# --- backups ---
+BACKUP_DIR ?= ./backups
+BACKUP_FILE ?=
+
+backup-list:
+	@echo "Available backups:"
+	@ls -lh $(BACKUP_DIR)/backup_*.sql.gz 2>/dev/null | awk '{print $$9, "(" $$5 ")"}' || echo "No backups found"
+
+backup-restore:
+	@if [ -z "$(BACKUP_FILE)" ]; then \
+		echo "ERROR: Specify BACKUP_FILE=backup_YYYYMMDD_HHMMSS.sql.gz"; \
+		echo "   Example: make backup-restore BACKUP_FILE=backup_20260126_140944.sql.gz"; \
+		exit 1; \
+	fi
+	@echo "WARNING: This will overwrite all data in the database!"
+	@echo "Restoring from backup: $(BACKUP_FILE)"
+	@if [ ! -f "$(BACKUP_DIR)/$(BACKUP_FILE)" ]; then \
+		echo "ERROR: Backup file not found: $(BACKUP_DIR)/$(BACKUP_FILE)"; \
+		exit 1; \
+	fi
+	@if echo "$(BACKUP_FILE)" | grep -q "\.gz$$"; then \
+		echo "Decompressing backup..."; \
+		gunzip -c "$(BACKUP_DIR)/$(BACKUP_FILE)" | $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec -T $(DB_SVC) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB); \
+	else \
+		cat "$(BACKUP_DIR)/$(BACKUP_FILE)" | $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec -T $(DB_SVC) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB); \
+	fi
+	@echo "SUCCESS: Database restored from: $(BACKUP_FILE)"
+
+backup-create:
+	@if [ -z "$(TOKEN)" ]; then \
+		echo "ERROR: TOKEN is required"; \
+		echo "   Usage: make backup-create TOKEN=your_jwt_token"; \
+		echo "   Or via Swagger UI: http://localhost:8000/docs"; \
+		exit 1; \
+	fi
+	@echo "Creating backup via API..."
+	@curl -X POST http://localhost:8000/backups/create \
+		-H 'accept: application/json' \
+		-H 'Authorization: Bearer $(TOKEN)' \
+		-d '' | python -m json.tool || echo "Failed to create backup"
+
 # --- help ---
 help:
 	@echo 'make up         - build & start containers'
@@ -95,3 +136,8 @@ help:
 	@echo 'make truncate   - run env/pgsql/truncate.sql'
 	@echo 'make test_data  - run env/pgsql/test_data.sql'
 	@echo 'make psql       - open psql in db container'
+	@echo ''
+	@echo '--- Backups ---'
+	@echo 'make backup-list        - show list of available backups'
+	@echo 'make backup-restore     - restore DB from backup (BACKUP_FILE=backup_YYYYMMDD_HHMMSS.sql.gz)'
+	@echo 'make backup-create      - create backup via API (TOKEN=your_jwt_token)'

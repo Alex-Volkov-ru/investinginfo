@@ -42,6 +42,10 @@ class Settings(BaseModel):
     # --- Redis ---
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://bigs-redis:6379/0")
 
+    # --- Backups ---
+    BACKUP_DIR: str = os.getenv("BACKUP_DIR", "/opt/backups")
+    BACKUP_RETENTION_DAYS: int = int(os.getenv("BACKUP_RETENTION_DAYS", "30"))
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()

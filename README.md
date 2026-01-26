@@ -117,6 +117,9 @@ docker compose down
   - `DEBUG`, `LOG_LEVEL`
 - **(опционально)** Tinkoff API
   - `TINKOFF_API_TOKEN` / `TINKOFF_TOKEN`
+- **Backups**
+  - `BACKUP_DIR` - директория для хранения бэкапов (по умолчанию `/opt/backups`)
+  - `BACKUP_RETENTION_DAYS` - срок хранения бэкапов в днях (по умолчанию `30`)
 
 SQL‑пул (опционально, уже учтено в коде):
 - `SQL_POOL_SIZE`, `SQL_MAX_OVERFLOW`, `SQL_POOL_RECYCLE`, `SQL_POOL_TIMEOUT`
@@ -152,6 +155,16 @@ SQL‑пул (опционально, уже учтено в коде):
 - `GET /portfolio` - портфель пользователя
 - `GET /market/instruments` - инструменты рынка
 - `GET /market/candles` - свечи по инструментам
+
+### **Бэкапы базы данных**
+- `POST /backups/create` - создать новый бэкап
+- `GET /backups/list` - список всех бэкапов
+- `GET /backups/info/{filename}` - информация о бэкапе
+- `GET /backups/download/{filename}` - скачать бэкап
+- `DELETE /backups/delete/{filename}` - удалить бэкап
+- `POST /backups/restore` - восстановить базу из бэкапа
+- `GET /backups/disk-usage` - информация об использовании диска
+- `POST /backups/rotate` - вручную запустить ротацию старых бэкапов
 
 ### **Система**
 - `GET /health/ping` - проверка здоровья API
@@ -301,12 +314,65 @@ docker compose run --rm cli-flyway migrate
 ```
 
 - **Резервные копии БД:**
+
+**Через Makefile (рекомендуется для локальной разработки):**
 ```bash
-# dump
-docker exec -t bigs-db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" > backup.sql
-# restore (внимательно! перезапишет данные)
+# Показать список бэкапов
+make backup-list
+
+# Восстановить из бэкапа (⚠️ перезапишет данные!)
+make backup-restore BACKUP_FILE=backup_20260126_140944.sql.gz
+
+# Создать бэкап (покажет инструкцию)
+make backup-create
+```
+
+**Через API (рекомендуется для продакшена):**
+```bash
+# 1. Получить токен
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "your@email.com", "password": "your_password"}'
+
+# 2. Создать бэкап
+curl -X POST http://localhost:8000/backups/create \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 3. Список бэкапов
+curl http://localhost:8000/backups/list \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 4. Скачать бэкап
+curl http://localhost:8000/backups/download/backup_20240122_120000.sql.gz \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -o backup.sql.gz
+
+# 5. Восстановить из бэкапа (⚠️ перезапишет данные!)
+curl -X POST http://localhost:8000/backups/restore \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"filename": "backup_20240122_120000.sql.gz", "drop_existing": false}'
+```
+
+**Ручной способ (через docker exec):**
+```bash
+# Создать бэкап
+docker exec -t bigs-db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+
+# Восстановить из бэкапа (⚠️ перезапишет данные!)
+# Если файл сжат:
+gunzip -c backup_20260126_140944.sql.gz | docker exec -i bigs-db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+
+# Если файл не сжат:
 cat backup.sql | docker exec -i bigs-db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
+
+**Особенности:**
+- ✅ Автоматическое сжатие (gzip)
+- ✅ Автоматическая ротация (удаление бэкапов старше 30 дней)
+- ✅ Метаданные для каждого бэкапа
+- ✅ Мониторинг использования диска
+- ✅ Хранение: локально в `./backups/`, на сервере в `/opt/backups`
 
 ---
 

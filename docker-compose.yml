@@ -91,6 +91,10 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       TZ: ${TZ:-Europe/Moscow}
       REDIS_URL: ${REDIS_URL:-redis://bigs-redis:6379/0}
+      BACKUP_DIR: ${BACKUP_DIR:-/app/backups}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - ./backups:/app/backups
     command: >
       uvicorn app.backend.main:app
       --host 0.0.0.0 --port 8000

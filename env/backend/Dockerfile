@@ -21,10 +21,10 @@ RUN cd /tmp && git clone --depth 1 https://github.com/RussianInvestments/invest-
     pip install --no-cache-dir cachetools deprecation python-dateutil && \
     rm -rf /tmp/invest-python
 
-# 2) удаляем сборочные пакеты, ставим только рантайм libpq5
+# 2) удаляем сборочные пакеты, ставим только рантайм libpq5 и postgresql-client для бэкапов
 RUN apt-get update \
  && apt-get purge -y --auto-remove build-essential gcc libpq-dev \
- && apt-get install -y --no-install-recommends libpq5 \
+ && apt-get install -y --no-install-recommends libpq5 postgresql-client \
  && rm -rf /var/lib/apt/lists/* /root/.cache/pip
 
 # код
