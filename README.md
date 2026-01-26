@@ -198,12 +198,10 @@ PY
 
 ## Деплой на сервер
 
-**Предпосылки:** есть домен `avolkovshop.ru`, DNS на сервер, открыты порты 80/443.
-
 1) **Скопируй проект** на сервер и создай `.env` (боевой):
 ```env
-POSTGRES_USER=bigs
-POSTGRES_PASSWORD=bigs_pass
+POSTGRES_USER=user
+POSTGRES_PASSWORD=pass
 POSTGRES_DB=bigsdb
 DATABASE_URL=postgresql+psycopg2://bigs:bigs_pass@db:5432/bigsdb
 
@@ -213,7 +211,7 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 
 # Разрешённые фронты (добавь свой домен/IP):
-ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080,https://avolkovshop.ru
+ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
 
 BACKEND_PORT=8000
 APP_PORT=8080
@@ -309,17 +307,6 @@ docker exec -t bigs-db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" > backup.sq
 # restore (внимательно! перезапишет данные)
 cat backup.sql | docker exec -i bigs-db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
-
----
-
-## Траблшутинг
-
-- **Порт 80/443 занят** — останови другой nginx или изменяй publish‑порты.
-- **nginx не видит сертификаты** — проверь, что файлы появились в `./certbot/conf/live/avolkovshop.ru/` и том смонтирован в контейнер.
-- **Redis‑ошибка подключения** — проверь `REDIS_URL` и сеть compose: контейнер `backend` должен резолвить `bigs-redis`.
-- **База «пустая»** — посмотри логи `cli-flyway`. Миграции должны пройти до старта `backend`.
-- **CORS** — добавь домен фронта в `ALLOWED_ORIGINS`.
-- **Статика не обновляется** (prod) — проверь, что `frontend` положил файлы в том `frontend_volume`, и `nginx` использует именно его.
 
 ---
 
@@ -425,7 +412,3 @@ cat backup.sql | docker exec -i bigs-db psql -U "$POSTGRES_USER" -d "$POSTGRES_D
 - **Rate limiting** - защита от атак
 - **CORS** - контролируемые запросы
 - **Валидация данных** - Pydantic схемы
-
----
-
-**Готово.** Если что-то не взлетает — смотри логи контейнеров и активную конфигурацию `nginx -T`.
