@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import BigInteger, DateTime, Text, ForeignKey
+from sqlalchemy import BigInteger, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.backend.db.base import Base
@@ -25,6 +25,9 @@ class User(Base):
 
     created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Административные права
+    is_staff: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Зашифрованный пользовательский токен Тинькофф
     tinkoff_token_enc: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

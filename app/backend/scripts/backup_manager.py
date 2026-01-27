@@ -1,12 +1,13 @@
 """
 Менеджер бэкапов базы данных PostgreSQL.
 Создает, удаляет, восстанавливает бэкапы с автоматическим сжатием и ротацией.
+Все операции выполняются асинхронно, чтобы не блокировать работу приложения.
 """
 
 import os
 import gzip
 import shutil
-import subprocess
+import asyncio
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -41,6 +42,8 @@ class BackupManager:
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         
         self._parse_database_url()
+        
+        self._restore_lock = None
     
     def _parse_database_url(self):
         """Парсит DATABASE_URL для получения параметров подключения из .env."""
@@ -73,20 +76,12 @@ class BackupManager:
         """Генерирует имя файла метаданных."""
         return backup_filename.replace(".sql.gz", ".json").replace(".sql", ".json")
     
-    def create_backup(self) -> Dict[str, any]:
+    async def create_backup(self) -> Dict[str, any]:
         """
-        Создает бэкап базы данных.
+        Создает бэкап базы данных асинхронно.
         
         Returns:
-            Dict с информацией о созданном бэкапе:
-            {
-                "filename": str,
-                "path": str,
-                "size": int (bytes),
-                "size_compressed": int (bytes) if compressed,
-                "created_at": str (ISO format),
-                "metadata_path": str
-            }
+            Dict с информацией о созданном бэкапе
         """
         timestamp = datetime.now()
         backup_filename = self._get_backup_filename(timestamp)
@@ -114,32 +109,49 @@ class BackupManager:
                 "--no-privileges",
             ]
             
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
                 env=env
             )
             
-            if self.compress:
-                with gzip.open(backup_path, "wb") as f:
-                    shutil.copyfileobj(process.stdout, f)
-            else:
-                with open(backup_path, "wb") as f:
-                    shutil.copyfileobj(process.stdout, f)
+            stderr_data = b""
             
-            stdout, stderr = process.communicate()
+            async def read_stdout():
+                if self.compress:
+                    with gzip.open(backup_path, "wb") as f:
+                        while True:
+                            chunk = await process.stdout.read(8192)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                else:
+                    with open(backup_path, "wb") as f:
+                        while True:
+                            chunk = await process.stdout.read(8192)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+            
+            async def read_stderr():
+                nonlocal stderr_data
+                while True:
+                    chunk = await process.stderr.read(8192)
+                    if not chunk:
+                        break
+                    stderr_data += chunk
+            
+            await asyncio.gather(read_stdout(), read_stderr())
+            await process.wait()
+            
+            stderr = stderr_data
             
             if stderr:
                 stderr = stderr.decode("utf-8", errors="replace")
             
             if process.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    process.returncode,
-                    cmd,
-                    stdout,
-                    stderr
-                )
+                raise RuntimeError(f"pg_dump завершился с ошибкой: {stderr}")
             
             size = backup_path.stat().st_size
             
@@ -159,7 +171,7 @@ class BackupManager:
             
             logger.info(f"Бэкап создан: {backup_filename} ({metadata['size_mb']} MB)")
             
-            self.rotate_backups()
+            await self.rotate_backups()
             
             return {
                 "filename": backup_filename,
@@ -171,12 +183,8 @@ class BackupManager:
                 "compressed": self.compress
             }
             
-        except subprocess.CalledProcessError as e:
-            error_msg = e.stderr.decode("utf-8", errors="replace") if isinstance(e.stderr, bytes) else str(e.stderr)
-            logger.error(f"Ошибка создания бэкапа: {error_msg}")
-            raise RuntimeError(f"Не удалось создать бэкап: {error_msg}")
         except Exception as e:
-            logger.error(f"Неожиданная ошибка при создании бэкапа: {e}")
+            logger.error(f"Неожиданная ошибка при создании бэкапа: {e}", exc_info=True)
             if backup_path.exists():
                 backup_path.unlink()
             raise
@@ -184,6 +192,7 @@ class BackupManager:
     def list_backups(self) -> List[Dict[str, any]]:
         """
         Возвращает список всех бэкапов с метаданными.
+        Синхронный метод, так как только читает файлы.
         
         Returns:
             List[Dict] с информацией о каждом бэкапе
@@ -229,6 +238,7 @@ class BackupManager:
     def get_backup_info(self, filename: str) -> Optional[Dict[str, any]]:
         """
         Получает информацию о конкретном бэкапе.
+        Синхронный метод, так как только читает файлы.
         
         Args:
             filename: Имя файла бэкапа
@@ -267,6 +277,7 @@ class BackupManager:
     def delete_backup(self, filename: str) -> bool:
         """
         Удаляет бэкап и его метаданные.
+        Синхронный метод, так как только удаляет файлы.
         
         Args:
             filename: Имя файла бэкапа
@@ -290,9 +301,10 @@ class BackupManager:
         
         return deleted
     
-    def rotate_backups(self) -> int:
+    async def rotate_backups(self) -> int:
         """
         Удаляет бэкапы старше retention_days дней.
+        Асинхронный метод для неблокирующего выполнения.
         
         Returns:
             Количество удаленных бэкапов
@@ -314,15 +326,17 @@ class BackupManager:
                 if file_date < cutoff_date:
                     self.delete_backup(file_path.name)
                     deleted_count += 1
+                    await asyncio.sleep(0.01)
         
         if deleted_count > 0:
             logger.info(f"Удалено старых бэкапов: {deleted_count}")
         
         return deleted_count
     
-    def restore_backup(self, filename: str, drop_existing: bool = False) -> bool:
+    async def restore_backup(self, filename: str, drop_existing: bool = False) -> bool:
         """
-        Восстанавливает базу данных из бэкапа.
+        Восстанавливает базу данных из бэкапа асинхронно.
+        Использует блокировку для предотвращения одновременного восстановления.
         
         Args:
             filename: Имя файла бэкапа
@@ -331,92 +345,135 @@ class BackupManager:
         Returns:
             True если восстановление успешно
         """
-        backup_path = self.backup_dir / filename
+        if self._restore_lock is None:
+            self._restore_lock = asyncio.Lock()
         
-        if not backup_path.exists():
-            raise FileNotFoundError(f"Бэкап не найден: {filename}")
-        
-        logger.info(f"Восстановление из бэкапа: {filename}")
-        
-        try:
-            env = os.environ.copy()
-            env["PGPASSWORD"] = self.db_password
+        async with self._restore_lock:
+            backup_path = self.backup_dir / filename
             
-            if drop_existing:
-                logger.info("Очистка существующих данных...")
-                cleanup_cmd = [
+            if not backup_path.exists():
+                raise FileNotFoundError(f"Бэкап не найден: {filename}")
+            
+            backup_size_mb = backup_path.stat().st_size / (1024 * 1024)
+            logger.info(f"Восстановление из бэкапа: {filename} (размер: {backup_size_mb:.2f} MB)")
+            
+            try:
+                env = os.environ.copy()
+                env["PGPASSWORD"] = self.db_password
+                
+                if drop_existing:
+                    logger.info("Очистка существующих данных...")
+                    cleanup_cmd = [
+                        "psql",
+                        "-h", self.db_host,
+                        "-p", str(self.db_port),
+                        "-U", self.db_user,
+                        "-d", self.db_name,
+                        "-c", "SET session_replication_role = 'replica'; TRUNCATE TABLE pf.budget_transactions, pf.budget_accounts, pf.budget_categories, pf.budget_obligations, pf.obligation_blocks, pf.obligation_payments, pf.portfolios, pf.positions, pf.trades, pf.cash_movements, pf.watchlist, pf.api_tokens, pf.users CASCADE; SET session_replication_role = 'origin';"
+                    ]
+                    
+                    cleanup_process = await asyncio.create_subprocess_exec(
+                        *cleanup_cmd,
+                        env=env,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    
+                    await asyncio.wait_for(cleanup_process.wait(), timeout=300.0)
+                    
+                    if cleanup_process.returncode != 0:
+                        stderr = await cleanup_process.stderr.read()
+                        stderr_text = stderr.decode("utf-8", errors="replace") if stderr else ""
+                        logger.warning(f"Предупреждение при очистке: {stderr_text[:200]}")
+                    logger.info("Очистка завершена")
+                
+                logger.info("Подготовка SQL файла для восстановления...")
+                import tempfile
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".sql", delete=False, encoding="utf-8") as restore_file:
+                    restore_file_path = restore_file.name
+                    restore_file.write("SET session_replication_role = 'replica';\n")
+                    restore_file.write("\n")
+                    
+                    logger.info("Декомпрессия и копирование данных бэкапа...")
+                    if filename.endswith(".gz"):
+                        with gzip.open(backup_path, "rt", encoding="utf-8") as gz_file:
+                            shutil.copyfileobj(gz_file, restore_file)
+                    else:
+                        with open(backup_path, "r", encoding="utf-8") as orig_file:
+                            shutil.copyfileobj(orig_file, restore_file)
+                    
+                    restore_file.write("\n")
+                    restore_file.write("SET session_replication_role = 'origin';\n")
+                
+                restore_file_size_mb = os.path.getsize(restore_file_path) / (1024 * 1024)
+                logger.info(f"SQL файл подготовлен (размер: {restore_file_size_mb:.2f} MB). Начало восстановления...")
+                
+                cmd = [
                     "psql",
                     "-h", self.db_host,
                     "-p", str(self.db_port),
                     "-U", self.db_user,
                     "-d", self.db_name,
-                    "-c", "SET session_replication_role = 'replica'; TRUNCATE TABLE pf.budget_transactions, pf.budget_accounts, pf.budget_categories, pf.budget_obligations, pf.obligation_blocks, pf.obligation_payments, pf.portfolios, pf.positions, pf.trades, pf.cash_movements, pf.watchlist, pf.api_tokens, pf.users CASCADE; SET session_replication_role = 'origin';"
+                    "-v", "ON_ERROR_STOP=0",
+                    "-f", restore_file_path
                 ]
-                subprocess.run(cleanup_cmd, env=env, capture_output=True, text=True, check=False)
-            
-            import tempfile
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".sql", delete=False, encoding="utf-8") as restore_file:
-                restore_file_path = restore_file.name
-                restore_file.write("SET session_replication_role = 'replica';\n")
-                restore_file.write("\n")
                 
-                if filename.endswith(".gz"):
-                    with gzip.open(backup_path, "rt", encoding="utf-8") as gz_file:
-                        shutil.copyfileobj(gz_file, restore_file)
-                else:
-                    with open(backup_path, "r", encoding="utf-8") as orig_file:
-                        shutil.copyfileobj(orig_file, restore_file)
+                logger.info("Выполнение psql (это может занять несколько минут для больших бэкапов)...")
                 
-                restore_file.write("\n")
-                restore_file.write("SET session_replication_role = 'origin';\n")
-            
-            cmd = [
-                "psql",
-                "-h", self.db_host,
-                "-p", str(self.db_port),
-                "-U", self.db_user,
-                "-d", self.db_name,
-                "-v", "ON_ERROR_STOP=0",
-                "-f", restore_file_path
-            ]
-            
-            process = subprocess.run(
-                cmd,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            
-            if os.path.exists(restore_file_path):
-                os.unlink(restore_file_path)
-            
-            if process.returncode != 0:
-                stderr_lower = process.stderr.lower() if process.stderr else ""
-                if "fatal" in stderr_lower or "connection" in stderr_lower:
-                    raise subprocess.CalledProcessError(
-                        process.returncode,
-                        cmd,
-                        process.stdout,
-                        process.stderr
-                    )
-                else:
-                    logger.warning(f"Восстановление завершено с предупреждениями: {process.stderr[:200]}")
-            
-            logger.info(f"База данных восстановлена из: {filename}")
-            return True
-            
-        except subprocess.CalledProcessError as e:
-            error_msg = e.stderr if isinstance(e.stderr, str) else e.stderr.decode("utf-8", errors="replace") if e.stderr else "Unknown error"
-            logger.error(f"Ошибка восстановления: {error_msg}")
-            raise RuntimeError(f"Не удалось восстановить базу данных: {error_msg}")
-        except Exception as e:
-            logger.error(f"Неожиданная ошибка при восстановлении: {e}")
-            raise
+                process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    env=env,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=3600.0)
+                except asyncio.TimeoutError:
+                    process.kill()
+                    await process.wait()
+                    raise RuntimeError("Восстановление бэкапа заняло слишком много времени (>1 час). Возможно, бэкап слишком большой или возникли проблемы с БД.")
+                
+                logger.info(f"psql завершился с кодом возврата: {process.returncode}")
+                
+                if os.path.exists(restore_file_path):
+                    os.unlink(restore_file_path)
+                    logger.debug("Временный файл удален")
+                
+                if process.returncode != 0:
+                    stderr = await process.stderr.read()
+                    stdout = await process.stdout.read()
+                    stderr_text = stderr.decode("utf-8", errors="replace") if stderr else ""
+                    stdout_text = stdout.decode("utf-8", errors="replace") if stdout else ""
+                    stderr_lower = stderr_text.lower()
+                    
+                    logger.error(f"psql завершился с кодом {process.returncode}")
+                    logger.error(f"STDOUT (первые 500 символов): {stdout_text[:500]}")
+                    logger.error(f"STDERR (первые 500 символов): {stderr_text[:500]}")
+                    
+                    if "fatal" in stderr_lower or "connection" in stderr_lower:
+                        raise RuntimeError(f"Не удалось восстановить базу данных: {stderr_text[:500]}")
+                    else:
+                        logger.warning(f"Восстановление завершено с предупреждениями: {stderr_text[:500]}")
+                
+                logger.info(f"База данных восстановлена из: {filename}")
+                return True
+                
+            except asyncio.TimeoutError as e:
+                logger.error(f"Таймаут при восстановлении бэкапа {filename}")
+                if 'restore_file_path' in locals() and os.path.exists(restore_file_path):
+                    os.unlink(restore_file_path)
+                raise
+            except Exception as e:
+                logger.error(f"Неожиданная ошибка при восстановлении: {e}", exc_info=True)
+                if 'restore_file_path' in locals() and os.path.exists(restore_file_path):
+                    os.unlink(restore_file_path)
+                raise
     
     def get_disk_usage(self) -> Dict[str, any]:
         """
         Получает информацию об использовании диска для директории бэкапов.
+        Синхронный метод, так как только читает файловую систему.
         
         Returns:
             Dict с информацией о диске
@@ -435,4 +492,3 @@ class BackupManager:
             "disk_free_gb": round(stat.free / (1024 * 1024 * 1024), 2),
             "disk_usage_percent": round((stat.used / stat.total) * 100, 2)
         }
-

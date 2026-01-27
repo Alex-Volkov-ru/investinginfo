@@ -8,7 +8,9 @@ from app.backend.core.config import get_settings
 from app.backend.core.constants import (
     ERROR_INVALID_TOKEN,
     ERROR_USER_NOT_FOUND,
+    ERROR_ACCESS_DENIED,
     HTTP_401_UNAUTHORIZED,
+    HTTP_403_FORBIDDEN,
 )
 from app.backend.db.session import get_db
 from app.backend.models.user import User
@@ -36,4 +38,15 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=ERROR_USER_NOT_FOUND)
+    return user
+
+def get_staff_user(
+    user: User = Depends(get_current_user),
+) -> User:
+    """
+    Dependency для проверки административных прав.
+    Используется в эндпоинтах, доступных только администраторам.
+    """
+    if not user.is_staff:
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail=ERROR_ACCESS_DENIED)
     return user

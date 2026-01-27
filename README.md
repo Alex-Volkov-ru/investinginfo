@@ -320,7 +320,7 @@ docker compose run --rm cli-flyway migrate
 # Показать список бэкапов
 make backup-list
 
-# Восстановить из бэкапа (⚠️ перезапишет данные!)
+# Восстановить из бэкапа (перезапишет данные!)
 make backup-restore BACKUP_FILE=backup_20260126_140944.sql.gz
 
 # Создать бэкап (покажет инструкцию)
@@ -347,7 +347,7 @@ curl http://localhost:8000/backups/download/backup_20240122_120000.sql.gz \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -o backup.sql.gz
 
-# 5. Восстановить из бэкапа (⚠️ перезапишет данные!)
+# 5. Восстановить из бэкапа (перезапишет данные!)
 curl -X POST http://localhost:8000/backups/restore \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
@@ -359,7 +359,6 @@ curl -X POST http://localhost:8000/backups/restore \
 # Создать бэкап
 docker exec -t bigs-db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
 
-# Восстановить из бэкапа (⚠️ перезапишет данные!)
 # Если файл сжат:
 gunzip -c backup_20260126_140944.sql.gz | docker exec -i bigs-db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
