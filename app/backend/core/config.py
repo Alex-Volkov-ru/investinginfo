@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# TODO Поправить секреты до конца
 class Settings(BaseModel):
     # --- SQLAlchemy pool ---
     SQL_POOL_SIZE: int = int(os.getenv("SQL_POOL_SIZE", "5"))
@@ -25,6 +26,7 @@ class Settings(BaseModel):
     )
 
     # --- DB ---
+    # TODO Поправить секреты до конца
     DATABASE_URL: AnyUrl | str = os.getenv(
         "DATABASE_URL",
         "postgresql+psycopg2://bigs:bigs_pass@db:5432/bigsdb",

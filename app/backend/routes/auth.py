@@ -78,7 +78,8 @@ class LoginOut(BaseModel):
     user_id: int
     email: EmailStr
     tg_username: str | None = None
-    has_tinkoff: bool = False 
+    has_tinkoff: bool = False
+    is_staff: bool = False 
 
 @router.post("/login", response_model=LoginOut)
 async def login(payload: LoginIn, db: Session = Depends(get_db)):
@@ -98,6 +99,7 @@ async def login(payload: LoginIn, db: Session = Depends(get_db)):
         email=user.email,
         tg_username=user.tg_username,
         has_tinkoff=user.has_tinkoff_token,
+        is_staff=user.is_staff,
     )
 
 @router.post("/register", response_model=LoginOut)
@@ -135,4 +137,5 @@ async def register(payload: RegisterIn, db: Session = Depends(get_db)):
         email=user.email,
         tg_username=user.tg_username,
         has_tinkoff=user.has_tinkoff_token,
+        is_staff=user.is_staff,
     )

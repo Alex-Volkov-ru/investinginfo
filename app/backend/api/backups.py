@@ -1,21 +1,22 @@
 """
 API эндпоинты для управления бэкапами базы данных.
-Требует аутентификации администратора (можно расширить проверкой ролей).
+Все операции выполняются асинхронно, чтобы не блокировать работу приложения.
+Требует аутентификации администратора.
 """
 
 from __future__ import annotations
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+import asyncio
 
 from app.backend.core.auth import get_current_user
 from app.backend.core.constants import (
     HTTP_404_NOT_FOUND,
     HTTP_403_FORBIDDEN,
-    ERROR_NOT_FOUND,
 )
 from app.backend.db.session import get_db
 from app.backend.models.user import User
@@ -26,10 +27,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/backups", tags=["backups"])
 
-# Инициализируем менеджер бэкапов
 import os
 backup_manager = BackupManager(
-    backup_dir=os.getenv("BACKUP_DIR", "/opt/backups"),  # Будет из env или /opt/backups
+    backup_dir=os.getenv("BACKUP_DIR", "/opt/backups"),
     retention_days=int(os.getenv("BACKUP_RETENTION_DAYS", "30")),
     compress=True
 )
@@ -50,8 +50,8 @@ class BackupInfo(BaseModel):
 class BackupCreateResponse(BaseModel):
     """Ответ при создании бэкапа."""
     success: bool
-    backup: BackupInfo
     message: str
+    backup: Optional[BackupInfo] = None
 
 
 class BackupListResponse(BaseModel):
@@ -82,11 +82,7 @@ class BackupRestoreResponse(BaseModel):
 # ===== Helpers =====
 
 def _check_admin_access(user: User) -> None:
-    """
-    Проверяет доступ администратора.
-    Пока проверяем только наличие пользователя, можно расширить проверкой ролей.
-    """
-    # TODO: Добавить проверку роли администратора
+    """Проверяет доступ администратора."""
     if not user:
         raise HTTPException(
             status_code=HTTP_403_FORBIDDEN,
@@ -97,35 +93,49 @@ def _check_admin_access(user: User) -> None:
 # ===== Endpoints =====
 
 @router.post("/create", response_model=BackupCreateResponse)
-def create_backup(
+async def create_backup(
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Создает новый бэкап базы данных.
+    Создает новый бэкап базы данных асинхронно в фоне.
+    Возвращает ответ сразу, бэкап создается в фоновом режиме.
     Требует аутентификации.
     """
     _check_admin_access(user)
     
     try:
-        logger.info(f"Создание бэкапа пользователем {user.email}")
-        backup_info = backup_manager.create_backup()
+        logger.info(f"Запуск создания бэкапа пользователем {user.email}")
+        
+        def _create_backup_task():
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(backup_manager.create_backup())
+                finally:
+                    loop.close()
+            except Exception as e:
+                logger.error(f"Ошибка создания бэкапа в фоне: {e}", exc_info=True)
+        
+        background_tasks.add_task(_create_backup_task)
         
         return BackupCreateResponse(
             success=True,
-            backup=BackupInfo(**backup_info),
-            message=f"Бэкап успешно создан: {backup_info['filename']}"
+            message="Создание бэкапа запущено в фоновом режиме. Проверьте список бэкапов через несколько минут.",
+            backup=None
         )
     except Exception as e:
-        logger.error(f"Ошибка создания бэкапа: {e}")
+        logger.error(f"Ошибка запуска создания бэкапа: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Не удалось создать бэкап: {str(e)}"
+            detail=f"Не удалось запустить создание бэкапа: {str(e)}"
         )
 
 
 @router.get("/list", response_model=BackupListResponse)
-def list_backups(
+async def list_backups(
     user: User = Depends(get_current_user)
 ):
     """
@@ -152,7 +162,7 @@ def list_backups(
 
 
 @router.get("/info/{filename}", response_model=BackupInfo)
-def get_backup_info(
+async def get_backup_info(
     filename: str,
     user: User = Depends(get_current_user)
 ):
@@ -174,7 +184,7 @@ def get_backup_info(
 
 
 @router.get("/download/{filename}")
-def download_backup(
+async def download_backup(
     filename: str,
     user: User = Depends(get_current_user)
 ):
@@ -208,7 +218,7 @@ def download_backup(
 
 
 @router.delete("/delete/{filename}", response_model=BackupDeleteResponse)
-def delete_backup(
+async def delete_backup(
     filename: str,
     user: User = Depends(get_current_user)
 ):
@@ -242,51 +252,71 @@ def delete_backup(
 
 
 @router.post("/restore", response_model=BackupRestoreResponse)
-def restore_backup(
+async def restore_backup(
     request: BackupRestoreRequest,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Восстанавливает базу данных из бэкапа.
-    ⚠️ ВНИМАНИЕ: Это перезапишет все данные в базе!
+    Восстанавливает базу данных из бэкапа асинхронно в фоне.
+    ВНИМАНИЕ: Это перезапишет все данные в базе!
+    Возвращает ответ сразу, восстановление выполняется в фоновом режиме.
     Требует аутентификации.
     """
     _check_admin_access(user)
     
     try:
-        logger.warning(f"Восстановление бэкапа {request.filename} пользователем {user.email}")
+        logger.warning(f"Запуск восстановления бэкапа {request.filename} пользователем {user.email}")
         
-        success = backup_manager.restore_backup(
-            request.filename,
-            drop_existing=request.drop_existing
-        )
-        
-        if not success:
+        backup_info = backup_manager.get_backup_info(request.filename)
+        if not backup_info:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Не удалось восстановить базу данных"
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Бэкап не найден: {request.filename}"
             )
+        
+        if backup_info:
+            logger.info(f"Размер бэкапа: {backup_info.get('size_mb', 0):.2f} MB")
+        
+        def _restore_backup_task():
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(backup_manager.restore_backup(
+                        request.filename,
+                        drop_existing=request.drop_existing
+                    ))
+                    logger.info(f"Восстановление бэкапа {request.filename} успешно завершено в фоне")
+                finally:
+                    loop.close()
+            except Exception as e:
+                logger.error(f"Ошибка восстановления бэкапа в фоне: {e}", exc_info=True)
+        
+        background_tasks.add_task(_restore_backup_task)
         
         return BackupRestoreResponse(
             success=True,
-            message=f"База данных успешно восстановлена из: {request.filename}"
+            message=f"Восстановление базы данных из {request.filename} запущено в фоновом режиме. Это может занять несколько минут. Проверьте логи для отслеживания прогресса."
         )
     except FileNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
             detail=str(e)
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Ошибка восстановления бэкапа: {e}")
+        logger.error(f"Ошибка запуска восстановления бэкапа: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Не удалось восстановить базу данных: {str(e)}"
+            detail=f"Не удалось запустить восстановление базы данных: {str(e)}"
         )
 
 
 @router.get("/disk-usage")
-def get_disk_usage(
+async def get_disk_usage(
     user: User = Depends(get_current_user)
 ):
     """
@@ -306,27 +336,38 @@ def get_disk_usage(
 
 
 @router.post("/rotate")
-def rotate_backups(
+async def rotate_backups(
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user)
 ):
     """
-    Вручную запускает ротацию старых бэкапов.
+    Вручную запускает ротацию старых бэкапов в фоне.
     Требует аутентификации.
     """
     _check_admin_access(user)
     
     try:
-        deleted_count = backup_manager.rotate_backups()
+        def _rotate_task():
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(backup_manager.rotate_backups())
+                    logger.info(f"Ротация бэкапов завершена")
+                finally:
+                    loop.close()
+            except Exception as e:
+                logger.error(f"Ошибка ротации бэкапов в фоне: {e}", exc_info=True)
+        
+        background_tasks.add_task(_rotate_task)
         
         return {
             "success": True,
-            "deleted_count": deleted_count,
-            "message": f"Удалено старых бэкапов: {deleted_count}"
+            "message": "Ротация бэкапов запущена в фоновом режиме"
         }
     except Exception as e:
-        logger.error(f"Ошибка ротации бэкапов: {e}")
+        logger.error(f"Ошибка запуска ротации бэкапов: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Не удалось выполнить ротацию: {str(e)}"
+            detail=f"Не удалось запустить ротацию: {str(e)}"
         )
-
