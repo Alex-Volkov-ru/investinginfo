@@ -13,7 +13,8 @@ export const authService = {
         id: data.user_id,
         email: data.email,
         tg_username: data.tg_username,
-        has_tinkoff: false, // Будет обновлено при следующем запросе
+        has_tinkoff: !!data.has_tinkoff,
+        is_staff: !!data.is_staff,
       }));
       
       toast.success('Вход выполнен успешно');
@@ -43,7 +44,8 @@ export const authService = {
         id: data.user_id,
         email: data.email,
         tg_username: data.tg_username,
-        has_tinkoff: false, // Будет обновлено при следующем запросе
+        has_tinkoff: !!data.has_tinkoff,
+        is_staff: !!data.is_staff,
       }));
       
       toast.success('Регистрация выполнена успешно');
