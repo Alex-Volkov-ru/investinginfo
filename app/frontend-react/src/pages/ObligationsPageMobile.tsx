@@ -495,9 +495,9 @@ const ObligationsPageMobile = () => {
                           <div className="flex-1">
                             <div className="font-medium">№{payment.n}</div>
                             <div className="text-xs text-gray-600 dark:text-gray-400">
-                              {isEditingPayments && payment.date ? (
+                              {isEditingPayments ? (
                                 <DatePicker
-                                  value={format(new Date(payment.date), 'yyyy-MM-dd')}
+                                  value={payment.date ? format(new Date(payment.date), 'yyyy-MM-dd') : ''}
                                   onChange={(value) => {
                                     const updated = payments.map((p) =>
                                       p.n === payment.n ? { ...p, date: value || undefined } : p
