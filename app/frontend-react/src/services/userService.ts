@@ -5,6 +5,7 @@ export interface UserInfo {
   email: string;
   tg_username?: string;
   has_tinkoff: boolean;
+  is_staff?: boolean;
 }
 
 export const userService = {

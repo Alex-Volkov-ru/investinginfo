@@ -15,6 +15,7 @@ export const Layout: React.FC = () => {
     { name: 'Инвестиции', href: '/', icon: 'graph-up-arrow' },
     { name: 'Бюджет', href: '/budget', icon: 'wallet2' },
     { name: 'Обязательства', href: '/obligations', icon: 'file-earmark-text' },
+    ...(user?.is_staff ? [{ name: 'Админ', href: '/admin', icon: 'shield-lock' }] : []),
   ];
 
   const isActive = (path: string) => location.pathname === path;

@@ -7,16 +7,22 @@ API эндпоинты для управления бэкапами базы д�
 from __future__ import annotations
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import asyncio
 
+from jose import jwt, JWTError
+
 from app.backend.core.auth import get_current_user
+from app.backend.core.config import get_settings
 from app.backend.core.constants import (
     HTTP_404_NOT_FOUND,
     HTTP_403_FORBIDDEN,
+    HTTP_401_UNAUTHORIZED,
+    ERROR_INVALID_TOKEN,
+    ERROR_USER_NOT_FOUND,
 )
 from app.backend.db.session import get_db
 from app.backend.models.user import User
@@ -33,6 +39,8 @@ backup_manager = BackupManager(
     retention_days=int(os.getenv("BACKUP_RETENTION_DAYS", "30")),
     compress=True
 )
+
+settings = get_settings()
 
 
 # ===== Schemas =====
@@ -88,6 +96,37 @@ def _check_admin_access(user: User) -> None:
             status_code=HTTP_403_FORBIDDEN,
             detail="Требуется аутентификация"
         )
+
+
+async def _get_user_from_header_or_token(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Достает пользователя либо из Authorization Bearer, либо из query-параметра ?token=...
+    Нужно для скачивания бэкапа по прямой ссылке с токеном.
+    """
+    token: Optional[str] = None
+
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    else:
+        token = request.query_params.get("token") or None
+
+    if not token:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=ERROR_INVALID_TOKEN)
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = int(payload.get("sub", "0"))
+    except (JWTError, ValueError):
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=ERROR_INVALID_TOKEN)
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=ERROR_USER_NOT_FOUND)
+    return user
 
 
 # ===== Endpoints =====
@@ -186,30 +225,32 @@ async def get_backup_info(
 @router.get("/download/{filename}")
 async def download_backup(
     filename: str,
-    user: User = Depends(get_current_user)
+    request: Request,
+    db: Session = Depends(get_db),
 ):
     """
     Скачивает файл бэкапа.
-    Требует аутентификации.
+    Требует аутентификации (либо через заголовок Authorization Bearer, либо через ?token=...).
     """
+    user = await _get_user_from_header_or_token(request, db)
     _check_admin_access(user)
-    
+
     backup_info = backup_manager.get_backup_info(filename)
-    
+
     if not backup_info:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
             detail=f"Бэкап не найден: {filename}"
         )
-    
+
     backup_path = backup_manager.backup_dir / filename
-    
+
     if not backup_path.exists():
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
             detail=f"Файл бэкапа не найден: {filename}"
         )
-    
+
     return FileResponse(
         path=str(backup_path),
         filename=filename,

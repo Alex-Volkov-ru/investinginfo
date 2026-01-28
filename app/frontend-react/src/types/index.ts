@@ -18,12 +18,16 @@ export interface LoginResponse {
   user_id: number;
   email: string;
   tg_username?: string;
+  has_tinkoff?: boolean;
+  is_staff?: boolean;
 }
 
 export interface User {
   id: number;
   email: string;
   tg_username?: string;
+  has_tinkoff?: boolean;
+  is_staff?: boolean;
 }
 
 // Portfolio types

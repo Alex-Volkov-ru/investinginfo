@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage';
 import PortfolioPage from './pages/PortfolioPage';
 import BudgetPage from './pages/BudgetPage';
 import ObligationsPage from './pages/ObligationsPage';
+import AdminPage from './pages/AdminPage';
 import PortfolioPageMobile from './pages/PortfolioPageMobile';
 import BudgetPageMobile from './pages/BudgetPageMobile';
 import ObligationsPageMobile from './pages/ObligationsPageMobile';
@@ -32,6 +33,7 @@ function App() {
               <Route index element={<PortfolioPage />} />
               <Route path="budget" element={<BudgetPage />} />
               <Route path="obligations" element={<ObligationsPage />} />
+              <Route path="admin" element={<AdminPage />} />
             </Route>
             <Route
               path="/mobile"
