@@ -10,6 +10,7 @@ import PortfolioPage from './pages/PortfolioPage';
 import BudgetPage from './pages/BudgetPage';
 import ObligationsPage from './pages/ObligationsPage';
 import AdminPage from './pages/AdminPage';
+import MonthlyReportPage from './pages/MonthlyReportPage';
 import PortfolioPageMobile from './pages/PortfolioPageMobile';
 import BudgetPageMobile from './pages/BudgetPageMobile';
 import ObligationsPageMobile from './pages/ObligationsPageMobile';
@@ -34,6 +35,7 @@ function App() {
               <Route path="budget" element={<BudgetPage />} />
               <Route path="obligations" element={<ObligationsPage />} />
               <Route path="admin" element={<AdminPage />} />
+              <Route path="monthly-report" element={<MonthlyReportPage />} />
             </Route>
             <Route
               path="/mobile"
@@ -74,6 +76,16 @@ function App() {
               }
             >
               <Route index element={<ObligationsPageMobile />} />
+            </Route>
+            <Route
+              path="/monthly_report_mobile"
+              element={
+                <ProtectedRoute>
+                  <MobileLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<MonthlyReportPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
