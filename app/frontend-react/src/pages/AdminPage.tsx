@@ -29,6 +29,7 @@ const AdminPage = () => {
   const [editValue, setEditValue] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState<number | null>(null);
+  const [backupMenuOpen, setBackupMenuOpen] = useState<string | null>(null);
 
   const [confirm, setConfirm] = useState<{
     isOpen: boolean;
@@ -355,56 +356,89 @@ const AdminPage = () => {
           )}
 
           <div className="overflow-x-auto">
-            <table className="min-w-full text-xs md:text-sm divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="w-full text-xs md:text-sm divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Файл</th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Создан</th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Размер</th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-600 dark:text-gray-300">Действия</th>
+                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 min-w-[200px]">Файл</th>
+                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 hidden sm:table-cell whitespace-nowrap">Создан</th>
+                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Размер</th>
+                  <th className="px-2 py-2 text-right font-medium text-gray-600 dark:text-gray-300 w-20">Действия</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {backups.length === 0 ? (
                   <tr>
-                    <td className="px-3 py-4 text-gray-600 dark:text-gray-400" colSpan={4}>
+                    <td className="px-2 py-4 text-gray-600 dark:text-gray-400" colSpan={4}>
                       {loading ? 'Загрузка...' : 'Бэкапов нет'}
                     </td>
                   </tr>
                 ) : (
                   backups.map((b) => (
                     <tr key={b.filename}>
-                      <td className="px-3 py-2 text-gray-900 dark:text-gray-100 break-all">{b.filename}</td>
-                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                      <td className="px-2 py-2 text-gray-900 dark:text-gray-100 break-all">
+                        <div className="font-medium">{b.filename}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 sm:hidden mt-1">
+                          {b.created_at ? format(new Date(b.created_at), 'dd.MM.yyyy HH:mm') : '-'} • {b.size_mb} MB
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-gray-700 dark:text-gray-300 hidden sm:table-cell whitespace-nowrap text-xs">
                         {b.created_at ? format(new Date(b.created_at), 'dd.MM.yyyy HH:mm') : '-'}
                       </td>
-                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{b.size_mb} MB</td>
-                      <td className="px-3 py-2">
-                        <div className="flex justify-end flex-wrap gap-1">
-                          <a
-                            className="btn btn-secondary text-xs md:text-sm"
-                            href={
-                              `${backupService.downloadUrl(b.filename)}?token=${encodeURIComponent(
-                                authService.getToken() || '',
-                              )}`
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Скачать
-                          </a>
+                      <td className="px-2 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap text-xs">{b.size_mb} MB</td>
+                      <td className="px-2 py-2 relative">
+                        <div className="flex justify-end">
                           <button
-                            className="btn btn-secondary text-xs md:text-sm"
-                            onClick={() => onRestore(b.filename)}
+                            className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+                            onClick={() => setBackupMenuOpen(backupMenuOpen === b.filename ? null : b.filename)}
+                            title="Действия"
                           >
-                            Восстановить
+                            <BootstrapIcon name="three-dots-vertical" size={16} />
                           </button>
-                          <button
-                            className="btn btn-danger text-xs md:text-sm"
-                            onClick={() => onDelete(b.filename)}
-                          >
-                            Удалить
-                          </button>
+                          {backupMenuOpen === b.filename && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-30"
+                                onClick={() => setBackupMenuOpen(null)}
+                              />
+                              <div className="absolute right-0 mt-1 z-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 min-w-[160px] py-1">
+                                <a
+                                  className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                                  href={
+                                    `${backupService.downloadUrl(b.filename)}?token=${encodeURIComponent(
+                                      authService.getToken() || '',
+                                    )}`
+                                  }
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={() => setBackupMenuOpen(null)}
+                                >
+                                  <BootstrapIcon name="download" className="mr-2" size={14} />
+                                  Скачать
+                                </a>
+                                <button
+                                  className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                                  onClick={() => {
+                                    setBackupMenuOpen(null);
+                                    onRestore(b.filename);
+                                  }}
+                                >
+                                  <BootstrapIcon name="arrow-counterclockwise" className="mr-2" size={14} />
+                                  Восстановить
+                                </button>
+                                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                                <button
+                                  className="w-full text-left px-3 py-2 text-xs text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                                  onClick={() => {
+                                    setBackupMenuOpen(null);
+                                    onDelete(b.filename);
+                                  }}
+                                >
+                                  <BootstrapIcon name="trash" className="mr-2" size={14} />
+                                  Удалить
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
