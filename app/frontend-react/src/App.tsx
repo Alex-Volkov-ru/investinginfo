@@ -46,6 +46,16 @@ function App() {
               <Route index element={<PortfolioPageMobile />} />
             </Route>
             <Route
+              path="/admin_mobile"
+              element={
+                <ProtectedRoute>
+                  <MobileLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<AdminPage />} />
+            </Route>
+            <Route
               path="/budget_mobile"
               element={
                 <ProtectedRoute>
