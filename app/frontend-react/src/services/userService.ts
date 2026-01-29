@@ -27,5 +27,19 @@ export const userService = {
     });
     return response.data;
   },
+
+  async updateName(tg_username: string): Promise<UserInfo> {
+    const response = await apiClient.put<UserInfo>('/users/me/name', {
+      tg_username,
+    });
+    return response.data;
+  },
+
+  async updateEmail(email: string): Promise<UserInfo> {
+    const response = await apiClient.put<UserInfo>('/users/me/email', {
+      email,
+    });
+    return response.data;
+  },
 };
 

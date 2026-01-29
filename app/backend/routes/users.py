@@ -75,6 +75,20 @@ class UserMeOut(BaseModel):
 class TokenUpdateIn(BaseModel):
     tinkoff_token: Optional[str] = None
 
+class UserNameUpdateIn(BaseModel):
+    tg_username: str
+
+    @field_validator("tg_username")
+    @classmethod
+    def name_min(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < MIN_USERNAME_LENGTH:
+            raise ValueError(ERROR_USERNAME_SHORT)
+        return v
+
+class UserEmailUpdateIn(BaseModel):
+    email: EmailStr
+
 class UserListOut(BaseModel):
     id: int
     email: EmailStr
@@ -123,6 +137,29 @@ def update_token(payload: TokenUpdateIn, user: User = Depends(get_current_user),
         user.tinkoff_token_enc = encrypt_token(payload.tinkoff_token.strip())
     else:
         user.tinkoff_token_enc = None
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return UserMeOut(
+        id=user.id, email=user.email, tg_username=user.tg_username, has_tinkoff=user.has_tinkoff_token, is_staff=user.is_staff
+    )
+
+@router.put("/me/name", response_model=UserMeOut)
+def update_name(payload: UserNameUpdateIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.tg_username = payload.tg_username.strip()
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return UserMeOut(
+        id=user.id, email=user.email, tg_username=user.tg_username, has_tinkoff=user.has_tinkoff_token, is_staff=user.is_staff
+    )
+
+@router.put("/me/email", response_model=UserMeOut)
+def update_email(payload: UserEmailUpdateIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == payload.email, User.id != user.id).first()
+    if existing:
+        raise HTTPException(HTTP_409_CONFLICT, ERROR_USER_EXISTS)
+    user.email = payload.email
     db.add(user)
     db.commit()
     db.refresh(user)

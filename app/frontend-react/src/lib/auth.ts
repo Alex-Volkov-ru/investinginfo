@@ -79,5 +79,9 @@ export const authService = {
   isAuthenticated(): boolean {
     return !!this.getToken();
   },
+
+  setUser(user: User): void {
+    localStorage.setItem('user', JSON.stringify(user));
+  },
 };
 
