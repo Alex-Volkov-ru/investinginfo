@@ -95,6 +95,7 @@ class UserListOut(BaseModel):
     tg_username: Optional[str] = None
     is_staff: bool = False
     created_at: datetime
+    last_login_at: Optional[datetime] = None
 
 class StaffToggleIn(BaseModel):
     user_id: int
@@ -183,6 +184,7 @@ def list_users(
             tg_username=u.tg_username,
             is_staff=u.is_staff,
             created_at=u.created_at or datetime.utcnow(),
+            last_login_at=u.last_login_at,
         )
         for u in users
     ]
@@ -211,4 +213,65 @@ def toggle_staff(
         tg_username=target_user.tg_username,
         is_staff=target_user.is_staff,
         created_at=target_user.created_at or datetime.utcnow(),
+        last_login_at=target_user.last_login_at,
+    )
+
+@router.put("/{user_id}/name", response_model=UserListOut)
+def admin_update_name(
+    user_id: int,
+    payload: UserNameUpdateIn,
+    admin: User = Depends(get_staff_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Изменить имя пользователя. Только для администраторов.
+    """
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(HTTP_404_NOT_FOUND, ERROR_USER_NOT_FOUND)
+    
+    target_user.tg_username = payload.tg_username.strip()
+    db.add(target_user)
+    db.commit()
+    db.refresh(target_user)
+    
+    return UserListOut(
+        id=target_user.id,
+        email=target_user.email,
+        tg_username=target_user.tg_username,
+        is_staff=target_user.is_staff,
+        created_at=target_user.created_at or datetime.utcnow(),
+        last_login_at=target_user.last_login_at,
+    )
+
+@router.put("/{user_id}/email", response_model=UserListOut)
+def admin_update_email(
+    user_id: int,
+    payload: UserEmailUpdateIn,
+    admin: User = Depends(get_staff_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Изменить email пользователя. Только для администраторов.
+    """
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(HTTP_404_NOT_FOUND, ERROR_USER_NOT_FOUND)
+    
+    existing = db.query(User).filter(User.email == payload.email, User.id != user_id).first()
+    if existing:
+        raise HTTPException(HTTP_409_CONFLICT, ERROR_USER_EXISTS)
+    
+    target_user.email = payload.email
+    db.add(target_user)
+    db.commit()
+    db.refresh(target_user)
+    
+    return UserListOut(
+        id=target_user.id,
+        email=target_user.email,
+        tg_username=target_user.tg_username,
+        is_staff=target_user.is_staff,
+        created_at=target_user.created_at or datetime.utcnow(),
+        last_login_at=target_user.last_login_at,
     )
