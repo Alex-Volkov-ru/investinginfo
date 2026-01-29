@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { BootstrapIcon } from './BootstrapIcon';
 import { PaymentReminders } from './PaymentReminders';
+import { MonthlyReviewBanner } from './MonthlyReviewBanner';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { userService } from '../services/userService';
@@ -56,7 +57,12 @@ export const Layout: React.FC = () => {
     { name: 'Инвестиции', href: '/', icon: 'graph-up-arrow' },
     { name: 'Бюджет', href: '/budget', icon: 'wallet2' },
     { name: 'Обязательства', href: '/obligations', icon: 'file-earmark-text' },
-    ...(user?.is_staff ? [{ name: 'Админ', href: '/admin', icon: 'shield-lock' }] : []),
+    ...(user?.is_staff
+      ? [
+          { name: 'Сводка месяца', href: '/monthly-report', icon: 'calendar-check' as const },
+          { name: 'Админ', href: '/admin', icon: 'shield-lock' as const },
+        ]
+      : []),
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -223,6 +229,9 @@ export const Layout: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="hidden md:block">
+          <MonthlyReviewBanner />
+        </div>
         <Outlet />
       </main>
 

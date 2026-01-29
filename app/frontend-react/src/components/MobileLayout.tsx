@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { BootstrapIcon } from './BootstrapIcon';
 import { PaymentReminders } from './PaymentReminders';
+import { MonthlyReviewBanner } from './MonthlyReviewBanner';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { userService } from '../services/userService';
@@ -55,7 +56,12 @@ export const MobileLayout: React.FC = () => {
     { name: 'Инвестиции', href: '/mobile', icon: 'graph-up-arrow' },
     { name: 'Бюджет', href: '/budget_mobile', icon: 'wallet2' },
     { name: 'Обязательства', href: '/obligations_mobile', icon: 'file-earmark-text' },
-    ...(user?.is_staff ? [{ name: 'Админ', href: '/admin_mobile', icon: 'shield-lock' as const }] : []),
+    ...(user?.is_staff
+      ? [
+          { name: 'Сводка', href: '/monthly_report_mobile', icon: 'calendar-check' as const, title: 'Сводка месяца' },
+          { name: 'Админ', href: '/admin_mobile', icon: 'shield-lock' as const },
+        ]
+      : []),
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -101,6 +107,7 @@ export const MobileLayout: React.FC = () => {
               <Link
                 key={item.name}
                 to={item.href}
+                title={'title' in item ? item.title : undefined}
                 className={`flex flex-col items-center justify-center px-2 py-3 flex-1 min-h-[60px] transition-colors active:bg-gray-100 dark:active:bg-gray-700 ${
                   isActive(item.href)
                     ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20'
@@ -108,7 +115,7 @@ export const MobileLayout: React.FC = () => {
                 }`}
               >
                 <BootstrapIcon name={item.icon} size={20} />
-                <span className="text-xs mt-1 font-medium">{item.name}</span>
+                <span className="text-xs mt-1 font-medium whitespace-nowrap">{item.name}</span>
               </Link>
             ))}
           </div>
@@ -117,6 +124,11 @@ export const MobileLayout: React.FC = () => {
 
       {/* Main Content */}
       <main className="pb-20">
+        {location.pathname !== '/monthly_report_mobile' && (
+          <div className="px-3 pt-3">
+            <MonthlyReviewBanner compact />
+          </div>
+        )}
         <Outlet />
       </main>
 
