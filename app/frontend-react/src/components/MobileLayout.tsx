@@ -13,6 +13,7 @@ export const MobileLayout: React.FC = () => {
     { name: 'Инвестиции', href: '/mobile', icon: 'graph-up-arrow' },
     { name: 'Бюджет', href: '/budget_mobile', icon: 'wallet2' },
     { name: 'Обязательства', href: '/obligations_mobile', icon: 'file-earmark-text' },
+    ...(user?.is_staff ? [{ name: 'Админ', href: '/admin_mobile', icon: 'shield-lock' as const }] : []),
   ];
 
   const isActive = (path: string) => location.pathname === path;
