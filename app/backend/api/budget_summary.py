@@ -167,6 +167,16 @@ def month_summary(
         elif acc_from and acc_from.is_savings:
             savings_net -= amount
 
+    # Доход на накопительный счёт = пополнение, расход с накопительного = снятие
+    for tx in income_txs:
+        acc = db.get(BudgetAccount, tx.account_id)
+        if acc and acc.is_savings:
+            savings_net += _get_decrypted_amount(tx)
+    for tx in expense_txs:
+        acc = db.get(BudgetAccount, tx.account_id)
+        if acc and acc.is_savings:
+            savings_net -= _get_decrypted_amount(tx)
+
     return MonthSummaryOut(
         income_total=float(income),
         expense_total=float(expense),
@@ -285,6 +295,11 @@ def year_summary(
                 cat = db.get(BudgetCategory, tx.category_id)
                 if cat:
                     income_by_cat[cat.name] = income_by_cat.get(cat.name, Decimal(0)) + amount
+            acc = db.get(BudgetAccount, tx.account_id) if tx.account_id else None
+            if acc and acc.is_savings:
+                savings_net += amount
+                savings_in += amount
+                monthly_data_dict[tx_month]["savings"] += amount
 
         elif tx.type == TRANSACTION_TYPE_EXPENSE:
             expense += amount
@@ -293,6 +308,10 @@ def year_summary(
                 cat = db.get(BudgetCategory, tx.category_id)
                 if cat:
                     expense_by_cat[cat.name] = expense_by_cat.get(cat.name, Decimal(0)) + amount
+            acc = db.get(BudgetAccount, tx.account_id) if tx.account_id else None
+            if acc and acc.is_savings:
+                savings_net -= amount
+                monthly_data_dict[tx_month]["savings"] -= amount
 
         elif tx.type == TRANSACTION_TYPE_TRANSFER:
             acc_to = db.get(BudgetAccount, tx.contra_account_id) if tx.contra_account_id else None

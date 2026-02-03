@@ -149,6 +149,16 @@ const BudgetPageMobile = () => {
       toast.error('Заполните обязательные поля');
       return;
     }
+    if (newTransaction.type === 'transfer') {
+      if (!newTransaction.contra_account_id) {
+        toast.error('Выберите счёт получателя');
+        return;
+      }
+      if (newTransaction.contra_account_id === newTransaction.account_id) {
+        toast.error('Счёт отправителя и получателя должны различаться');
+        return;
+      }
+    }
 
     try {
       await budgetService.createTransaction(newTransaction);
@@ -455,12 +465,49 @@ const BudgetPageMobile = () => {
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Сбережения</div>
-                  <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                  <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mb-3">
                     {summary.savings.toLocaleString('ru-RU', {
                       style: 'currency',
                       currency: 'RUB',
                       maximumFractionDigits: 0,
                     })}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const savingsAccount = accounts.find((a) => a.is_savings);
+                        setNewTransaction((prev) => ({
+                          ...prev,
+                          type: 'transfer',
+                          account_id: savingsAccount?.id ?? 0,
+                          contra_account_id: accounts.find((a) => !a.is_savings)?.id ?? 0,
+                          category_id: 0,
+                        }));
+                        setActiveTab('transactions');
+                        setShowAddModal(true);
+                      }}
+                      className="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium bg-blue-600 text-white active:opacity-90 shadow-sm"
+                    >
+                      Снять
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const savingsAccount = accounts.find((a) => a.is_savings);
+                        setNewTransaction((prev) => ({
+                          ...prev,
+                          type: 'transfer',
+                          contra_account_id: savingsAccount?.id ?? 0,
+                          category_id: 0,
+                        }));
+                        setActiveTab('transactions');
+                        setShowAddModal(true);
+                      }}
+                      className="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium border-2 border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400 bg-transparent active:opacity-90"
+                    >
+                      Пополнить
+                    </button>
                   </div>
                 </div>
               </div>
@@ -929,31 +976,73 @@ const BudgetPageMobile = () => {
                 </label>
                 <select
                   value={newTransaction.type}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, type: e.target.value as any })}
+                  onChange={(e) => {
+                    const newType = e.target.value as 'income' | 'expense' | 'transfer';
+                    const savingsAccount = accounts.find((a) => a.is_savings);
+                    setNewTransaction({
+                      ...newTransaction,
+                      type: newType,
+                      contra_account_id: newType === 'transfer' ? (savingsAccount?.id ?? newTransaction.contra_account_id) : 0,
+                      category_id: newType === 'transfer' ? 0 : newTransaction.category_id,
+                    });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="expense">Расход</option>
                   <option value="income">Доход</option>
-                  <option value="transfer">Перевод</option>
+                  <option value="transfer">Перевод (пополнение или снятие сбережений)</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Счет
+                  {newTransaction.type === 'transfer' ? 'Счёт отправителя' : 'Счёт'}
                 </label>
                 <select
                   value={newTransaction.account_id}
                   onChange={(e) => setNewTransaction({ ...newTransaction, account_id: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.title}
-                    </option>
-                  ))}
+                  <option value={0}>Выберите счёт</option>
+                  {accounts
+                    .filter((acc) => newTransaction.type !== 'transfer' || acc.id !== newTransaction.contra_account_id)
+                    .map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.title} {acc.is_savings && '(Сбережения)'}
+                      </option>
+                    ))}
                 </select>
               </div>
+
+              {newTransaction.type === 'transfer' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Счёт получателя
+                  </label>
+                  <select
+                    value={newTransaction.contra_account_id}
+                    onChange={(e) =>
+                      setNewTransaction({
+                        ...newTransaction,
+                        contra_account_id: parseInt(e.target.value),
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value={0}>Выберите счёт</option>
+                    {accounts
+                      .filter((acc) => acc.id !== newTransaction.account_id)
+                      .map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.title} {acc.is_savings && '(Сбережения)'}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Пополнение: счёт сбережений — получатель. Снятие: счёт сбережений — отправитель. Переводы не меняют баланс.
+                  </p>
+                </div>
+              )}
 
               {newTransaction.type !== 'transfer' && (
                 <div>

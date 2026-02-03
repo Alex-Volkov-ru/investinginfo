@@ -6,7 +6,8 @@ from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import and_, select
+from sqlalchemy import and_, select, cast
+from sqlalchemy.types import Date
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user
@@ -107,13 +108,14 @@ def list_transactions(
 ):
     d1, d2 = _dates(date_from, date_to)
 
+    # Сравниваем по календарной дате (включительно весь последний день месяца)
     q = (
         select(BudgetTransaction, BudgetCategory)
         .outerjoin(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
         .where(
             BudgetTransaction.user_id == user.id,
-            BudgetTransaction.occurred_at >= d1,
-            BudgetTransaction.occurred_at <= d2,
+            cast(BudgetTransaction.occurred_at, Date) >= d1,
+            cast(BudgetTransaction.occurred_at, Date) <= d2,
         )
         .order_by(BudgetTransaction.occurred_at.desc(), BudgetTransaction.id.desc())
     )

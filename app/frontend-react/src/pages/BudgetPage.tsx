@@ -248,6 +248,16 @@ const BudgetPage = () => {
       toast.error('Заполните обязательные поля');
       return;
     }
+    if (newTransaction.type === 'transfer') {
+      if (!newTransaction.contra_account_id) {
+        toast.error('Выберите счёт получателя');
+        return;
+      }
+      if (newTransaction.contra_account_id === newTransaction.account_id) {
+        toast.error('Счёт отправителя и получателя должны различаться');
+        return;
+      }
+    }
 
     try {
       const transaction = await budgetService.createTransaction(newTransaction);
@@ -427,18 +437,50 @@ const BudgetPage = () => {
                 </div>
               </div>
               <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Сбережения</div>
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                      {summary.savings.toLocaleString('ru-RU', {
-                        style: 'currency',
-                        currency: 'RUB',
-                      })}
-                    </div>
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      Пополняйте через переводы со счета на счет сбережений
-                    </p>
+                <div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Сбережения</div>
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1 mb-3">
+                    {summary.savings.toLocaleString('ru-RU', {
+                      style: 'currency',
+                      currency: 'RUB',
+                    })}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const savingsAccount = accounts.find((a) => a.is_savings);
+                        setNewTransaction((prev) => ({
+                          ...prev,
+                          type: 'transfer',
+                          account_id: savingsAccount?.id ?? 0,
+                          contra_account_id: accounts.find((a) => !a.is_savings)?.id ?? 0,
+                          category_id: 0,
+                        }));
+                        setActiveTab('transactions');
+                        setShowAddModal(true);
+                      }}
+                      className="flex-1 py-2 px-3 rounded-lg text-sm font-medium bg-blue-600 text-white hover:opacity-90"
+                    >
+                      Снять
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const savingsAccount = accounts.find((a) => a.is_savings);
+                        setNewTransaction((prev) => ({
+                          ...prev,
+                          type: 'transfer',
+                          contra_account_id: savingsAccount?.id ?? 0,
+                          category_id: 0,
+                        }));
+                        setActiveTab('transactions');
+                        setShowAddModal(true);
+                      }}
+                      className="flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400 bg-transparent hover:opacity-90"
+                    >
+                      Пополнить
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1132,7 +1174,7 @@ const BudgetPage = () => {
                 >
                   <option value="income">Доход</option>
                   <option value="expense">Расход</option>
-                  <option value="transfer">Перевод (для пополнения сбережений)</option>
+                  <option value="transfer">Перевод (пополнение или снятие сбережений)</option>
                 </select>
               </div>
               <div>
@@ -1181,7 +1223,7 @@ const BudgetPage = () => {
                       ))}
                   </select>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Для пополнения сбережений выберите счет сбережений как получателя
+                    Пополнение: счёт сбережений — получатель. Снятие: счёт сбережений — отправитель. Переводы не меняют баланс.
                   </p>
                 </div>
               )}
