@@ -22,6 +22,7 @@ class Whiteboard(Base):
     name = Column(String(200), nullable=False)
     budget = Column(Numeric(20, 2), nullable=False, server_default="0")
     items = Column(JSONB, nullable=False, server_default=sa.text("'[]'::jsonb"))
+    zones = Column(JSONB, nullable=False, server_default=sa.text("'[]'::jsonb"))
     canvas_data = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now())

@@ -1,4 +1,4 @@
-import { WhiteboardItem } from '../types';
+import { WhiteboardItem, WhiteboardZone } from '../types';
 
 export function formatMoney(value: number): string {
   return new Intl.NumberFormat('ru-RU', {
@@ -38,6 +38,39 @@ export const CARD_ACCENTS = [
 
 export const AUTO_SAVE_INTERVAL_MS = 30_000;
 
+export const DEFAULT_ZONES: WhiteboardZone[] = [
+  {
+    id: 'zone_must',
+    title: 'Обязательное',
+    color: '#ef4444',
+    x: 24,
+    y: 180,
+    width: 300,
+    height: 220,
+    priority: 1,
+  },
+  {
+    id: 'zone_later',
+    title: 'Можно отложить',
+    color: '#f59e0b',
+    x: 340,
+    y: 180,
+    width: 300,
+    height: 220,
+    priority: 2,
+  },
+  {
+    id: 'zone_wants',
+    title: 'Хотелки',
+    color: '#8b5cf6',
+    x: 656,
+    y: 180,
+    width: 300,
+    height: 220,
+    priority: 3,
+  },
+];
+
 export function normalizeItem(item: WhiteboardItem): WhiteboardItem {
   const kind = item.kind || 'expense';
   const isBudget = kind === 'budget';
@@ -46,6 +79,8 @@ export function normalizeItem(item: WhiteboardItem): WhiteboardItem {
     kind,
     width: item.width ?? (isBudget ? DEFAULT_BUDGET_WIDTH : DEFAULT_CARD_WIDTH),
     height: item.height ?? (isBudget ? DEFAULT_BUDGET_HEIGHT : DEFAULT_CARD_HEIGHT),
+    category_id: item.category_id ?? null,
+    zone_id: item.zone_id ?? null,
   };
 }
 
@@ -53,29 +88,52 @@ export function isExpenseItem(item: WhiteboardItem): boolean {
   return (item.kind || 'expense') === 'expense';
 }
 
+export function isIncomeItem(item: WhiteboardItem): boolean {
+  return item.kind === 'income';
+}
+
+export function isCardItem(item: WhiteboardItem): boolean {
+  return isExpenseItem(item) || isIncomeItem(item);
+}
+
 export function ensureBudgetCard(items: WhiteboardItem[], budget: number): WhiteboardItem[] {
-  const expenses = items.filter(isExpenseItem);
-  if (budget <= 0) return expenses;
+  const nonBudget = items.filter((i) => i.kind !== 'budget').map(normalizeItem);
+  if (budget <= 0) return nonBudget;
 
   const existing = items.find((i) => i.kind === 'budget');
-  if (existing) {
-    return [
-      normalizeItem({ ...existing, amount: budget, title: 'Месячный бюджет' }),
-      ...expenses.map(normalizeItem),
-    ];
-  }
+  const budgetCard = normalizeItem(
+    existing
+      ? { ...existing, amount: budget, title: 'Месячный бюджет' }
+      : {
+          id: BUDGET_CARD_ID,
+          kind: 'budget',
+          title: 'Месячный бюджет',
+          amount: budget,
+          x: 24,
+          y: 24,
+          width: DEFAULT_BUDGET_WIDTH,
+          height: DEFAULT_BUDGET_HEIGHT,
+        }
+  );
+  return [budgetCard, ...nonBudget];
+}
 
-  return [
-    normalizeItem({
-      id: BUDGET_CARD_ID,
-      kind: 'budget',
-      title: 'Месячный бюджет',
-      amount: budget,
-      x: 24,
-      y: 24,
-      width: DEFAULT_BUDGET_WIDTH,
-      height: DEFAULT_BUDGET_HEIGHT,
-    }),
-    ...expenses.map(normalizeItem),
-  ];
+/** Центр карточки попадает в зону — привязать zone_id */
+export function detectZoneForItem(item: WhiteboardItem, zones: WhiteboardZone[]): string | null {
+  const w = item.width ?? DEFAULT_CARD_WIDTH;
+  const h = item.height ?? DEFAULT_CARD_HEIGHT;
+  const cx = item.x + w / 2;
+  const cy = item.y + h / 2;
+  const sorted = [...zones].sort((a, b) => b.priority - a.priority);
+  for (const z of sorted) {
+    if (cx >= z.x && cx <= z.x + z.width && cy >= z.y && cy <= z.y + z.height) {
+      return z.id;
+    }
+  }
+  return null;
+}
+
+export function zoneColor(zoneId: string | null | undefined, zones: WhiteboardZone[]): string | undefined {
+  if (!zoneId) return undefined;
+  return zones.find((z) => z.id === zoneId)?.color;
 }

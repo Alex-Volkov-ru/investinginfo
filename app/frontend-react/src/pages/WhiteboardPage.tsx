@@ -1,64 +1,67 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { BudgetPanel } from '../components/whiteboard/BudgetPanel';
-import { BoardToolbar } from '../components/whiteboard/BoardToolbar';
+import { AddCardModal } from '../components/whiteboard/AddCardModal';
 import { BoardCard } from '../components/whiteboard/BoardCard';
+import { BoardToolbar } from '../components/whiteboard/BoardToolbar';
+import { BoardZones } from '../components/whiteboard/BoardZones';
+import { BudgetPanel } from '../components/whiteboard/BudgetPanel';
 import { CalculatorWidget } from '../components/whiteboard/CalculatorWidget';
 import { DrawingCanvas } from '../components/whiteboard/DrawingCanvas';
+import { ExportToBudgetModal } from '../components/whiteboard/ExportToBudgetModal';
+import { TemplatePickerModal } from '../components/whiteboard/TemplatePickerModal';
 import { WhiteboardHelp, dismissHelp, isHelpDismissed } from '../components/whiteboard/WhiteboardHelp';
-import { whiteboardService } from '../services/whiteboardService';
-import { WhiteboardItem, WhiteboardListItem } from '../types';
+import { useBoardUndo } from '../hooks/useBoardUndo';
 import {
   AUTO_SAVE_INTERVAL_MS,
+  DEFAULT_ZONES,
   defaultBoardName,
+  detectZoneForItem,
   ensureBudgetCard,
   generateItemId,
+  isCardItem,
   isExpenseItem,
+  isIncomeItem,
   MIN_CARD_HEIGHT,
   MIN_CARD_WIDTH,
   normalizeItem,
 } from '../lib/whiteboardUtils';
+import { BOARD_TEMPLATES, applyTemplate } from '../lib/whiteboardTemplates';
+import { budgetService } from '../services/budgetService';
+import { whiteboardService } from '../services/whiteboardService';
+import { BudgetAccount, BudgetCategory, WhiteboardItem, WhiteboardListItem, WhiteboardZone } from '../types';
 
 const WhiteboardPage = () => {
   const boardRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{
-    id: string;
-    startX: number;
-    startY: number;
-    itemX: number;
-    itemY: number;
-  } | null>(null);
-  const resizeRef = useRef<{
-    id: string;
-    startX: number;
-    startY: number;
-    startW: number;
-    startH: number;
-  } | null>(null);
+  const dragRef = useRef<{ id: string; startX: number; startY: number; itemX: number; itemY: number } | null>(null);
+  const resizeRef = useRef<{ id: string; startX: number; startY: number; startW: number; startH: number } | null>(null);
 
   const [boardId, setBoardId] = useState<number | null>(null);
   const [boardName, setBoardName] = useState(defaultBoardName());
   const [budget, setBudget] = useState(0);
   const [items, setItems] = useState<WhiteboardItem[]>([]);
+  const [zones, setZones] = useState<WhiteboardZone[]>([]);
   const [canvasData, setCanvasData] = useState<string | null>(null);
   const [boardList, setBoardList] = useState<WhiteboardListItem[]>([]);
+  const [categories, setCategories] = useState<BudgetCategory[]>([]);
+  const [accounts, setAccounts] = useState<BudgetAccount[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [resizingId, setResizingId] = useState<string | null>(null);
 
   const [gridMode, setGridMode] = useState(false);
+  const [zonesVisible, setZonesVisible] = useState(true);
   const [drawingEnabled, setDrawingEnabled] = useState(false);
   const [showBoardPicker, setShowBoardPicker] = useState(false);
   const [showHelpBanner, setShowHelpBanner] = useState(() => !isHelpDismissed());
   const [showHelpModal, setShowHelpModal] = useState(false);
-
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newExpense, setNewExpense] = useState({ title: '', amount: '' });
+  const [addCardKind, setAddCardKind] = useState<'expense' | 'income' | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -68,36 +71,74 @@ const WhiteboardPage = () => {
     confirmText?: string;
   } | null>(null);
 
+  const { pushUndo, undo, canUndo, clearUndo } = useBoardUndo();
+
   const expenseTotal = useMemo(
-    () => items.filter(isExpenseItem).reduce((sum, item) => sum + item.amount, 0),
+    () => items.filter(isExpenseItem).reduce((s, i) => s + i.amount, 0),
     [items]
   );
-
+  const incomeTotal = useMemo(
+    () => items.filter(isIncomeItem).reduce((s, i) => s + i.amount, 0),
+    [items]
+  );
   const budgetCard = useMemo(() => items.find((i) => i.kind === 'budget'), [items]);
-  const expenseItems = useMemo(() => items.filter(isExpenseItem), [items]);
+  const cardItems = useMemo(() => items.filter(isCardItem), [items]);
+
+  const getSnapshot = useCallback(
+    () => ({ items, zones, budget, canvasData, boardName }),
+    [items, zones, budget, canvasData, boardName]
+  );
 
   const markDirty = useCallback(() => setIsDirty(true), []);
 
-  const syncItems = useCallback((nextItems: WhiteboardItem[], nextBudget: number) => {
-    setItems(ensureBudgetCard(nextItems.map(normalizeItem), nextBudget));
-  }, []);
+  const commitChange = useCallback(
+    (mutate: () => void, trackUndo = true) => {
+      if (trackUndo) pushUndo(getSnapshot());
+      mutate();
+      markDirty();
+    },
+    [getSnapshot, pushUndo, markDirty]
+  );
 
   const applyBoard = useCallback(
-    (data: { id: number; name: string; budget: number; items: WhiteboardItem[]; canvas_data: string | null }) => {
+    (data: {
+      id: number;
+      name: string;
+      budget: number;
+      items: WhiteboardItem[];
+      zones?: WhiteboardZone[];
+      canvas_data: string | null;
+    }) => {
       setBoardId(data.id);
       setBoardName(data.name);
       setBudget(data.budget);
       setItems(ensureBudgetCard((data.items || []).map(normalizeItem), data.budget));
+      setZones(data.zones?.length ? data.zones : []);
       setCanvasData(data.canvas_data);
       setIsDirty(false);
+      clearUndo();
     },
-    []
+    [clearUndo]
   );
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [cats, accs] = await Promise.all([
+          budgetService.getCategories(),
+          budgetService.getAccounts(),
+        ]);
+        setCategories(cats);
+        setAccounts(accs);
+      } catch {
+        // interceptor
+      }
+    })();
+  }, []);
 
   const refreshBoardList = useCallback(async () => {
     try {
-      const list = await whiteboardService.list();
-      setBoardList(list);
+      setBoardList(await whiteboardService.list());
     } catch {
       // interceptor
     }
@@ -113,12 +154,15 @@ const WhiteboardPage = () => {
       setBoardList(list);
       if (latest) {
         applyBoard(latest);
+        if (!latest.zones?.length) setZonesVisible(false);
       } else {
         setBoardId(null);
         setBoardName(defaultBoardName());
         setBudget(0);
         setItems([]);
+        setZones([]);
         setCanvasData(null);
+        setZonesVisible(false);
         setIsDirty(false);
       }
     } catch {
@@ -142,14 +186,28 @@ const WhiteboardPage = () => {
     };
   }, [showBoardPicker]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        const snap = undo();
+        if (!snap) return;
+        setItems(snap.items);
+        setZones(snap.zones);
+        setBudget(snap.budget);
+        setCanvasData(snap.canvasData);
+        setBoardName(snap.boardName);
+        markDirty();
+        toast.success('Отменено');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, markDirty]);
+
   const buildPayload = useCallback(
-    () => ({
-      name: boardName,
-      budget,
-      items,
-      canvas_data: canvasData,
-    }),
-    [boardName, budget, items, canvasData]
+    () => ({ name: boardName, budget, items, zones, canvas_data: canvasData }),
+    [boardName, budget, items, zones, canvasData]
   );
 
   const saveBoard = useCallback(
@@ -159,14 +217,11 @@ const WhiteboardPage = () => {
       try {
         const payload = buildPayload();
         if (boardId) {
-          const updated = await whiteboardService.update(boardId, payload);
-          applyBoard(updated);
+          applyBoard(await whiteboardService.update(boardId, payload));
         } else {
-          const created = await whiteboardService.create({
-            ...payload,
-            name: payload.name || defaultBoardName(),
-          });
-          applyBoard(created);
+          applyBoard(
+            await whiteboardService.create({ ...payload, name: payload.name || defaultBoardName() })
+          );
         }
         await refreshBoardList();
         if (!silent) toast.success('Доска сохранена');
@@ -181,9 +236,7 @@ const WhiteboardPage = () => {
 
   useEffect(() => {
     if (!isDirty || loading) return;
-    const timer = window.setInterval(() => {
-      saveBoard(true);
-    }, AUTO_SAVE_INTERVAL_MS);
+    const timer = window.setInterval(() => saveBoard(true), AUTO_SAVE_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [isDirty, loading, saveBoard]);
 
@@ -191,15 +244,13 @@ const WhiteboardPage = () => {
     const onMove = (e: PointerEvent) => {
       if (resizeRef.current) {
         const { id, startX, startY, startW, startH } = resizeRef.current;
-        const dw = e.clientX - startX;
-        const dh = e.clientY - startY;
         setItems((prev) =>
           prev.map((it) =>
             it.id === id
               ? {
                   ...it,
-                  width: Math.max(MIN_CARD_WIDTH, Math.round(startW + dw)),
-                  height: Math.max(MIN_CARD_HEIGHT, Math.round(startH + dh)),
+                  width: Math.max(MIN_CARD_WIDTH, Math.round(startW + (e.clientX - startX))),
+                  height: Math.max(MIN_CARD_HEIGHT, Math.round(startH + (e.clientY - startY))),
                 }
               : it
           )
@@ -207,15 +258,16 @@ const WhiteboardPage = () => {
         markDirty();
         return;
       }
-
       if (!dragRef.current || gridMode) return;
       const { id, startX, startY, itemX, itemY } = dragRef.current;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
       setItems((prev) =>
         prev.map((it) =>
           it.id === id
-            ? { ...it, x: Math.max(0, itemX + dx), y: Math.max(0, itemY + dy) }
+            ? {
+                ...it,
+                x: Math.max(0, itemX + e.clientX - startX),
+                y: Math.max(0, itemY + e.clientY - startY),
+              }
             : it
         )
       );
@@ -223,6 +275,16 @@ const WhiteboardPage = () => {
     };
 
     const onUp = () => {
+      if (dragRef.current && !gridMode && zones.length > 0) {
+        const { id } = dragRef.current;
+        setItems((prev) =>
+          prev.map((it) => {
+            if (it.id !== id) return it;
+            const zone_id = detectZoneForItem(it, zones);
+            return { ...it, zone_id };
+          })
+        );
+      }
       dragRef.current = null;
       resizeRef.current = null;
       setDraggingId(null);
@@ -235,22 +297,26 @@ const WhiteboardPage = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [gridMode, markDirty]);
+  }, [gridMode, markDirty, zones]);
 
-  const addItem = (partial: { title: string; amount: number; x?: number; y?: number }) => {
+  const addCard = (
+    kind: 'expense' | 'income',
+    partial: { title: string; amount: number; category_id?: number; x?: number; y?: number }
+  ) => {
     const board = boardRef.current;
     const x = partial.x ?? (board ? Math.max(20, board.clientWidth / 2 - 90) : 100);
     const y = partial.y ?? (board ? Math.max(20, board.clientHeight / 2 - 50) : 100);
     const item = normalizeItem({
       id: generateItemId(),
-      kind: 'expense',
+      kind,
       title: partial.title,
       amount: partial.amount,
+      category_id: partial.category_id ?? null,
       x,
       y,
+      zone_id: detectZoneForItem({ x, y, width: 180, height: 100 } as WhiteboardItem, zones),
     });
-    setItems((prev) => ensureBudgetCard([...prev, item], budget));
-    markDirty();
+    commitChange(() => setItems((prev) => ensureBudgetCard([...prev, item], budget)));
   };
 
   const handleBoardDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -258,7 +324,7 @@ const WhiteboardPage = () => {
     if ((e.target as HTMLElement).closest('[data-board-card]')) return;
     const rect = boardRef.current?.getBoundingClientRect();
     if (!rect) return;
-    addItem({
+    addCard('expense', {
       title: 'Новый расход',
       amount: 0,
       x: e.clientX - rect.left - 80,
@@ -267,110 +333,64 @@ const WhiteboardPage = () => {
   };
 
   const handleBudgetChange = (value: number) => {
-    setBudget(value);
-    setItems((prev) => ensureBudgetCard(prev, value));
-    markDirty();
-  };
-
-  const handleToggleGrid = () => {
-    setGridMode((prev) => {
-      const next = !prev;
-      toast.success(
-        next
-          ? 'Режим сетки: карточки выстроены в колонки'
-          : 'Свободный режим: перетаскивание и изменение размера'
-      );
-      return next;
+    commitChange(() => {
+      setBudget(value);
+      setItems((prev) => ensureBudgetCard(prev, value));
     });
   };
 
-  const handleAddExpenseSubmit = () => {
-    const title = newExpense.title.trim() || 'Расход';
-    const amount = Math.max(0, Number(newExpense.amount) || 0);
-    addItem({ title, amount });
-    setNewExpense({ title: '', amount: '' });
-    setShowAddModal(false);
-  };
-
-  const handleLoadBoard = async (id: number) => {
-    if (isDirty) {
-      setConfirmDialog({
-        title: 'Несохранённые изменения',
-        message: 'Загрузить другую доску? Текущие изменения могут быть потеряны.',
-        confirmText: 'Загрузить',
-        onConfirm: async () => {
-          setConfirmDialog(null);
-          await loadBoardById(id);
-        },
-      });
+  const handleToggleZones = () => {
+    if (zones.length === 0) {
+      commitChange(() => setZones(DEFAULT_ZONES.map((z) => ({ ...z }))));
+      setZonesVisible(true);
+      toast.success('Зоны добавлены на доску');
       return;
     }
-    await loadBoardById(id);
+    setZonesVisible((v) => !v);
+  };
+
+  const handleApplyTemplate = (templateId: string) => {
+    const tpl = BOARD_TEMPLATES.find((t) => t.id === templateId);
+    if (!tpl) return;
+    const applied = applyTemplate(tpl);
+    commitChange(() => {
+      setBoardName(applied.name);
+      setBudget(applied.budget);
+      setZones(applied.zones);
+      setItems(ensureBudgetCard(applied.items.map(normalizeItem), applied.budget));
+      setZonesVisible(true);
+    });
+    setShowTemplateModal(false);
+    toast.success(`Шаблон «${tpl.name}» применён`);
+  };
+
+  const handleExport = async (accountId: number, occurredAt: string) => {
+    if (!boardId) {
+      toast.error('Сначала сохраните доску');
+      return;
+    }
+    setExporting(true);
+    try {
+      const result = await whiteboardService.exportToBudget(boardId, {
+        account_id: accountId,
+        occurred_at: occurredAt,
+      });
+      toast.success(`Создано транзакций: ${result.created}`);
+      if (result.skipped > 0) {
+        toast.error(`Пропущено: ${result.skipped}. Назначьте категории карточкам.`);
+      }
+      setShowExportModal(false);
+    } catch {
+      // interceptor
+    } finally {
+      setExporting(false);
+    }
   };
 
   const loadBoardById = async (id: number) => {
-    try {
-      const board = await whiteboardService.getById(id);
-      applyBoard(board);
-      setShowBoardPicker(false);
-      toast.success(`Загружена: ${board.name}`);
-    } catch {
-      // interceptor
-    }
-  };
-
-  const handleNewBoard = () => {
-    if (isDirty) {
-      setConfirmDialog({
-        title: 'Несохранённые изменения',
-        message: 'Создать новую доску? Несохранённые изменения будут потеряны.',
-        confirmText: 'Создать',
-        onConfirm: () => {
-          setConfirmDialog(null);
-          setNewBoardName(defaultBoardName());
-          setShowNewBoardModal(true);
-        },
-      });
-      return;
-    }
-    setNewBoardName(defaultBoardName());
-    setShowNewBoardModal(true);
-  };
-
-  const confirmNewBoard = () => {
-    const name = newBoardName.trim() || defaultBoardName();
-    setBoardId(null);
-    setBoardName(name);
-    setBudget(0);
-    setItems([]);
-    setCanvasData(null);
-    setIsDirty(true);
-    setShowNewBoardModal(false);
-    toast.success('Новая доска создана');
-  };
-
-  const handleResetExpenses = () => {
-    setConfirmDialog({
-      title: 'Сбросить расходы?',
-      message: 'Все карточки расходов будут удалены. Карточка бюджета останется.',
-      confirmText: 'Сбросить',
-      onConfirm: () => {
-        syncItems(items.filter((i) => i.kind === 'budget'), budget);
-        markDirty();
-        setConfirmDialog(null);
-        toast.success('Карточки расходов удалены');
-      },
-    });
-  };
-
-  const handleCalculatorSend = (amount: number) => {
-    addItem({ title: `Калькулятор: ${amount}`, amount });
-    toast.success('Карточка добавлена');
-  };
-
-  const handleDismissHelp = () => {
-    dismissHelp();
-    setShowHelpBanner(false);
+    applyBoard(await whiteboardService.getById(id));
+    setShowBoardPicker(false);
+    toast.success('Доска загружена');
   };
 
   const renderCard = (item: WhiteboardItem, index: number) => (
@@ -381,32 +401,30 @@ const WhiteboardPage = () => {
       gridMode={gridMode}
       isDragging={draggingId === item.id}
       isResizing={resizingId === item.id}
+      categories={categories}
+      zones={zones}
       onUpdate={(id, patch) => {
-        setItems((prev) => {
-          const next = prev.map((it) => (it.id === id ? normalizeItem({ ...it, ...patch }) : it));
-          return ensureBudgetCard(next, budget);
-        });
-        markDirty();
+        commitChange(() =>
+          setItems((prev) => ensureBudgetCard(
+            prev.map((it) => (it.id === id ? normalizeItem({ ...it, ...patch }) : it)),
+            budget
+          ))
+        , false);
       }}
       onDelete={(id) => {
-        setItems((prev) => ensureBudgetCard(prev.filter((it) => it.id !== id), budget));
-        markDirty();
+        commitChange(() => setItems((prev) => ensureBudgetCard(prev.filter((it) => it.id !== id), budget)));
       }}
       onDragStart={(id, clientX, clientY) => {
         if (gridMode) return;
+        pushUndo(getSnapshot());
         const target = items.find((it) => it.id === id);
         if (!target) return;
-        dragRef.current = {
-          id,
-          startX: clientX,
-          startY: clientY,
-          itemX: target.x,
-          itemY: target.y,
-        };
+        dragRef.current = { id, startX: clientX, startY: clientY, itemX: target.x, itemY: target.y };
         setDraggingId(id);
       }}
       onResizeStart={(id, clientX, clientY) => {
         if (gridMode) return;
+        pushUndo(getSnapshot());
         const target = items.find((it) => it.id === id);
         if (!target) return;
         resizeRef.current = {
@@ -423,8 +441,8 @@ const WhiteboardPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="text-gray-500 dark:text-gray-400">Загрузка доски…</div>
+      <div className="flex items-center justify-center min-h-[50vh] text-gray-500 dark:text-gray-400">
+        Загрузка доски…
       </div>
     );
   }
@@ -440,31 +458,63 @@ const WhiteboardPage = () => {
           isDirty={isDirty}
           gridMode={gridMode}
           drawingEnabled={drawingEnabled}
+          zonesVisible={zonesVisible}
+          canUndo={canUndo}
           showBoardPicker={showBoardPicker}
           onToggleBoardPicker={() => setShowBoardPicker((v) => !v)}
-          onSelectBoard={handleLoadBoard}
+          onSelectBoard={loadBoardById}
           onSave={() => saveBoard(false)}
-          onNewBoard={handleNewBoard}
-          onAddExpense={() => setShowAddModal(true)}
-          onToggleGrid={handleToggleGrid}
+          onNewBoard={() => {
+            setNewBoardName(defaultBoardName());
+            setShowNewBoardModal(true);
+          }}
+          onAddExpense={() => setAddCardKind('expense')}
+          onAddIncome={() => setAddCardKind('income')}
+          onExport={() => (boardId ? setShowExportModal(true) : toast.error('Сначала сохраните доску'))}
+          onTemplate={() => setShowTemplateModal(true)}
+          onUndo={() => {
+            const snap = undo();
+            if (!snap) return;
+            setItems(snap.items);
+            setZones(snap.zones);
+            setBudget(snap.budget);
+            setCanvasData(snap.canvasData);
+            setBoardName(snap.boardName);
+            markDirty();
+          }}
+          onToggleZones={handleToggleZones}
+          onToggleGrid={() => setGridMode((v) => !v)}
           onToggleDrawing={() => setDrawingEnabled((v) => !v)}
           onOpenHelp={() => setShowHelpModal(true)}
         />
         <BudgetPanel
           budget={budget}
+          incomeTotal={incomeTotal}
           expenseTotal={expenseTotal}
           gridMode={gridMode}
           onBudgetChange={handleBudgetChange}
-          onResetExpenses={handleResetExpenses}
+          onResetExpenses={() => {
+            setConfirmDialog({
+              title: 'Сбросить карточки?',
+              message: 'Удалятся все доходы и расходы. Бюджет и зоны останутся.',
+              confirmText: 'Сбросить',
+              onConfirm: () => {
+                commitChange(() =>
+                  setItems((prev) => ensureBudgetCard(prev.filter((i) => i.kind === 'budget'), budget))
+                );
+                setConfirmDialog(null);
+              },
+            });
+          }}
         />
       </div>
 
       {showHelpBanner && (
-        <div className="pt-3">
+        <div className="pt-3 px-4">
           <WhiteboardHelp
             showBanner
             showModal={false}
-            onDismissBanner={handleDismissHelp}
+            onDismissBanner={() => { dismissHelp(); setShowHelpBanner(false); }}
             onOpenModal={() => setShowHelpModal(true)}
             onCloseModal={() => setShowHelpModal(false)}
           />
@@ -473,119 +523,115 @@ const WhiteboardPage = () => {
 
       <div
         ref={boardRef}
-        className={`relative flex-1 min-h-[420px] overflow-auto custom-scrollbar whiteboard-grid ${
+        className={`relative flex-1 min-h-[480px] overflow-auto custom-scrollbar whiteboard-grid ${
           gridMode ? 'whiteboard-grid-active' : ''
         }`}
         onDoubleClick={handleBoardDoubleClick}
       >
+        <BoardZones zones={zones} visible={zonesVisible} gridMode={gridMode} />
         <DrawingCanvas
           enabled={drawingEnabled}
           canvasData={canvasData}
-          onChange={(data) => {
-            setCanvasData(data);
-            markDirty();
-          }}
+          onChange={(data) => commitChange(() => setCanvasData(data), false)}
         />
 
-        {expenseItems.length === 0 && !budgetCard && !drawingEnabled && (
+        {cardItems.length === 0 && !budgetCard && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[2]">
-            <div className="text-center px-6 max-w-md">
-              <p className="text-gray-400 dark:text-gray-500 text-lg font-medium mb-1">
-                Пустая доска
-              </p>
-              <p className="text-sm text-gray-400 dark:text-gray-600">
-                Введите бюджет сверху · двойной клик — расход · ? — справка
-              </p>
-            </div>
+            <p className="text-gray-500 dark:text-gray-400 text-center px-6">
+              Шаблон · Расход/Доход · категории из бюджета · зоны (иконка слоёв)
+            </p>
           </div>
         )}
 
         {gridMode ? (
-          <div className="relative z-10 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 min-h-full auto-rows-min">
+          <div className="relative z-10 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {budgetCard && renderCard(budgetCard, -1)}
-            {expenseItems.map((item, index) => renderCard(item, index))}
+            {cardItems.map((item, i) => renderCard(item, i))}
           </div>
         ) : (
-          <div className="relative z-10 min-h-full min-w-full" style={{ minHeight: '600px' }}>
+          <div className="relative z-10 min-h-[640px] min-w-full">
             {budgetCard && renderCard(budgetCard, -1)}
-            {expenseItems.map((item, index) => renderCard(item, index))}
+            {cardItems.map((item, i) => renderCard(item, i))}
           </div>
         )}
 
-        <div className="fixed bottom-4 right-4 z-40 max-w-[calc(100vw-2rem)] sm:max-w-none pointer-events-auto">
-          <CalculatorWidget onSendToBoard={handleCalculatorSend} />
+        <div className="fixed bottom-4 right-4 z-40">
+          <CalculatorWidget
+            onSendToBoard={(amount) => addCard('expense', { title: `Калькулятор: ${amount}`, amount })}
+          />
         </div>
       </div>
 
       <WhiteboardHelp
         showBanner={false}
         showModal={showHelpModal}
-        onDismissBanner={handleDismissHelp}
+        onDismissBanner={() => setShowHelpBanner(false)}
         onOpenModal={() => setShowHelpModal(true)}
         onCloseModal={() => setShowHelpModal(false)}
       />
 
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Новый расход</h3>
-              <button type="button" onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-gray-700">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Название</label>
-                <input
-                  className="input"
-                  value={newExpense.title}
-                  onChange={(e) => setNewExpense((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="Продукты, аренда…"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Сумма, ₽</label>
-                <input
-                  type="number"
-                  min={0}
-                  className="input"
-                  value={newExpense.amount}
-                  onChange={(e) => setNewExpense((p) => ({ ...p, amount: e.target.value }))}
-                  placeholder="0"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>
-                  Отмена
-                </button>
-                <button type="button" className="btn btn-primary" onClick={handleAddExpenseSubmit}>
-                  Добавить
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <AddCardModal
+        isOpen={addCardKind !== null}
+        kind={addCardKind ?? 'expense'}
+        categories={categories}
+        onClose={() => setAddCardKind(null)}
+        onSubmit={(data) => {
+          if (addCardKind) addCard(addCardKind, data);
+          setAddCardKind(null);
+        }}
+      />
+
+      <ExportToBudgetModal
+        isOpen={showExportModal}
+        accounts={accounts}
+        loading={exporting}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExport}
+      />
+
+      <TemplatePickerModal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        onSelect={handleApplyTemplate}
+      />
 
       {showNewBoardModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Новая доска</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Новая доска</h3>
             <input
               className="input mb-4"
               value={newBoardName}
               onChange={(e) => setNewBoardName(e.target.value)}
-              placeholder="Название доски"
-              autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && confirmNewBoard()}
+              onKeyDown={(e) => e.key === 'Enter' && (() => {
+                commitChange(() => {
+                  setBoardId(null);
+                  setBoardName(newBoardName.trim() || defaultBoardName());
+                  setBudget(0);
+                  setItems([]);
+                  setZones([]);
+                  setCanvasData(null);
+                });
+                setShowNewBoardModal(false);
+              })()}
             />
             <div className="flex justify-end gap-2">
-              <button type="button" className="btn btn-secondary" onClick={() => setShowNewBoardModal(false)}>
-                Отмена
-              </button>
-              <button type="button" className="btn btn-primary" onClick={confirmNewBoard}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowNewBoardModal(false)}>Отмена</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  commitChange(() => {
+                    setBoardId(null);
+                    setBoardName(newBoardName.trim() || defaultBoardName());
+                    setBudget(0);
+                    setItems([]);
+                    setZones([]);
+                    setCanvasData(null);
+                  });
+                  setShowNewBoardModal(false);
+                }}
+              >
                 Создать
               </button>
             </div>

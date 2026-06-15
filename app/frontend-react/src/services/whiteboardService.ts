@@ -1,5 +1,5 @@
 import { apiClient } from '../lib/api';
-import { Whiteboard, WhiteboardListItem, WhiteboardPayload } from '../types';
+import { Whiteboard, WhiteboardListItem, WhiteboardPayload, WhiteboardExportResult } from '../types';
 
 export const whiteboardService = {
   async getLatest(): Promise<Whiteboard | null> {
@@ -29,5 +29,16 @@ export const whiteboardService = {
 
   async delete(id: number): Promise<void> {
     await apiClient.delete(`/whiteboard/${id}`);
+  },
+
+  async exportToBudget(
+    boardId: number,
+    data: { account_id: number; occurred_at?: string }
+  ): Promise<WhiteboardExportResult> {
+    const response = await apiClient.post<WhiteboardExportResult>(
+      `/whiteboard/${boardId}/export`,
+      data
+    );
+    return response.data;
   },
 };

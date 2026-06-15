@@ -144,4 +144,5 @@ media/
 # Backups
 backups/
 *.sql
+!env/pgsql/migrations/*.sql
 *.sql.gz

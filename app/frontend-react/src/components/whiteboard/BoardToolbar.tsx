@@ -2,15 +2,19 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
   ChevronDown,
+  Download,
   Grid3x3,
   HelpCircle,
   LayoutGrid,
+  Layers,
   Move,
   Paintbrush,
   Plus,
   RefreshCw,
   Save,
   FilePlus,
+  Undo2,
+  TrendingUp,
 } from 'lucide-react';
 import { WhiteboardListItem } from '../../types';
 
@@ -22,12 +26,19 @@ interface BoardToolbarProps {
   isDirty: boolean;
   gridMode: boolean;
   drawingEnabled: boolean;
+  zonesVisible: boolean;
+  canUndo: boolean;
   showBoardPicker: boolean;
   onToggleBoardPicker: () => void;
   onSelectBoard: (id: number) => void;
   onSave: () => void;
   onNewBoard: () => void;
   onAddExpense: () => void;
+  onAddIncome: () => void;
+  onExport: () => void;
+  onTemplate: () => void;
+  onUndo: () => void;
+  onToggleZones: () => void;
   onToggleGrid: () => void;
   onToggleDrawing: () => void;
   onOpenHelp: () => void;
@@ -41,12 +52,19 @@ export function BoardToolbar({
   isDirty,
   gridMode,
   drawingEnabled,
+  zonesVisible,
+  canUndo,
   showBoardPicker,
   onToggleBoardPicker,
   onSelectBoard,
   onSave,
   onNewBoard,
   onAddExpense,
+  onAddIncome,
+  onExport,
+  onTemplate,
+  onUndo,
+  onToggleZones,
   onToggleGrid,
   onToggleDrawing,
   onOpenHelp,
@@ -69,18 +87,36 @@ export function BoardToolbar({
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={onAddExpense} className="btn btn-primary text-sm flex items-center gap-1.5">
           <Plus className="h-4 w-4" />
-          <span className="hidden xs:inline">Добавить расход</span>
-          <span className="xs:hidden">Расход</span>
+          Расход
+        </button>
+        <button type="button" onClick={onAddIncome} className="btn btn-secondary text-sm flex items-center gap-1.5">
+          <TrendingUp className="h-4 w-4" />
+          Доход
+        </button>
+
+        <button type="button" onClick={onUndo} disabled={!canUndo} className="btn btn-secondary text-sm p-2" title="Отменить (Ctrl+Z)">
+          <Undo2 className="h-4 w-4" />
+        </button>
+
+        <button type="button" onClick={onSave} disabled={saving} className="btn btn-secondary text-sm flex items-center gap-1.5">
+          <Save className="h-4 w-4" />
+          <span className="hidden sm:inline">Сохранить</span>
         </button>
 
         <button
           type="button"
-          onClick={onSave}
-          disabled={saving}
+          onClick={onExport}
+          disabled={!currentBoardId}
           className="btn btn-secondary text-sm flex items-center gap-1.5"
+          title="Экспорт в бюджет"
         >
-          <Save className="h-4 w-4" />
-          Сохранить
+          <Download className="h-4 w-4" />
+          <span className="hidden md:inline">В бюджет</span>
+        </button>
+
+        <button type="button" onClick={onTemplate} className="btn btn-secondary text-sm flex items-center gap-1.5">
+          <FilePlus className="h-4 w-4" />
+          <span className="hidden sm:inline">Шаблон</span>
         </button>
 
         <div className="relative">
@@ -124,39 +160,36 @@ export function BoardToolbar({
           )}
         </div>
 
-        <button type="button" onClick={onNewBoard} className="btn btn-secondary text-sm flex items-center gap-1.5">
-          <FilePlus className="h-4 w-4" />
-          <span className="hidden sm:inline">Новая</span>
+        <button type="button" onClick={onNewBoard} className="btn btn-secondary text-sm p-2" title="Новая доска">
+          <Plus className="h-4 w-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggleZones}
+          className={`btn text-sm p-2 ${zonesVisible ? 'btn-primary' : 'btn-secondary'}`}
+          title="Зоны приоритетов"
+        >
+          <Layers className="h-4 w-4" />
         </button>
 
         <button
           type="button"
           onClick={onToggleGrid}
-          className={`btn text-sm flex items-center gap-1.5 ${
-            gridMode ? 'btn-primary' : 'btn-secondary'
-          }`}
-          title={gridMode ? 'Свободный режим' : 'Режим сетки'}
+          className={`btn text-sm flex items-center gap-1.5 ${gridMode ? 'btn-primary' : 'btn-secondary'}`}
         >
           {gridMode ? <Move className="h-4 w-4" /> : <Grid3x3 className="h-4 w-4" />}
-          <span className="hidden sm:inline">{gridMode ? 'Свободно' : 'Сетка'}</span>
         </button>
 
-        <button
-          type="button"
-          onClick={onOpenHelp}
-          className="btn btn-secondary text-sm p-2"
-          title="Справка"
-        >
+        <button type="button" onClick={onOpenHelp} className="btn btn-secondary text-sm p-2" title="Справка">
           <HelpCircle className="h-4 w-4" />
         </button>
 
         <button
           type="button"
           onClick={onToggleDrawing}
-          className={`btn text-sm flex items-center gap-1.5 ${
-            drawingEnabled ? 'btn-primary' : 'btn-secondary'
-          }`}
-          title="Рукописные заметки"
+          className={`btn text-sm p-2 ${drawingEnabled ? 'btn-primary' : 'btn-secondary'}`}
+          title="Рисование"
         >
           <Paintbrush className="h-4 w-4" />
         </button>

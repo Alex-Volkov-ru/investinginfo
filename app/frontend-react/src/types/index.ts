@@ -217,7 +217,18 @@ export interface YearSummary {
 }
 
 // Whiteboard types
-export type WhiteboardItemKind = 'expense' | 'budget';
+export type WhiteboardItemKind = 'expense' | 'income' | 'budget';
+
+export interface WhiteboardZone {
+  id: string;
+  title: string;
+  color: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  priority: number;
+}
 
 export interface WhiteboardItem {
   id: string;
@@ -228,6 +239,8 @@ export interface WhiteboardItem {
   y: number;
   width?: number;
   height?: number;
+  category_id?: number | null;
+  zone_id?: string | null;
 }
 
 export interface Whiteboard {
@@ -235,6 +248,7 @@ export interface Whiteboard {
   name: string;
   budget: number;
   items: WhiteboardItem[];
+  zones: WhiteboardZone[];
   canvas_data: string | null;
   created_at: string;
   updated_at: string;
@@ -250,6 +264,14 @@ export interface WhiteboardPayload {
   name: string;
   budget: number;
   items: WhiteboardItem[];
+  zones?: WhiteboardZone[];
   canvas_data?: string | null;
+}
+
+export interface WhiteboardExportResult {
+  created: number;
+  skipped: number;
+  transaction_ids: number[];
+  messages: string[];
 }
 
