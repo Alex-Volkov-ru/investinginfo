@@ -1,6 +1,11 @@
 import { apiClient } from '../lib/api';
 import { Whiteboard, WhiteboardListItem, WhiteboardPayload, WhiteboardExportResult } from '../types';
 
+type RequestOpts = { silent?: boolean };
+
+const silentHeaders = (opts?: RequestOpts) =>
+  opts?.silent ? { 'X-Silent-Error': '1' } : undefined;
+
 export const whiteboardService = {
   async getLatest(): Promise<Whiteboard | null> {
     const response = await apiClient.get<Whiteboard | null>('/whiteboard/latest');
@@ -17,13 +22,17 @@ export const whiteboardService = {
     return response.data;
   },
 
-  async create(payload: WhiteboardPayload): Promise<Whiteboard> {
-    const response = await apiClient.post<Whiteboard>('/whiteboard', payload);
+  async create(payload: WhiteboardPayload, opts?: RequestOpts): Promise<Whiteboard> {
+    const response = await apiClient.post<Whiteboard>('/whiteboard', payload, {
+      headers: silentHeaders(opts),
+    });
     return response.data;
   },
 
-  async update(id: number, payload: Partial<WhiteboardPayload>): Promise<Whiteboard> {
-    const response = await apiClient.put<Whiteboard>(`/whiteboard/${id}`, payload);
+  async update(id: number, payload: Partial<WhiteboardPayload>, opts?: RequestOpts): Promise<Whiteboard> {
+    const response = await apiClient.put<Whiteboard>(`/whiteboard/${id}`, payload, {
+      headers: silentHeaders(opts),
+    });
     return response.data;
   },
 

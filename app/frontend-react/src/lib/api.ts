@@ -36,18 +36,20 @@ class ApiClient {
 
           // Обработка ошибок валидации (422)
           if (status === 422) {
-            const detail = data?.detail;
-            if (Array.isArray(detail)) {
-              // FastAPI validation errors format
-              const errors = detail.map((err: any) => {
-                const field = err.loc?.slice(1).join('.') || 'поле';
-                return `${field}: ${err.msg}`;
-              }).join(', ');
-              toast.error(`Ошибка валидации: ${errors}`);
-            } else if (typeof detail === 'string') {
-              toast.error(detail);
-            } else {
-              toast.error('Ошибка валидации данных');
+            const silent = error.config?.headers?.['X-Silent-Error'] === '1';
+            if (!silent) {
+              const detail = data?.detail;
+              if (Array.isArray(detail)) {
+                const errors = detail.map((err: { loc?: string[]; msg?: string }) => {
+                  const field = err.loc?.slice(1).join('.') || 'поле';
+                  return `${field}: ${err.msg}`;
+                }).join(', ');
+                toast.error(`Ошибка валидации: ${errors}`);
+              } else if (typeof detail === 'string') {
+                toast.error(detail);
+              } else {
+                toast.error('Ошибка валидации данных');
+              }
             }
           } else if (status === 401) {
             // Неавторизован - очищаем токен

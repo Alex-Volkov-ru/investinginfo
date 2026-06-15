@@ -14,6 +14,7 @@ import { WhiteboardHelp, dismissHelp, isHelpDismissed } from '../components/whit
 import { useBoardUndo } from '../hooks/useBoardUndo';
 import {
   AUTO_SAVE_INTERVAL_MS,
+  clampCardSize,
   DEFAULT_ZONES,
   defaultBoardName,
   detectZoneForItem,
@@ -25,6 +26,7 @@ import {
   MIN_CARD_HEIGHT,
   MIN_CARD_WIDTH,
   normalizeItem,
+  sanitizeBoardItems,
 } from '../lib/whiteboardUtils';
 import { BOARD_TEMPLATES, applyTemplate } from '../lib/whiteboardTemplates';
 import { budgetService } from '../services/budgetService';
@@ -206,7 +208,13 @@ const WhiteboardPage = () => {
   }, [undo, markDirty]);
 
   const buildPayload = useCallback(
-    () => ({ name: boardName, budget, items, zones, canvas_data: canvasData }),
+    () => ({
+      name: boardName,
+      budget,
+      items: sanitizeBoardItems(ensureBudgetCard(items, budget)),
+      zones,
+      canvas_data: canvasData,
+    }),
     [boardName, budget, items, zones, canvasData]
   );
 
@@ -216,17 +224,20 @@ const WhiteboardPage = () => {
       setSaving(true);
       try {
         const payload = buildPayload();
+        const opts = { silent };
         if (boardId) {
-          applyBoard(await whiteboardService.update(boardId, payload));
+          applyBoard(await whiteboardService.update(boardId, payload, opts));
         } else {
           applyBoard(
-            await whiteboardService.create({ ...payload, name: payload.name || defaultBoardName() })
+            await whiteboardService.create({ ...payload, name: payload.name || defaultBoardName() }, opts)
           );
         }
         await refreshBoardList();
         if (!silent) toast.success('Доска сохранена');
       } catch {
-        // interceptor
+        if (!silent) {
+          // ошибки ручного сохранения показывает interceptor
+        }
       } finally {
         setSaving(false);
       }
@@ -244,16 +255,9 @@ const WhiteboardPage = () => {
     const onMove = (e: PointerEvent) => {
       if (resizeRef.current) {
         const { id, startX, startY, startW, startH } = resizeRef.current;
+        const size = clampCardSize(startW + (e.clientX - startX), startH + (e.clientY - startY));
         setItems((prev) =>
-          prev.map((it) =>
-            it.id === id
-              ? {
-                  ...it,
-                  width: Math.max(MIN_CARD_WIDTH, Math.round(startW + (e.clientX - startX))),
-                  height: Math.max(MIN_CARD_HEIGHT, Math.round(startH + (e.clientY - startY))),
-                }
-              : it
-          )
+          prev.map((it) => (it.id === id ? { ...it, ...size } : it))
         );
         markDirty();
         return;

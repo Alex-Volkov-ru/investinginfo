@@ -26,8 +26,17 @@ export const DEFAULT_BUDGET_WIDTH = 220;
 export const DEFAULT_BUDGET_HEIGHT = 120;
 export const MIN_CARD_WIDTH = 140;
 export const MIN_CARD_HEIGHT = 96;
+export const MAX_CARD_WIDTH = 1200;
+export const MAX_CARD_HEIGHT = 800;
 
 export type CardLayout = 'compact' | 'normal' | 'spacious';
+
+export function clampCardSize(width: number, height: number): { width: number; height: number } {
+  return {
+    width: Math.round(Math.min(MAX_CARD_WIDTH, Math.max(MIN_CARD_WIDTH, width))),
+    height: Math.round(Math.min(MAX_CARD_HEIGHT, Math.max(MIN_CARD_HEIGHT, height))),
+  };
+}
 
 /** Адаптивная вёрстка карточки под текущий размер */
 export function getCardLayout(width: number, height: number): CardLayout {
@@ -92,14 +101,27 @@ export const DEFAULT_ZONES: WhiteboardZone[] = [
 export function normalizeItem(item: WhiteboardItem): WhiteboardItem {
   const kind = item.kind || 'expense';
   const isBudget = kind === 'budget';
+  const defaults = {
+    width: isBudget ? DEFAULT_BUDGET_WIDTH : DEFAULT_CARD_WIDTH,
+    height: isBudget ? DEFAULT_BUDGET_HEIGHT : DEFAULT_CARD_HEIGHT,
+  };
+  const { width, height } = clampCardSize(item.width ?? defaults.width, item.height ?? defaults.height);
   return {
     ...item,
     kind,
-    width: item.width ?? (isBudget ? DEFAULT_BUDGET_WIDTH : DEFAULT_CARD_WIDTH),
-    height: item.height ?? (isBudget ? DEFAULT_BUDGET_HEIGHT : DEFAULT_CARD_HEIGHT),
+    width,
+    height,
+    x: Math.max(0, Math.round(item.x ?? 0)),
+    y: Math.max(0, Math.round(item.y ?? 0)),
+    amount: Math.max(0, Number(item.amount) || 0),
     category_id: item.category_id ?? null,
     zone_id: item.zone_id ?? null,
   };
+}
+
+/** Подготовка карточек перед отправкой на API */
+export function sanitizeBoardItems(items: WhiteboardItem[]): WhiteboardItem[] {
+  return items.map(normalizeItem);
 }
 
 export function isExpenseItem(item: WhiteboardItem): boolean {

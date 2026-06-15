@@ -51,8 +51,8 @@ class WhiteboardItemIn(BaseModel):
     amount: float = Field(ge=0)
     x: float = Field(ge=0)
     y: float = Field(ge=0)
-    width: Optional[float] = Field(default=None, ge=60, le=600)
-    height: Optional[float] = Field(default=None, ge=60, le=400)
+    width: Optional[float] = Field(default=None, ge=60, le=1200)
+    height: Optional[float] = Field(default=None, ge=60, le=800)
     category_id: Optional[int] = None
     zone_id: Optional[str] = Field(default=None, max_length=64)
 
