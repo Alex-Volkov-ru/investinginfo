@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import AsyncIterator
 
@@ -31,6 +32,8 @@ from app.backend.api.backups import router as backups_router
 from app.backend.api.monthly_review import router as monthly_review_router
 from app.backend.api.whiteboard import router as whiteboard_router
 from app.backend.api.admin import router as admin_router
+from app.backend.api.presence import router as presence_router
+from app.backend.services.presence import presence_service
 
 settings = get_settings()
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper(), logging.DEBUG))
@@ -40,7 +43,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     with engine.connect() as conn:
         schema = conn.execute(text("SHOW search_path")).scalar()
         log.info(f"DB connected. search_path = {schema}")
+    listener_task = asyncio.create_task(presence_service.run_event_listener())
     yield
+    listener_task.cancel()
+    try:
+        await listener_task
+    except asyncio.CancelledError:
+        pass
     await close_redis()
     log.info("Server shutdown")
 
@@ -73,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(monthly_review_router)
     app.include_router(whiteboard_router)
     app.include_router(admin_router)
+    app.include_router(presence_router)
 
     return app
 

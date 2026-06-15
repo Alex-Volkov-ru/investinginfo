@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import { PresenceProvider } from './contexts/PresenceContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { TourProvider } from './contexts/TourContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -21,6 +22,7 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <PresenceProvider>
         <BrowserRouter>
           <TourProvider>
             <Toaster position="top-right" />
@@ -105,6 +107,7 @@ function App() {
           </Routes>
           </TourProvider>
         </BrowserRouter>
+        </PresenceProvider>
       </AuthProvider>
     </ThemeProvider>
   );

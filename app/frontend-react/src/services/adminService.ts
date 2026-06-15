@@ -214,12 +214,6 @@ export const adminService = {
     const r = await apiClient.get<AssetClassSlice[]>('/admin/investments/asset-classes');
     return r.data;
   },
-  async refreshQuotes(userId?: number): Promise<{ updated: number; failed: number; errors: string[] }> {
-    const r = await apiClient.post('/admin/investments/refresh-quotes', null, {
-      params: userId ? { user_id: userId } : {},
-    });
-    return r.data;
-  },
   async exportPortfolios(): Promise<void> {
     const r = await apiClient.get('/admin/investments/export', { responseType: 'blob' });
     downloadBlob(r.data, 'portfolios_export.csv');

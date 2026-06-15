@@ -13,11 +13,13 @@ import { AdminUserDrawer, AdminAuditLog } from '../components/admin/AdminUserExt
 import { DeleteUserDialog } from '../components/admin/DeleteUserDialog';
 import { adminService } from '../services/adminService';
 import { BootstrapIcon } from '../components/BootstrapIcon';
+import { usePresence } from '../contexts/PresenceContext';
 
 type AdminTab = 'backups' | 'users' | 'investments' | 'budget' | 'obligations';
 
 const AdminPage = () => {
   const { user } = useAuth();
+  const { onlineUsers, isConnected, isUserOnline } = usePresence();
   const [activeTab, setActiveTab] = useState<AdminTab>('backups');
 
   const [loading, setLoading] = useState(false);
@@ -446,6 +448,11 @@ const AdminPage = () => {
               <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">Пользователи</div>
               <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Управление пользователями системы
+                {isConnected && (
+                  <span className="ml-2 text-green-600 dark:text-green-400">
+                    · онлайн: {onlineUsers.length}
+                  </span>
+                )}
               </div>
             </div>
             <div className="admin-mobile-stack-actions">
@@ -505,6 +512,10 @@ const AdminPage = () => {
                     />
                   </th>
                   <th className="w-12">ID</th>
+                  <th className="w-10 text-center" title="Онлайн сейчас">
+                    <span className="sr-only">Онлайн</span>
+                    <span className="inline-block w-2 h-2 rounded-full bg-green-500" aria-hidden />
+                  </th>
                   <th className="min-w-[150px]">
                     <button
                       type="button"
@@ -561,11 +572,11 @@ const AdminPage = () => {
               <tbody className="admin-table-body">
                 {usersLoading ? (
                   <tr>
-                    <td colSpan={8} className="admin-table-empty">Загрузка...</td>
+                    <td colSpan={9} className="admin-table-empty">Загрузка...</td>
                   </tr>
                 ) : filteredAndSortedUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="admin-table-empty">Пользователи не найдены</td>
+                    <td colSpan={9} className="admin-table-empty">Пользователи не найдены</td>
                   </tr>
                 ) : (
                   filteredAndSortedUsers.map((u) => (
@@ -585,6 +596,12 @@ const AdminPage = () => {
                         />
                       </td>
                       <td className="admin-cell-muted">{u.id}</td>
+                      <td className="text-center">
+                        <span
+                          className={`inline-block w-2.5 h-2.5 rounded-full ${isUserOnline(u.id) ? 'admin-online-dot' : 'admin-offline-dot'}`}
+                          title={isUserOnline(u.id) ? 'Онлайн' : 'Офлайн'}
+                        />
+                      </td>
                       <td className="admin-cell-email">
                         <div>{u.email}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 sm:hidden mt-1 font-normal">

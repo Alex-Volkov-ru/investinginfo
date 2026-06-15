@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import toast from 'react-hot-toast';
 import { adminService, AssetClassSlice, PortfolioUserSummary, ProblemPosition, TinkoffStatusItem } from '../../services/adminService';
 import { BootstrapIcon } from '../BootstrapIcon';
 import { AdminLoading, AdminStatGrid, AdminTableBody, AdminTableHead, AdminTableWrap } from './AdminUi';
@@ -19,7 +18,6 @@ export const AdminInvestmentsTab = () => {
   const [tinkoff, setTinkoff] = useState<TinkoffStatusItem[]>([]);
   const [problems, setProblems] = useState<ProblemPosition[]>([]);
   const [assetClasses, setAssetClasses] = useState<AssetClassSlice[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
   const [checkingId, setCheckingId] = useState<number | null>(null);
 
   const load = async () => {
@@ -43,31 +41,11 @@ export const AdminInvestmentsTab = () => {
 
   useEffect(() => { void load(); }, []);
 
-  const onRefreshQuotes = async () => {
-    setRefreshing(true);
-    try {
-      const res = await adminService.refreshQuotes();
-      if (res.errors.length > 0) {
-        toast.error(`Ошибки: ${res.errors.slice(0, 2).join('; ')}`);
-      }
-      if (res.updated > 0) {
-        toast.success(`Котировки: ${res.updated} обновлено${res.failed ? `, ошибок: ${res.failed}` : ''}`);
-      } else if (res.failed > 0) {
-        toast.error(`Не удалось обновить котировки (${res.failed} FIGI)`);
-      } else {
-        toast.success('Нет позиций для обновления');
-      }
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   const onCheckTinkoff = async (userId: number) => {
     setCheckingId(userId);
     try {
       const res = await adminService.checkTinkoff(userId);
       setTinkoff((prev) => prev.map((t) => (t.user_id === userId ? res : t)));
-      toast.success(res.message || res.status);
     } finally {
       setCheckingId(null);
     }
@@ -90,9 +68,6 @@ export const AdminInvestmentsTab = () => {
         <div className="admin-mobile-stack-actions">
           <button type="button" className="btn btn-secondary text-xs" onClick={() => void load()}>Обновить</button>
           <button type="button" className="btn btn-secondary text-xs" onClick={() => void adminService.exportPortfolios()}>CSV</button>
-          <button type="button" className="btn btn-primary text-xs" onClick={() => void onRefreshQuotes()} disabled={refreshing}>
-            {refreshing ? 'Обновление...' : 'Котировки'}
-          </button>
         </div>
       </div>
 
