@@ -106,9 +106,27 @@ jobs:
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           set -e
           cd ${{ secrets.PROJECT_DIR }}
+
+          # Освобождаем место до pull: иначе postgres не стартует (No space left on device)
+          df -h /
+          docker image prune -af
+          docker builder prune -af 2>/dev/null || true
+          find /var/lib/docker/containers -name '*-json.log' -size +5M -exec truncate -s 2M {} \; 2>/dev/null || true
+
           docker compose -f docker-compose.production.yml pull
-          docker compose -f docker-compose.production.yml down
-          docker compose -f docker-compose.production.yml up -d
+          docker compose -f docker-compose.production.yml up -d --remove-orphans
+
+          echo "Ждём healthy db..."
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' bigs-db 2>/dev/null || echo missing)
+            if [ "$status" = "healthy" ]; then break; fi
+            if [ "$i" -eq 30 ]; then
+              docker logs bigs-db --tail 30
+              df -h /
+              exit 1
+            fi
+            sleep 3
+          done
           EOF
 
       - name: Итог (deploy)
@@ -127,12 +145,27 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${{ secrets.SSH_PORT }} -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: docker ps
+      - name: docker ps & health
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
-          echo "Проверка контейнеров выполнена" >> $GITHUB_STEP_SUMMARY
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          set -e
+          docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+          db_status=$(docker inspect -f '{{.State.Health.Status}}' bigs-db)
+          backend_status=$(docker inspect -f '{{.State.Health.Status}}' bigs-backend)
+          if [ "$db_status" != "healthy" ] || [ "$backend_status" != "healthy" ]; then
+            echo "Unhealthy: db=$db_status backend=$backend_status"
+            docker logs bigs-db --tail 20 2>&1 || true
+            docker logs bigs-backend --tail 20 2>&1 || true
+            exit 1
+          fi
+
+          curl -fsS https://avolkovshop.ru/api/health/ping | grep -q '"status":"ok"'
+          curl -fsS -o /dev/null https://avolkovshop.ru/
+          df -h /
+          EOF
+          echo "Проверка контейнеров и API выполнена" >> $GITHUB_STEP_SUMMARY
 
   notify:
     name: Notify Telegram
