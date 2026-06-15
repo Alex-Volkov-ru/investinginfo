@@ -1,1 +1,2 @@
 *.sh text eol=lf
+env/backend/start.sh text eol=lf

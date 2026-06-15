@@ -30,9 +30,11 @@ RUN apt-get update \
 
 # код
 COPY ./app /app/app
+COPY ./env/backend/start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 RUN useradd -ms /bin/bash appuser
 USER appuser
 
 EXPOSE 8000
-CMD ["uvicorn","app.backend.main:app","--host","0.0.0.0","--port","8000"]
+CMD ["/app/start.sh"]

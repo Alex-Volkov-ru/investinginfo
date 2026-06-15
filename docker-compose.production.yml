@@ -13,6 +13,18 @@ services:
   db:
     image: postgres:16-alpine
     container_name: bigs-db
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - effective_cache_size=192MB
+      - -c
+      - max_connections=60
+      - -c
+      - work_mem=2MB
+      - -c
+      - maintenance_work_mem=32MB
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -88,13 +100,13 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://bigs-redis:6379/0}
       BACKUP_DIR: ${BACKUP_DIR:-/opt/backups}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SQL_POOL_SIZE: ${SQL_POOL_SIZE:-3}
+      SQL_MAX_OVERFLOW: ${SQL_MAX_OVERFLOW:-5}
     volumes:
       - /opt/backups:/opt/backups
-    command: >
-      uvicorn app.backend.main:app
-      --host 0.0.0.0 --port 8000
-      --log-level info
-      --no-access-log
+    command: ["/app/start.sh"]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health/ping || exit 1"]
       interval: 30s
