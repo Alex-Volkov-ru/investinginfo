@@ -80,7 +80,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "mkdir -p '${{ secrets.PROJECT_DIR }}/env/frontend' && mkdir -p /opt/backups && chmod 777 /opt/backups && mkdir -p /root/bigs/scripts && touch /var/log/bigs-backup.log && chmod 644 /var/log/bigs-backup.log"
+            "mkdir -p '${{ secrets.PROJECT_DIR }}/env/frontend' && mkdir -p /opt/backups && chmod 777 /opt/backups && mkdir -p /root/bigs/scripts && touch /var/log/bigs-backup.log && chmod 644 /var/log/bigs-backup.log && touch /var/log/bigs-cleanup.log && chmod 644 /var/log/bigs-cleanup.log"
           echo "Убедились, что каталоги на сервере существуют" >> $GITHUB_STEP_SUMMARY
 
       - name: Copy files & restart services
@@ -100,6 +100,21 @@ jobs:
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/"
           scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} scripts/create_backup_cron.sh \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/scripts/create_backup_cron.sh"
+          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} scripts/server_disk_cleanup.sh \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/scripts/server_disk_cleanup.sh"
+          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} scripts/install_cleanup_cron.sh \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/scripts/install_cleanup_cron.sh"
+
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+          set -e
+          cat > '${{ secrets.PROJECT_DIR }}/.telegram-cleanup.env' << 'ENVEOF'
+          TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
+          ENVEOF
+          chmod 600 '${{ secrets.PROJECT_DIR }}/.telegram-cleanup.env'
+          bash '${{ secrets.PROJECT_DIR }}/scripts/install_cleanup_cron.sh'
+          EOF
 
           echo "Перезапускаем стек контейнеров"
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
@@ -139,6 +154,29 @@ jobs:
             sleep 3
           done
           EOF
+
+      - name: Disk usage Telegram alert
+        run: |
+          DISK_USE=$(ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "df / | tail -1 | awk '{print \$5}' | tr -d '%'")
+          echo "Disk usage: ${DISK_USE}%"
+          if [ "$DISK_USE" -gt 80 ]; then
+            echo "disk_warning=true" >> "$GITHUB_ENV"
+            echo "disk_use=${DISK_USE}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Send disk warning
+        if: env.disk_warning == 'true'
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ⚠️ *BIGS disk warning*
+            Disk usage: *${{ env.disk_use }}%*
+            Deploy succeeded, but disk is above 80%.
+            Server: ${{ secrets.SSH_HOST }}
 
       - name: Итог (deploy)
         run: |
