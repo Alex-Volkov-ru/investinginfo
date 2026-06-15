@@ -24,8 +24,26 @@ export const DEFAULT_CARD_WIDTH = 180;
 export const DEFAULT_CARD_HEIGHT = 100;
 export const DEFAULT_BUDGET_WIDTH = 220;
 export const DEFAULT_BUDGET_HEIGHT = 120;
-export const MIN_CARD_WIDTH = 120;
-export const MIN_CARD_HEIGHT = 72;
+export const MIN_CARD_WIDTH = 140;
+export const MIN_CARD_HEIGHT = 96;
+
+export type CardLayout = 'compact' | 'normal' | 'spacious';
+
+/** Адаптивная вёрстка карточки под текущий размер */
+export function getCardLayout(width: number, height: number): CardLayout {
+  if (width < 160 || height < 110) return 'compact';
+  if (width >= 220 && height >= 140) return 'spacious';
+  return 'normal';
+}
+
+/** Размер шрифта суммы пропорционален плашке */
+export function cardAmountFontSize(width: number, height: number, isBudget: boolean): number {
+  const byWidth = width * (isBudget ? 0.11 : 0.1);
+  const byHeight = height * (isBudget ? 0.26 : 0.22);
+  const size = Math.min(byWidth, byHeight);
+  if (isBudget) return Math.round(Math.max(16, Math.min(32, size)));
+  return Math.round(Math.max(13, Math.min(24, size)));
+}
 
 export const CARD_ACCENTS = [
   'border-l-rose-500',

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
 import {
-  formatMoney,
   CARD_ACCENTS,
+  cardAmountFontSize,
+  formatMoney,
+  getCardLayout,
   isCardItem,
   isIncomeItem,
   zoneColor,
@@ -52,9 +54,15 @@ export function BoardCard({
 
   const width = item.width ?? 180;
   const height = item.height ?? 100;
+  const layout = getCardLayout(width, height);
+  const amountFontSize = cardAmountFontSize(width, height, isBudget);
+  const showCategory = isCardItem(item) && !editing && layout !== 'compact';
+  const categoryName = categories.find((c) => c.id === item.category_id)?.name;
   const kindCategories = categories.filter(
     (c) => c.is_active && c.kind === (isIncome ? 'income' : 'expense')
   );
+
+  const padding = layout === 'compact' ? 'p-2' : layout === 'spacious' ? 'p-4' : 'p-3';
 
   useEffect(() => {
     if (!editing) {
@@ -99,6 +107,12 @@ export function BoardCard({
 
   const gridSpan = isBudget && gridMode ? 'col-span-full' : '';
 
+  const amountColor = isBudget
+    ? 'text-emerald-800 dark:text-emerald-200'
+    : isIncome
+      ? 'text-sky-800 dark:text-sky-200'
+      : 'text-gray-900 dark:text-white';
+
   return (
     <div
       data-board-card
@@ -120,7 +134,7 @@ export function BoardCard({
             : isIncome
               ? 'bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-950 dark:to-blue-950 border-2 border-sky-400 dark:border-sky-500 shadow-lg'
               : 'bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 shadow-lg'}
-          p-3 cursor-grab active:cursor-grabbing
+          ${padding} cursor-grab active:cursor-grabbing
         `}
         style={{
           ...(gridMode ? { minHeight: isBudget ? 100 : height } : { width: '100%', height: '100%' }),
@@ -134,59 +148,68 @@ export function BoardCard({
           onDragStart(item.id, e.clientX, e.clientY);
         }}
       >
-        <div className="flex items-start justify-between gap-1 mb-1 shrink-0">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            {isBudget && <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
-            {isIncome && <TrendingUp className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0" />}
-            {!isBudget && !isIncome && (
-              <TrendingDown className="h-3.5 w-3.5 text-rose-500 shrink-0" />
-            )}
-            {editing && isCardItem(item) ? (
-              <input
-                ref={titleRef}
-                className="input text-sm py-1 px-2 flex-1 min-w-0"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitEdit();
-                  if (e.key === 'Escape') cancelEdit();
-                }}
-              />
-            ) : (
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight line-clamp-2">
-                {item.title}
-              </h3>
-            )}
-          </div>
+        {/* Шапка */}
+        <div
+          className={`relative shrink-0 flex items-center justify-center gap-1.5 ${
+            isBudget ? 'mb-1' : 'mb-0.5'
+          } ${!isBudget ? 'pr-14' : ''}`}
+        >
+          {isBudget && <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+          {isIncome && <TrendingUp className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />}
+          {!isBudget && !isIncome && (
+            <TrendingDown className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+          )}
+          {editing && isCardItem(item) ? (
+            <input
+              ref={titleRef}
+              className="input text-sm py-1 px-2 w-full text-center"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitEdit();
+                if (e.key === 'Escape') cancelEdit();
+              }}
+            />
+          ) : (
+            <h3
+              className={`font-semibold text-gray-900 dark:text-white leading-tight text-center w-full ${
+                layout === 'compact' ? 'text-xs line-clamp-1' : 'text-sm line-clamp-2'
+              }`}
+            >
+              {item.title}
+            </h3>
+          )}
+
           {!isBudget && (
-            <div className="flex shrink-0 gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-0 right-0 flex shrink-0 gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
               <button
                 type="button"
                 onClick={() => setEditing((v) => !v)}
-                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                 aria-label="Редактировать"
               >
-                <Pencil className="h-4 w-4" />
+                <Pencil className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
                 onClick={() => onDelete(item.id)}
-                className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
+                className="p-1 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
                 aria-label="Удалить"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
         </div>
 
-        <div className="flex-1 flex flex-col justify-center min-h-0 gap-1">
+        {/* Сумма — всегда по центру оставшегося пространства */}
+        <div className="relative flex-1 flex items-center justify-center min-h-[1.75rem] overflow-hidden px-1">
           {editing && isCardItem(item) ? (
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 w-full max-w-full items-center justify-center">
               <input
                 type="number"
                 min={0}
-                className="input text-sm py-1 px-2 flex-1 tabular-nums"
+                className="input text-sm py-1 px-2 flex-1 min-w-0 tabular-nums text-center"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 onKeyDown={(e) => {
@@ -194,27 +217,26 @@ export function BoardCard({
                   if (e.key === 'Escape') cancelEdit();
                 }}
               />
-              <button type="button" className="btn btn-primary text-xs px-2 py-1" onClick={commitEdit}>
+              <button type="button" className="btn btn-primary text-xs px-2 py-1 shrink-0" onClick={commitEdit}>
                 OK
               </button>
             </div>
           ) : (
             <p
-              className={`font-bold tabular-nums truncate ${
-                isBudget
-                  ? 'text-2xl text-emerald-800 dark:text-emerald-200'
-                  : isIncome
-                    ? 'text-lg text-sky-800 dark:text-sky-200'
-                    : 'text-lg text-gray-900 dark:text-white'
-              }`}
+              className={`font-bold tabular-nums text-center w-full leading-none ${amountColor}`}
+              style={{ fontSize: `${amountFontSize}px` }}
+              title={formatMoney(item.amount)}
             >
               {formatMoney(item.amount)}
             </p>
           )}
+        </div>
 
-          {isCardItem(item) && (
+        {/* Категория — внизу, только если хватает места */}
+        {isCardItem(item) && editing && (
+          <div className="shrink-0 pt-1">
             <select
-              className="text-xs rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-1.5 py-1 text-gray-800 dark:text-gray-200 max-w-full"
+              className="text-xs w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-1.5 py-1 text-gray-800 dark:text-gray-200"
               value={item.category_id ?? ''}
               onChange={(e) =>
                 onUpdate(item.id, {
@@ -230,13 +252,41 @@ export function BoardCard({
                 </option>
               ))}
             </select>
-          )}
-        </div>
+          </div>
+        )}
+
+        {showCategory && (
+          <div className="shrink-0 pt-1">
+            <select
+              className="text-xs w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-1.5 py-1 text-gray-800 dark:text-gray-200 text-center"
+              value={item.category_id ?? ''}
+              onChange={(e) =>
+                onUpdate(item.id, {
+                  category_id: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <option value="">Категория…</option>
+              {kindCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {layout === 'compact' && categoryName && !editing && (
+          <p className="shrink-0 text-[10px] text-center text-gray-500 dark:text-gray-400 truncate px-1 pt-0.5">
+            {categoryName}
+          </p>
+        )}
 
         {!gridMode && (
           <div
             data-resize-handle
-            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize flex items-end justify-end p-0.5 opacity-60 group-hover:opacity-100"
+            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize flex items-end justify-end p-0.5 opacity-60 group-hover:opacity-100 z-10"
             onPointerDown={(e) => {
               e.stopPropagation();
               e.preventDefault();
