@@ -6,6 +6,11 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../lib/auth';
 import { userService, UserListItem } from '../services/userService';
+import { AdminInvestmentsTab } from '../components/admin/AdminInvestmentsTab';
+import { AdminBudgetTab } from '../components/admin/AdminBudgetTab';
+import { AdminObligationsTab } from '../components/admin/AdminObligationsTab';
+import { AdminUserDrawer, AdminAuditLog } from '../components/admin/AdminUserExtras';
+import { adminService } from '../services/adminService';
 import { BootstrapIcon } from '../components/BootstrapIcon';
 
 type AdminTab = 'backups' | 'users' | 'investments' | 'budget' | 'obligations';
@@ -30,6 +35,8 @@ const AdminPage = () => {
   const [savingEdit, setSavingEdit] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState<number | null>(null);
   const [backupMenuOpen, setBackupMenuOpen] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set());
 
   const [confirm, setConfirm] = useState<{
     isOpen: boolean;
@@ -72,18 +79,9 @@ const AdminPage = () => {
   useEffect(() => {
     if (!canShow) return;
     if (activeTab === 'backups') {
-      loadBackups();
-    } else if (activeTab === 'users') {
-      loadUsers();
-    }
-  }, [canShow]);
-
-  useEffect(() => {
-    if (!canShow) return;
-    if (activeTab === 'backups') {
-      loadBackups();
-    } else if (activeTab === 'users') {
-      loadUsers();
+      void loadBackups();
+    } else if (activeTab === 'users' || activeTab === 'budget' || activeTab === 'obligations') {
+      void loadUsers();
     }
   }, [activeTab, canShow]);
 
@@ -467,6 +465,13 @@ const AdminPage = () => {
             >
               Обновить
             </button>
+            <button
+              className="btn btn-secondary w-full sm:w-auto text-xs md:text-sm"
+              onClick={() => void adminService.bulkExportUsers(Array.from(selectedUserIds))}
+              disabled={usersLoading}
+            >
+              Экспорт CSV
+            </button>
           </div>
 
           <div className="mb-4 space-y-3">
@@ -494,6 +499,19 @@ const AdminPage = () => {
             <table className="w-full text-xs md:text-sm divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
+                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 w-8">
+                    <input
+                      type="checkbox"
+                      checked={filteredAndSortedUsers.length > 0 && selectedUserIds.size === filteredAndSortedUsers.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedUserIds(new Set(filteredAndSortedUsers.map((u) => u.id)));
+                        } else {
+                          setSelectedUserIds(new Set());
+                        }
+                      }}
+                    />
+                  </th>
                   <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 w-12">ID</th>
                   <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 min-w-[150px]">
                     <button
@@ -548,19 +566,33 @@ const AdminPage = () => {
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {usersLoading ? (
                   <tr>
-                    <td className="px-2 py-4 text-gray-600 dark:text-gray-400" colSpan={7}>
+                    <td className="px-2 py-4 text-gray-600 dark:text-gray-400" colSpan={8}>
                       Загрузка...
                     </td>
                   </tr>
                 ) : filteredAndSortedUsers.length === 0 ? (
                   <tr>
-                    <td className="px-2 py-4 text-gray-600 dark:text-gray-400" colSpan={7}>
+                    <td className="px-2 py-4 text-gray-600 dark:text-gray-400" colSpan={8}>
                       Пользователи не найдены
                     </td>
                   </tr>
                 ) : (
                   filteredAndSortedUsers.map((u) => (
-                    <tr key={u.id}>
+                    <tr key={u.id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" onClick={() => setSelectedUser(u)}>
+                      <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIds.has(u.id)}
+                          onChange={(e) => {
+                            setSelectedUserIds((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(u.id);
+                              else next.delete(u.id);
+                              return next;
+                            });
+                          }}
+                        />
+                      </td>
                       <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{u.id}</td>
                       <td className="px-2 py-2 text-gray-900 dark:text-gray-100 break-all">
                         <div className="font-medium">{u.email}</div>
@@ -586,7 +618,7 @@ const AdminPage = () => {
                       <td className="px-2 py-2 text-gray-700 dark:text-gray-300 hidden lg:table-cell whitespace-nowrap text-xs">
                         {u.last_login_at ? format(new Date(u.last_login_at), 'dd.MM.yyyy HH:mm') : 'Никогда'}
                       </td>
-                      <td className="px-2 py-2 relative">
+                      <td className="px-2 py-2 relative" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end">
                           <button
                             className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
@@ -602,6 +634,16 @@ const AdminPage = () => {
                                 onClick={() => setUserMenuOpen(null)}
                               />
                               <div className="absolute right-0 mt-1 z-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 min-w-[160px] py-1">
+                                <button
+                                  className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                                  onClick={() => {
+                                    setSelectedUser(u);
+                                    setUserMenuOpen(null);
+                                  }}
+                                >
+                                  <BootstrapIcon name="card-text" className="mr-2" size={14} />
+                                  Карточка
+                                </button>
                                 <button
                                   className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                                   onClick={() => {
@@ -652,17 +694,28 @@ const AdminPage = () => {
               </tbody>
             </table>
           </div>
+          <AdminAuditLog />
         </div>
       )}
 
-      {activeTab !== 'backups' && activeTab !== 'users' && (
+      {activeTab === 'investments' && (
         <div className="card">
-          <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            {activeTab === 'investments' ? 'Инвестиции' : activeTab === 'budget' ? 'Бюджет' : 'Обязательства'}
-          </div>
-          <div className="text-gray-700 dark:text-gray-300">
-            Панель в разработке. Здесь будут админ‑инструменты для раздела.
-          </div>
+          <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Инвестиции</div>
+          <AdminInvestmentsTab />
+        </div>
+      )}
+
+      {activeTab === 'budget' && (
+        <div className="card">
+          <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Бюджет</div>
+          <AdminBudgetTab users={users} />
+        </div>
+      )}
+
+      {activeTab === 'obligations' && (
+        <div className="card">
+          <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Обязательства</div>
+          <AdminObligationsTab users={users} />
         </div>
       )}
 
@@ -677,6 +730,10 @@ const AdminPage = () => {
         confirmText={confirm.confirmText}
         confirmButtonClass={confirm.confirmButtonClass}
       />
+
+      {selectedUser && (
+        <AdminUserDrawer user={selectedUser} onClose={() => setSelectedUser(null)} />
+      )}
 
       {editingUser && editField && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">

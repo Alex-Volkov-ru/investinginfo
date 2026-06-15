@@ -18,12 +18,18 @@ from app.backend.models.user import User
 settings = get_settings()
 security = HTTPBearer(auto_error=True)
 
-def create_access_token(user_id: int, expires_minutes: int | None = None) -> str:
+def create_access_token(user_id: int, expires_minutes: int | None = None, extra: dict | None = None) -> str:
     now = datetime.now(timezone.utc)
     exp_minutes = int(expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES or 60)  # 60 - дефолт из settings
     exp = now + timedelta(minutes=exp_minutes)
     payload = {"sub": str(user_id), "exp": exp}
+    if extra:
+        payload.update(extra)
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def create_impersonation_token(target_user_id: int, admin_id: int, expires_minutes: int = 60) -> str:
+    return create_access_token(target_user_id, expires_minutes, extra={"imp_by": admin_id})
 
 def get_current_user(
     creds: HTTPAuthorizationCredentials = Depends(security),

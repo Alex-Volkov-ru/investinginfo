@@ -83,5 +83,40 @@ export const authService = {
   setUser(user: User): void {
     localStorage.setItem('user', JSON.stringify(user));
   },
+
+  startImpersonation(res: { access_token: string; user_id: number; email: string; tg_username?: string; impersonated_by: number }): void {
+    const currentToken = this.getToken();
+    if (currentToken) {
+      localStorage.setItem('admin_token_backup', currentToken);
+      const currentUser = this.getUser();
+      if (currentUser) {
+        localStorage.setItem('admin_user_backup', JSON.stringify(currentUser));
+      }
+    }
+    localStorage.setItem('access_token', res.access_token);
+    localStorage.setItem('user', JSON.stringify({
+      id: res.user_id,
+      email: res.email,
+      tg_username: res.tg_username,
+      is_staff: false,
+      impersonated_by: res.impersonated_by,
+    }));
+  },
+
+  stopImpersonation(): boolean {
+    const adminToken = localStorage.getItem('admin_token_backup');
+    const adminUser = localStorage.getItem('admin_user_backup');
+    if (!adminToken || !adminUser) return false;
+    localStorage.setItem('access_token', adminToken);
+    localStorage.setItem('user', adminUser);
+    localStorage.removeItem('admin_token_backup');
+    localStorage.removeItem('admin_user_backup');
+    return true;
+  },
+
+  isImpersonating(): boolean {
+    const user = this.getUser();
+    return !!user?.impersonated_by;
+  },
 };
 

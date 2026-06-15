@@ -21,6 +21,7 @@ from app.backend.core.constants import (
 from app.backend.core.validators import validate_email, validate_password, validate_service_login
 from app.backend.db.session import get_db
 from app.backend.models.user import User
+from app.backend.services.admin_audit import log_admin_action
 
 router = APIRouter()
 
@@ -208,6 +209,8 @@ def toggle_staff(
     db.commit()
     db.refresh(target_user)
 
+    log_admin_action(db, admin, "toggle_staff", target_user.id, {"is_staff": payload.is_staff})
+
     return UserListOut(
         id=target_user.id,
         email=target_user.email,
@@ -233,6 +236,8 @@ def admin_update_name(
     db.add(target_user)
     db.commit()
     db.refresh(target_user)
+
+    log_admin_action(db, admin, "update_name", target_user.id, {"name": payload.tg_username})
 
     return UserListOut(
         id=target_user.id,
@@ -263,6 +268,8 @@ def admin_update_email(
     db.add(target_user)
     db.commit()
     db.refresh(target_user)
+
+    log_admin_action(db, admin, "update_email", target_user.id, {"email": payload.email})
 
     return UserListOut(
         id=target_user.id,

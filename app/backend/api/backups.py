@@ -15,7 +15,7 @@ import asyncio
 
 from jose import jwt, JWTError
 
-from app.backend.core.auth import get_current_user
+from app.backend.core.auth import get_current_user, get_staff_user
 from app.backend.core.config import get_settings
 from app.backend.core.constants import (
     HTTP_404_NOT_FOUND,
@@ -91,10 +91,10 @@ class BackupRestoreResponse(BaseModel):
 
 def _check_admin_access(user: User) -> None:
     """Проверяет доступ администратора."""
-    if not user:
+    if not user or not user.is_staff:
         raise HTTPException(
             status_code=HTTP_403_FORBIDDEN,
-            detail="Требуется аутентификация"
+            detail="Требуются права администратора",
         )
 
 

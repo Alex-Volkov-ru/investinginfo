@@ -8,6 +8,7 @@ import { TourHelpButton } from './tour/TourHelpButton';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { userService } from '../services/userService';
+import { authService } from '../lib/auth';
 
 export const Layout: React.FC = () => {
   const { user, logout, updateUser } = useAuth();
@@ -71,6 +72,22 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {authService.isImpersonating() && (
+        <div className="bg-amber-500 text-amber-950 text-sm px-4 py-2 flex items-center justify-between">
+          <span>Режим просмотра: вы вошли как {user?.email}</span>
+          <button
+            type="button"
+            className="underline font-medium"
+            onClick={() => {
+              if (authService.stopImpersonation()) {
+                window.location.href = '/admin';
+              }
+            }}
+          >
+            Вернуться в админку
+          </button>
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

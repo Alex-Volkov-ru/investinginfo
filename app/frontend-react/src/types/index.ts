@@ -28,6 +28,7 @@ export interface User {
   tg_username?: string;
   has_tinkoff?: boolean;
   is_staff?: boolean;
+  impersonated_by?: number;
 }
 
 // Portfolio types
