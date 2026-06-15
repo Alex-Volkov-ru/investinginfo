@@ -216,5 +216,212 @@
   .driver-active-element {
     border-radius: 10px !important;
   }
+
+  /* Admin panel */
+  .admin-section {
+    @apply rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50;
+  }
+
+  .admin-section-header {
+    @apply flex flex-wrap items-center justify-between gap-3 px-4 py-3
+           bg-gray-50 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700;
+  }
+
+  .admin-section-title {
+    @apply text-sm font-semibold text-gray-900 dark:text-gray-100;
+  }
+
+  .admin-section-subtitle {
+    @apply text-xs text-gray-500 dark:text-gray-400 mt-0.5;
+  }
+
+  .admin-section-actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .admin-section-body {
+    @apply p-0;
+  }
+
+  .admin-table-wrap {
+    @apply overflow-x-auto;
+  }
+
+  .admin-table {
+    @apply w-full text-sm border-collapse;
+  }
+
+  .admin-table-head {
+    @apply bg-gray-100 dark:bg-gray-900/80;
+  }
+
+  .admin-table-head th {
+    @apply px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider
+           text-gray-600 dark:text-gray-400 whitespace-nowrap;
+  }
+
+  .admin-table-body tr {
+    @apply transition-colors;
+  }
+
+  .admin-table-body tr:hover {
+    @apply bg-gray-50 dark:bg-gray-700/25;
+  }
+
+  .admin-table-body td {
+    @apply px-4 py-2.5 text-gray-800 dark:text-gray-200 border-t border-gray-100 dark:border-gray-700/80;
+  }
+
+  .admin-table-empty {
+    @apply px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400 !important;
+  }
+
+  .admin-form-row {
+    @apply flex flex-wrap items-end gap-3 p-4 border-b border-gray-100 dark:border-gray-700/80
+           bg-gray-50/50 dark:bg-gray-900/30;
+  }
+
+  .admin-field {
+    @apply flex flex-col gap-1 min-w-0;
+  }
+
+  .admin-field-label {
+    @apply text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400;
+  }
+
+  .admin-input,
+  .admin-select {
+    @apply h-9 px-3 text-sm rounded-lg border border-gray-300 dark:border-gray-600
+           bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  }
+
+  .admin-input {
+    @apply w-44;
+  }
+
+  .admin-input-wide {
+    @apply admin-input w-56 max-w-full;
+  }
+
+  .admin-select {
+    @apply w-48 max-w-full;
+  }
+
+  .admin-select-wide {
+    @apply admin-select w-64 max-w-full;
+  }
+
+  .admin-stat-grid {
+    @apply grid grid-cols-1 sm:grid-cols-3 gap-3 p-4;
+  }
+
+  .admin-stat-card {
+    @apply rounded-lg px-4 py-3 text-center border;
+  }
+
+  .admin-stat-default {
+    @apply bg-gray-50 dark:bg-gray-900/40 border-gray-200 dark:border-gray-700;
+  }
+
+  .admin-stat-green {
+    @apply bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/50;
+  }
+
+  .admin-stat-red {
+    @apply bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50;
+  }
+
+  .admin-stat-blue {
+    @apply bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50;
+  }
+
+  .admin-stat-amber {
+    @apply bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50;
+  }
+
+  .admin-stat-label {
+    @apply text-xs text-gray-500 dark:text-gray-400 mb-1;
+  }
+
+  .admin-stat-value {
+    @apply text-base font-semibold text-gray-900 dark:text-gray-100 tabular-nums;
+  }
+
+  .admin-stat-green .admin-stat-value {
+    @apply text-green-700 dark:text-green-300;
+  }
+
+  .admin-stat-red .admin-stat-value {
+    @apply text-red-700 dark:text-red-300;
+  }
+
+  .admin-stat-blue .admin-stat-value {
+    @apply text-blue-700 dark:text-blue-300;
+  }
+
+  .admin-toolbar {
+    @apply flex flex-wrap items-center justify-between gap-3 p-4 border-b border-gray-100 dark:border-gray-700/80;
+  }
+
+  .admin-toolbar-left {
+    @apply text-sm text-gray-600 dark:text-gray-400;
+  }
+
+  .admin-toolbar-right {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .admin-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium;
+  }
+
+  .admin-badge-ok {
+    @apply bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300;
+  }
+
+  .admin-badge-warn {
+    @apply bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300;
+  }
+
+  .admin-badge-danger {
+    @apply bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300;
+  }
+
+  .admin-badge-muted {
+    @apply bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300;
+  }
+
+  .admin-link-danger {
+    @apply text-xs text-red-600 dark:text-red-400 hover:underline;
+  }
+
+  .admin-loading {
+    @apply flex items-center justify-center gap-3 py-12 text-sm text-gray-500 dark:text-gray-400;
+  }
+
+  .admin-loading-spinner {
+    @apply w-5 h-5 border-2 border-gray-300 dark:border-gray-600 border-t-primary-500 rounded-full animate-spin;
+  }
+
+  .admin-cell-money-pos {
+    @apply text-green-600 dark:text-green-400 tabular-nums;
+  }
+
+  .admin-cell-money-neg {
+    @apply text-red-600 dark:text-red-400 tabular-nums;
+  }
+
+  .admin-cell-muted {
+    @apply text-gray-500 dark:text-gray-400;
+  }
+
+  .admin-cell-email {
+    @apply font-medium text-gray-900 dark:text-gray-100 break-all;
+  }
+
+  .admin-checkbox-label {
+    @apply flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 h-9;
+  }
 }
 
