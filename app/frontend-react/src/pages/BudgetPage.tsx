@@ -318,14 +318,14 @@ const BudgetPage = () => {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Бюджет</h1>
         <div className="flex items-center space-x-4">
           {/* Month/Year Selector */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2" data-tour="budget-period">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Период:</label>
             <MonthYearPicker
               value={selectedMonth}
               onChange={setSelectedMonth}
             />
           </div>
-          <div className="flex space-x-2">
+          <div className="flex space-x-2" data-tour="budget-toolbar">
             <button
               onClick={() => setShowAccountModal(true)}
               className="btn btn-secondary flex items-center"
@@ -352,7 +352,7 @@ const BudgetPage = () => {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200" data-tour="budget-tabs">
         <nav className="-mb-px flex space-x-8">
           {[
             { id: 'summary', label: 'Сводка' },
@@ -378,6 +378,7 @@ const BudgetPage = () => {
       </div>
 
       {/* Summary Tab */}
+      <div data-tour="budget-content">
       {activeTab === 'summary' && (
         <div className="space-y-6">
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
@@ -1148,6 +1149,7 @@ const BudgetPage = () => {
           </div>
         </div>
       )}
+      </div>
 
       {/* Add Transaction Modal */}
       {showAddModal && (

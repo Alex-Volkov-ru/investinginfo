@@ -347,6 +347,7 @@ const BudgetPageMobile = () => {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Бюджет</h1>
         <button
+          data-tour="budget-toolbar"
           onClick={() => setShowAddModal(true)}
           className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-primary-600 text-white rounded-lg active:bg-primary-700"
         >
@@ -355,13 +356,13 @@ const BudgetPageMobile = () => {
       </div>
 
       {/* Month Selector */}
-      <div className="flex items-center space-x-2 mb-4">
+      <div className="flex items-center space-x-2 mb-4" data-tour="budget-period">
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Период:</label>
         <MonthYearPicker value={selectedMonth} onChange={setSelectedMonth} />
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+      <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto" data-tour="budget-tabs">
         <button
           onClick={() => setActiveTab('summary')}
           className={`flex-shrink-0 px-3 py-3 text-center text-xs font-medium border-b-2 transition-colors ${
@@ -425,6 +426,7 @@ const BudgetPageMobile = () => {
       </div>
 
       {/* Summary Tab */}
+      <div data-tour="budget-content">
       {activeTab === 'summary' && (
         <div className="space-y-4">
           {loading ? (
@@ -954,6 +956,7 @@ const BudgetPageMobile = () => {
           )}
         </div>
       )}
+      </div>
 
       {/* Add Transaction Modal */}
       {showAddModal && (

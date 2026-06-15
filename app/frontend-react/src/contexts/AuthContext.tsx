@@ -5,6 +5,7 @@ import { authService } from '../lib/auth';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isInitializing: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, tg_username?: string, phone?: string, tinkoff_token?: string) => Promise<void>;
   logout: () => void;
@@ -13,26 +14,32 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function readStoredUser(): User | null {
+  const storedUser = authService.getUser();
+  if (storedUser && authService.isAuthenticated()) return storedUser;
+  return null;
+}
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => readStoredUser());
+  const [isInitializing, setIsInitializing] = useState(() => readStoredUser() === null);
 
   useEffect(() => {
-    const storedUser = authService.getUser();
-    if (storedUser && authService.isAuthenticated()) {
-      setUser(storedUser);
-    }
+    const storedUser = readStoredUser();
+    setUser(storedUser);
+    setIsInitializing(false);
   }, []);
 
   const login = async (email: string, password: string) => {
     await authService.login({ email, password });
-    const user = authService.getUser();
-    setUser(user);
+    const nextUser = authService.getUser();
+    setUser(nextUser);
   };
 
   const register = async (email: string, password: string, tg_username?: string, phone?: string, tinkoff_token?: string) => {
     await authService.register({ email, password, tg_username, phone, tinkoff_token });
-    const user = authService.getUser();
-    setUser(user);
+    const nextUser = authService.getUser();
+    setUser(nextUser);
   };
 
   const logout = () => {
@@ -54,6 +61,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         user,
         isAuthenticated: !!user,
+        isInitializing,
         login,
         register,
         logout,
@@ -72,4 +80,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

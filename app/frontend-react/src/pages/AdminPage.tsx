@@ -260,7 +260,7 @@ const AdminPage = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" data-tour="admin-tabs">
         <button
           className={`btn text-xs md:text-sm ${activeTab === 'backups' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('backups')}
@@ -293,6 +293,7 @@ const AdminPage = () => {
         </button>
       </div>
 
+      <div data-tour="admin-content">
       {activeTab === 'backups' && (
         <div className="card">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
@@ -664,6 +665,8 @@ const AdminPage = () => {
           </div>
         </div>
       )}
+
+      </div>
 
       <ConfirmDialog
         isOpen={confirm.isOpen}

@@ -70,7 +70,7 @@ export function BoardToolbar({
   onOpenHelp,
 }: BoardToolbarProps) {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" data-tour="whiteboard-toolbar">
       <div className="flex items-center gap-2 min-w-0">
         <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{boardName}</h2>
         {isDirty && !saving && (
@@ -166,6 +166,7 @@ export function BoardToolbar({
 
         <button
           type="button"
+          data-tour="whiteboard-zones"
           onClick={onToggleZones}
           className={`btn text-sm p-2 ${zonesVisible ? 'btn-primary' : 'btn-secondary'}`}
           title="Зоны приоритетов"

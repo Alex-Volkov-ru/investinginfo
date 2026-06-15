@@ -25,7 +25,7 @@ export function BudgetPanel({
     progress >= 100 ? 'bg-red-500' : progress >= 80 ? 'bg-amber-500' : 'bg-emerald-500';
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-md px-4 py-3">
+    <div className="flex flex-col gap-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-md px-4 py-3" data-tour="whiteboard-budget-panel">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
           <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 text-sm font-medium text-gray-800 dark:text-gray-200">

@@ -338,6 +338,7 @@ const PortfolioPageMobile = () => {
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Инвестиции</h1>
         <div className="flex space-x-2">
           <button
+            data-tour="portfolio-token"
             onClick={() => setShowTokenModal(true)}
             className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg border ${
               hasTinkoffToken
@@ -350,6 +351,7 @@ const PortfolioPageMobile = () => {
           </button>
           {selectedPortfolio && (
             <button
+              data-tour="portfolio-add-position"
               onClick={() => setShowAddPositionModal(true)}
               className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-primary-600 text-white rounded-lg active:bg-primary-700"
               title="Добавить позицию"
@@ -358,6 +360,7 @@ const PortfolioPageMobile = () => {
             </button>
           )}
           <button
+            data-tour="portfolio-new-portfolio"
             onClick={() => setShowAddModal(true)}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg active:bg-gray-300 dark:active:bg-gray-600"
             title="Новый портфель"
@@ -369,6 +372,7 @@ const PortfolioPageMobile = () => {
 
       {/* Charts */}
       {selectedPortfolio && positions.length > 0 && (
+        <div data-tour="portfolio-charts">
         <PortfolioCharts
           positions={positions}
           quotes={quotes}
@@ -376,11 +380,12 @@ const PortfolioPageMobile = () => {
           totalPnL={totalPnL}
           totalPnLPercent={totalPnLPercent}
         />
+        </div>
       )}
 
       {/* Summary Cards */}
       {selectedPortfolio && positions.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow" data-tour="portfolio-summary">
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center">
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">ВСЕГО</div>
@@ -424,7 +429,7 @@ const PortfolioPageMobile = () => {
 
       {/* Portfolio Selector */}
       {portfolios.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow" data-tour="portfolio-select">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Выберите портфель
           </label>
@@ -447,7 +452,7 @@ const PortfolioPageMobile = () => {
 
       {/* Positions */}
       {selectedPortfolio && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow" data-tour="portfolio-positions">
           <h2 className="text-lg font-semibold p-4 text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700">ПОЗИЦИИ</h2>
           {loading ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">Загрузка...</div>

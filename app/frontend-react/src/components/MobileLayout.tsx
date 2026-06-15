@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { BootstrapIcon } from './BootstrapIcon';
 import { PaymentReminders } from './PaymentReminders';
 import { MonthlyReviewBanner } from './MonthlyReviewBanner';
+import { TourHelpButton } from './tour/TourHelpButton';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { userService } from '../services/userService';
@@ -78,15 +79,20 @@ export const MobileLayout: React.FC = () => {
               <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">WealthTracker</h1>
             </Link>
             <div className="flex items-center space-x-2">
+              <TourHelpButton />
               <button
                 type="button"
+                data-tour="profile-menu"
                 onClick={() => setProfileOpen(true)}
                 className="text-xs text-gray-600 dark:text-gray-400 active:opacity-70 px-2 py-1 rounded"
               >
                 {user?.tg_username || 'Гость'}
               </button>
-              <PaymentReminders isMobile={true} />
+              <div data-tour="payment-reminders">
+                <PaymentReminders isMobile={true} />
+              </div>
               <button
+                data-tour="theme-toggle"
                 onClick={toggleTheme}
                 className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 rounded-lg transition-colors"
                 title={theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
@@ -102,7 +108,7 @@ export const MobileLayout: React.FC = () => {
         </div>
 
         {/* Bottom Navigation Bar */}
-        <nav className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <nav className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800" data-tour="mobile-nav">
           <div className="flex justify-around">
             {navigation.map((item) => (
               <Link

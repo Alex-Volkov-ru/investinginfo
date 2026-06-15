@@ -3,16 +3,27 @@ import { useAuth } from '../contexts/AuthContext';
 import { MonthlyReviewBanner } from '../components/MonthlyReviewBanner';
 
 export default function MonthlyReportPage() {
-  const { user } = useAuth();
+  const { user, isInitializing } = useAuth();
   const location = useLocation();
   const isMobileRoute = location.pathname === '/monthly_report_mobile';
+
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh] text-gray-500 dark:text-gray-400">
+        Загрузка…
+      </div>
+    );
+  }
 
   if (!user?.is_staff) {
     return <Navigate to={isMobileRoute ? '/mobile' : '/'} replace />;
   }
 
   return (
-    <div className={isMobileRoute ? 'px-3 pt-3 pb-6' : 'max-w-4xl mx-auto px-4 py-6'}>
+    <div
+      className={isMobileRoute ? 'px-3 pt-3 pb-6' : 'max-w-4xl mx-auto px-4 py-6'}
+      data-tour="monthly-report"
+    >
       <MonthlyReviewBanner standalone compact={isMobileRoute} />
     </div>
   );

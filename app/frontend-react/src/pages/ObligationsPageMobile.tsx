@@ -251,6 +251,7 @@ const ObligationsPageMobile = () => {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Обязательства</h1>
         <button
+          data-tour="obligations-add"
           onClick={() => {
             setEditingBlock(null);
             resetBlockForm();
@@ -268,7 +269,7 @@ const ObligationsPageMobile = () => {
           upcomingPayments.some(p => p.is_urgent)
             ? 'bg-red-50 dark:bg-red-900/20 border-red-500'
             : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500'
-        }`}>
+        }`} data-tour="obligations-alerts">
           <div className="flex items-start">
             <AlertCircle className={`h-4 w-4 mr-2 flex-shrink-0 mt-0.5 ${
               upcomingPayments.some(p => p.is_urgent)
@@ -326,7 +327,7 @@ const ObligationsPageMobile = () => {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3" data-tour="obligations-summary">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
           <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Остаток</div>
           <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
@@ -350,7 +351,7 @@ const ObligationsPageMobile = () => {
       </div>
 
       {/* Blocks List */}
-      <div className="space-y-3">
+      <div className="space-y-3" data-tour="obligations-blocks">
         {loading ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">Загрузка...</div>
         ) : blocks.length === 0 ? (

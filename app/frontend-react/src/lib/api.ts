@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import toast from 'react-hot-toast';
+import { saveReturnUrl } from './authReturn';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -59,6 +60,7 @@ class ApiClient {
             
             // Редиректим на логин только если мы не на странице логина
             if (!window.location.pathname.includes('/login')) {
+              saveReturnUrl(window.location.pathname + window.location.search);
               window.location.href = '/login';
               toast.error('Сессия истекла. Пожалуйста, войдите снова.');
             } else {

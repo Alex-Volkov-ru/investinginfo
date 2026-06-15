@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { BootstrapIcon } from './BootstrapIcon';
 import { PaymentReminders } from './PaymentReminders';
 import { MonthlyReviewBanner } from './MonthlyReviewBanner';
+import { TourHelpButton } from './tour/TourHelpButton';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { userService } from '../services/userService';
@@ -80,7 +81,7 @@ export const Layout: React.FC = () => {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex space-x-1">
+            <nav className="hidden md:flex space-x-1" data-tour="nav-main">
               {navigation.map((item) => {
                 return (
                   <Link
@@ -101,8 +102,12 @@ export const Layout: React.FC = () => {
 
             {/* User menu */}
             <div className="hidden md:flex items-center space-x-4 relative">
-              <PaymentReminders />
+              <TourHelpButton />
+              <div data-tour="payment-reminders">
+                <PaymentReminders />
+              </div>
               <button
+                data-tour="theme-toggle"
                 onClick={toggleTheme}
                 className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 title={theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
@@ -113,7 +118,7 @@ export const Layout: React.FC = () => {
                   <BootstrapIcon name="moon-fill" size={20} />
                 )}
               </button>
-              <div className="relative">
+              <div className="relative" data-tour="profile-menu">
                 <button
                   type="button"
                   onClick={() => setProfileOpen((v) => !v)}

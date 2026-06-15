@@ -124,5 +124,39 @@
       linear-gradient(to right, rgb(148 163 184 / 0.28) 1px, transparent 1px),
       linear-gradient(to bottom, rgb(148 163 184 / 0.28) 1px, transparent 1px);
   }
+
+  /* Guided tour (driver.js) */
+  .wt-tour-popover {
+    border-radius: 12px !important;
+    box-shadow: 0 20px 40px rgb(0 0 0 / 0.25) !important;
+    max-width: 360px !important;
+  }
+
+  .wt-tour-popover .driver-popover-title {
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+  }
+
+  .wt-tour-popover .driver-popover-description {
+    font-size: 0.9rem !important;
+    line-height: 1.45 !important;
+  }
+
+  .wt-tour-skip-btn {
+    margin-right: auto;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    color: #6b7280;
+    border-radius: 0.5rem;
+    transition: background-color 0.15s;
+  }
+
+  .wt-tour-skip-btn:hover {
+    background: rgb(0 0 0 / 0.06);
+  }
+
+  .driver-active-element {
+    border-radius: 10px !important;
+  }
 }
 

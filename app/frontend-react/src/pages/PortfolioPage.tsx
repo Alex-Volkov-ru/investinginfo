@@ -350,6 +350,7 @@ const PortfolioPage = () => {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Инвестиции</h1>
         <div className="flex space-x-3">
           <button
+            data-tour="portfolio-token"
             onClick={() => setShowTokenModal(true)}
             className={`btn flex items-center ${
               hasTinkoffToken
@@ -372,6 +373,7 @@ const PortfolioPage = () => {
           </button>
           {selectedPortfolio && (
             <button
+              data-tour="portfolio-add-position"
               onClick={() => setShowAddPositionModal(true)}
               className="btn btn-primary flex items-center"
             >
@@ -380,6 +382,7 @@ const PortfolioPage = () => {
             </button>
           )}
           <button
+            data-tour="portfolio-new-portfolio"
             onClick={() => setShowAddModal(true)}
             className="btn btn-secondary flex items-center"
           >
@@ -391,6 +394,7 @@ const PortfolioPage = () => {
 
       {/* Charts */}
       {selectedPortfolio && positions.length > 0 && (
+        <div data-tour="portfolio-charts">
         <PortfolioCharts
           positions={positions}
           quotes={quotes}
@@ -398,10 +402,11 @@ const PortfolioPage = () => {
           totalPnL={totalPnL}
           totalPnLPercent={totalPnLPercent}
         />
+        </div>
       )}
 
       {/* Summary Cards - Compact Design */}
-      <div className="mb-6">
+      <div className="mb-6" data-tour="portfolio-summary">
         <div className="card p-4">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="text-center md:text-left">
@@ -448,7 +453,7 @@ const PortfolioPage = () => {
 
       {/* Portfolio Selector */}
       {portfolios.length > 0 && (
-        <div className="card">
+        <div className="card" data-tour="portfolio-select">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Выберите портфель
           </label>
@@ -471,7 +476,7 @@ const PortfolioPage = () => {
 
       {/* Positions by Groups */}
       {selectedPortfolio && (
-        <div className="card">
+        <div className="card" data-tour="portfolio-positions">
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">ПОЗИЦИИ</h2>
           {loading ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">Загрузка...</div>

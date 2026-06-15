@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { consumeReturnUrl } from '../lib/authReturn';
 import { Wallet } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTour } from '../contexts/TourContext';
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,27 +14,30 @@ const LoginPage = () => {
   const [phone, setPhone] = useState('');
   const [tinkoffToken, setTinkoffToken] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, register, isAuthenticated } = useAuth();
+  const { login, register, isAuthenticated, isInitializing } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { startTour } = useTour();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      // Определяем, открыто ли приложение в Telegram WebView
-      const isTelegram = typeof window !== 'undefined' && 
-        (window as any).Telegram?.WebApp?.initData || 
-        window.location.search.includes('tgWebAppStartParam');
-      
-      // Проверяем, есть ли в localStorage информация о мобильной версии
-      const isMobileRoute = localStorage.getItem('preferredMobileRoute') === 'true';
-      
-      // Если это Telegram или была сохранена мобильная версия, идем в мобильную версию
-      if (isTelegram || isMobileRoute) {
-        navigate('/mobile');
-      } else {
-        navigate('/');
-      }
-    }
-  }, [isAuthenticated, navigate]);
+    if (isInitializing || isAuthenticated) return;
+    startTour(false);
+  }, [isInitializing, isAuthenticated, startTour]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const isTelegram = typeof window !== 'undefined' &&
+      (window as Window & { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData ||
+      window.location.search.includes('tgWebAppStartParam');
+
+    const isMobileRoute = localStorage.getItem('preferredMobileRoute') === 'true';
+    const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+    const fallback = isTelegram || isMobileRoute ? '/mobile' : '/';
+    const target = fromPath && fromPath !== '/login' ? fromPath : consumeReturnUrl(fallback);
+
+    navigate(target, { replace: true });
+  }, [isAuthenticated, navigate, location.state]);
 
   useEffect(() => {
     if (isLogin) {
@@ -138,8 +143,8 @@ const LoginPage = () => {
             )}
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm space-y-4">
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit} data-tour="login-form">
+          <div className="rounded-md shadow-sm space-y-4" data-tour="login-register-fields">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email

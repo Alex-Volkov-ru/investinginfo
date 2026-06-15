@@ -88,7 +88,7 @@ export function CalculatorWidget({ onSendToBoard }: CalculatorWidgetProps) {
   const resultValue = Math.max(0, Math.round(current() * 100) / 100);
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg overflow-hidden w-full sm:w-56">
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg overflow-hidden w-full sm:w-56" data-tour="whiteboard-calculator">
       <button
         type="button"
         className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { TourProvider } from './contexts/TourContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
 import { MobileLayout } from './components/MobileLayout';
@@ -21,8 +22,9 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
-          <Toaster position="top-right" />
-          <Routes>
+          <TourProvider>
+            <Toaster position="top-right" />
+            <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route
               path="/"
@@ -101,6 +103,7 @@ function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </TourProvider>
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>

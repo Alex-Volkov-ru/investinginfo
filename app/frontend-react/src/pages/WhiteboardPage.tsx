@@ -10,8 +10,8 @@ import { CalculatorWidget } from '../components/whiteboard/CalculatorWidget';
 import { DrawingCanvas } from '../components/whiteboard/DrawingCanvas';
 import { ExportToBudgetModal } from '../components/whiteboard/ExportToBudgetModal';
 import { TemplatePickerModal } from '../components/whiteboard/TemplatePickerModal';
-import { WhiteboardHelp, dismissHelp, isHelpDismissed } from '../components/whiteboard/WhiteboardHelp';
 import { useBoardUndo } from '../hooks/useBoardUndo';
+import { useTour } from '../contexts/TourContext';
 import {
   AUTO_SAVE_INTERVAL_MS,
   clampCardSize,
@@ -59,8 +59,7 @@ const WhiteboardPage = () => {
   const [zonesVisible, setZonesVisible] = useState(true);
   const [drawingEnabled, setDrawingEnabled] = useState(false);
   const [showBoardPicker, setShowBoardPicker] = useState(false);
-  const [showHelpBanner, setShowHelpBanner] = useState(() => !isHelpDismissed());
-  const [showHelpModal, setShowHelpModal] = useState(false);
+  const { startTour } = useTour();
   const [addCardKind, setAddCardKind] = useState<'expense' | 'income' | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -489,7 +488,7 @@ const WhiteboardPage = () => {
           onToggleZones={handleToggleZones}
           onToggleGrid={() => setGridMode((v) => !v)}
           onToggleDrawing={() => setDrawingEnabled((v) => !v)}
-          onOpenHelp={() => setShowHelpModal(true)}
+          onOpenHelp={() => startTour(true)}
         />
         <BudgetPanel
           budget={budget}
@@ -513,20 +512,9 @@ const WhiteboardPage = () => {
         />
       </div>
 
-      {showHelpBanner && (
-        <div className="pt-3 px-4">
-          <WhiteboardHelp
-            showBanner
-            showModal={false}
-            onDismissBanner={() => { dismissHelp(); setShowHelpBanner(false); }}
-            onOpenModal={() => setShowHelpModal(true)}
-            onCloseModal={() => setShowHelpModal(false)}
-          />
-        </div>
-      )}
-
       <div
         ref={boardRef}
+        data-tour="whiteboard-canvas"
         className={`relative flex-1 min-h-[480px] overflow-auto custom-scrollbar whiteboard-grid ${
           gridMode ? 'whiteboard-grid-active' : ''
         }`}
@@ -565,14 +553,6 @@ const WhiteboardPage = () => {
           />
         </div>
       </div>
-
-      <WhiteboardHelp
-        showBanner={false}
-        showModal={showHelpModal}
-        onDismissBanner={() => setShowHelpBanner(false)}
-        onOpenModal={() => setShowHelpModal(true)}
-        onCloseModal={() => setShowHelpModal(false)}
-      />
 
       <AddCardModal
         isOpen={addCardKind !== null}
