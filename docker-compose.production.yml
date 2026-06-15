@@ -1,3 +1,5 @@
+name: bigs
+
 networks:
   portfolio-net:
     driver: bridge

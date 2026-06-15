@@ -106,22 +106,33 @@ jobs:
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           set -e
           cd ${{ secrets.PROJECT_DIR }}
+          COMPOSE="docker compose -p bigs -f docker-compose.production.yml"
 
-          # Освобождаем место до pull: иначе postgres не стартует (No space left on device)
           df -h /
-          docker image prune -af
-          docker builder prune -af 2>/dev/null || true
-          find /var/lib/docker/containers -name '*-json.log' -size +5M -exec truncate -s 2M {} \; 2>/dev/null || true
+          DISK_USE=$(df / | tail -1 | awk '{print $5}' | tr -d '%')
+          if [ "$DISK_USE" -gt 85 ]; then
+            docker image prune -af
+            docker builder prune -af 2>/dev/null || true
+            find /var/lib/docker/containers -name '*-json.log' -size +5M -exec truncate -s 2M {} \; 2>/dev/null || true
+          else
+            docker image prune -f
+          fi
 
-          docker compose -f docker-compose.production.yml pull
-          docker compose -f docker-compose.production.yml up -d --remove-orphans
+          # Зависшие контейнеры от прерванного recreate (hash_bigs-*)
+          docker ps -a --format '{{.Names}}' | grep -E '^[0-9a-f]+_bigs-' | xargs -r docker rm -f || true
 
-          echo "Ждём healthy db..."
-          for i in $(seq 1 30); do
-            status=$(docker inspect -f '{{.State.Health.Status}}' bigs-db 2>/dev/null || echo missing)
-            if [ "$status" = "healthy" ]; then break; fi
-            if [ "$i" -eq 30 ]; then
-              docker logs bigs-db --tail 30
+          $COMPOSE pull
+          $COMPOSE up -d --remove-orphans
+
+          echo "Ждём healthy db и backend..."
+          for i in $(seq 1 40); do
+            db=$(docker inspect -f '{{.State.Health.Status}}' bigs-db 2>/dev/null || echo missing)
+            backend=$(docker inspect -f '{{.State.Health.Status}}' bigs-backend 2>/dev/null || echo missing)
+            if [ "$db" = "healthy" ] && [ "$backend" = "healthy" ]; then break; fi
+            if [ "$i" -eq 40 ]; then
+              $COMPOSE ps
+              docker logs bigs-db --tail 20 2>&1 || true
+              docker logs bigs-backend --tail 20 2>&1 || true
               df -h /
               exit 1
             fi
