@@ -228,6 +228,7 @@ export interface WhiteboardZone {
   width: number;
   height: number;
   priority: number;
+  locked?: boolean;
 }
 
 export interface WhiteboardItem {
@@ -241,6 +242,8 @@ export interface WhiteboardItem {
   height?: number;
   category_id?: number | null;
   zone_id?: string | null;
+  /** Цвет левого маркера карточки (#rrggbb) */
+  color?: string | null;
 }
 
 export interface Whiteboard {

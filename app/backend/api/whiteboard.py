@@ -42,6 +42,7 @@ class WhiteboardZoneIn(BaseModel):
     width: float = Field(ge=80, le=1200)
     height: float = Field(ge=80, le=800)
     priority: int = Field(ge=1, le=10, default=1)
+    locked: Optional[bool] = False
 
 
 class WhiteboardItemIn(BaseModel):
@@ -55,6 +56,7 @@ class WhiteboardItemIn(BaseModel):
     height: Optional[float] = Field(default=None, ge=60, le=800)
     category_id: Optional[int] = None
     zone_id: Optional[str] = Field(default=None, max_length=64)
+    color: Optional[str] = Field(default=None, max_length=16)
 
 
 class WhiteboardCreateIn(BaseModel):

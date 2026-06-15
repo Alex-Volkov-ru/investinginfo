@@ -100,7 +100,7 @@
   }
 
   .dark .whiteboard-grid {
-    background-image: radial-gradient(circle, rgb(148 163 184 / 0.45) 1.5px, transparent 1.5px);
+    background-image: radial-gradient(circle, rgb(148 163 184 / 0.75) 1.75px, transparent 1.75px);
   }
 
   .whiteboard-grid-active {

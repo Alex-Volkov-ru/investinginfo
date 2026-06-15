@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
 import {
-  CARD_ACCENTS,
+  CARD_COLOR_PRESETS,
   cardAmountFontSize,
   formatMoney,
   getCardLayout,
   isCardItem,
   isIncomeItem,
+  itemMarkerColor,
   zoneColor,
 } from '../../lib/whiteboardUtils';
 import { BudgetCategory, WhiteboardItem, WhiteboardZone } from '../../types';
@@ -44,12 +45,8 @@ export function BoardCard({
   const titleRef = useRef<HTMLInputElement>(null);
   const isBudget = item.kind === 'budget';
   const isIncome = isIncomeItem(item);
+  const markerColor = itemMarkerColor(item, index);
   const zColor = zoneColor(item.zone_id, zones);
-  const accent = isBudget
-    ? 'border-l-emerald-500'
-    : isIncome
-      ? 'border-l-sky-500'
-      : CARD_ACCENTS[index % CARD_ACCENTS.length];
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
 
   const width = item.width ?? 180;
@@ -113,6 +110,12 @@ export function BoardCard({
       ? 'text-sky-800 dark:text-sky-200'
       : 'text-gray-900 dark:text-white';
 
+  const cardBg = isBudget
+    ? 'bg-gradient-to-br from-emerald-100 to-teal-50 dark:from-emerald-900/90 dark:to-teal-950'
+    : isIncome
+      ? 'bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-950/90 dark:to-blue-950'
+      : 'bg-white dark:bg-gray-800';
+
   return (
     <div
       data-board-card
@@ -127,37 +130,37 @@ export function BoardCard({
     >
       <div
         className={`
-          relative w-full h-full rounded-xl border-l-4 ${accent}
-          flex flex-col overflow-hidden ring-1 ring-gray-300/80 dark:ring-gray-500/80
-          ${isBudget
-            ? 'bg-gradient-to-br from-emerald-100 to-teal-50 dark:from-emerald-900 dark:to-teal-900 border-2 border-emerald-400 dark:border-emerald-500 shadow-lg'
-            : isIncome
-              ? 'bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-950 dark:to-blue-950 border-2 border-sky-400 dark:border-sky-500 shadow-lg'
-              : 'bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 shadow-lg'}
+          relative w-full h-full rounded-xl
+          flex flex-col overflow-hidden
+          ring-1 ring-gray-300/90 dark:ring-gray-500/90
+          border border-gray-300/80 dark:border-gray-600/80
+          ${cardBg}
           ${padding} cursor-grab active:cursor-grabbing
         `}
         style={{
           ...(gridMode ? { minHeight: isBudget ? 100 : height } : { width: '100%', height: '100%' }),
-          ...(zColor ? { boxShadow: `0 0 0 2px ${zColor}55` } : {}),
+          borderLeftWidth: 6,
+          borderLeftColor: markerColor,
+          borderLeftStyle: 'solid',
+          ...(zColor ? { boxShadow: `0 0 0 2px ${zColor}88, inset 0 0 0 1px ${markerColor}33` } : {}),
         }}
         onPointerDown={(e) => {
           if (editing || gridMode) return;
-          if ((e.target as HTMLElement).closest('button, input, select, [data-resize-handle]')) return;
+          if ((e.target as HTMLElement).closest('button, input, select, [data-resize-handle], [data-color-handle]')) return;
           e.preventDefault();
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
           onDragStart(item.id, e.clientX, e.clientY);
         }}
       >
-        {/* Шапка */}
         <div
           className={`relative shrink-0 flex items-center justify-center gap-1.5 ${
             isBudget ? 'mb-1' : 'mb-0.5'
           } ${!isBudget ? 'pr-14' : ''}`}
         >
-          {isBudget && <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
-          {isIncome && <TrendingUp className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />}
+          {isBudget && <Wallet className="h-4 w-4 shrink-0" style={{ color: markerColor }} />}
+          {isIncome && <TrendingUp className="h-4 w-4 shrink-0" style={{ color: markerColor }} />}
           {!isBudget && !isIncome && (
-            <TrendingDown className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+            <TrendingDown className="h-4 w-4 shrink-0" style={{ color: markerColor }} />
           )}
           {editing && isCardItem(item) ? (
             <input
@@ -180,8 +183,45 @@ export function BoardCard({
             </h3>
           )}
 
+          {isBudget && (
+            <label
+              data-color-handle
+              className="absolute top-0 right-0 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+              title="Цвет маркера"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <span
+                className="block w-3.5 h-3.5 rounded-full ring-2 ring-white/80 dark:ring-gray-900/80"
+                style={{ backgroundColor: markerColor }}
+              />
+              <input
+                type="color"
+                className="sr-only"
+                value={markerColor}
+                onChange={(e) => onUpdate(item.id, { color: e.target.value })}
+              />
+            </label>
+          )}
+
           {!isBudget && (
             <div className="absolute top-0 right-0 flex shrink-0 gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+              <label
+                data-color-handle
+                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                title="Цвет маркера"
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <span
+                  className="block w-3.5 h-3.5 rounded-full ring-2 ring-white/80 dark:ring-gray-900/80"
+                  style={{ backgroundColor: markerColor }}
+                />
+                <input
+                  type="color"
+                  className="sr-only"
+                  value={markerColor}
+                  onChange={(e) => onUpdate(item.id, { color: e.target.value })}
+                />
+              </label>
               <button
                 type="button"
                 onClick={() => setEditing((v) => !v)}
@@ -202,7 +242,20 @@ export function BoardCard({
           )}
         </div>
 
-        {/* Сумма — всегда по центру оставшегося пространства */}
+        {isCardItem(item) && editing && (
+          <div className="shrink-0 flex flex-wrap gap-1 justify-center pb-1" data-color-handle>
+            {CARD_COLOR_PRESETS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`w-5 h-5 rounded-full ring-2 ${markerColor === c ? 'ring-primary-500' : 'ring-transparent'}`}
+                style={{ backgroundColor: c }}
+                onClick={() => onUpdate(item.id, { color: c })}
+              />
+            ))}
+          </div>
+        )}
+
         <div className="relative flex-1 flex items-center justify-center min-h-[1.75rem] overflow-hidden px-1">
           {editing && isCardItem(item) ? (
             <div className="flex gap-1.5 w-full max-w-full items-center justify-center">
@@ -232,7 +285,6 @@ export function BoardCard({
           )}
         </div>
 
-        {/* Категория — внизу, только если хватает места */}
         {isCardItem(item) && editing && (
           <div className="shrink-0 pt-1">
             <select
@@ -286,14 +338,14 @@ export function BoardCard({
         {!gridMode && (
           <div
             data-resize-handle
-            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize flex items-end justify-end p-0.5 opacity-60 group-hover:opacity-100 z-10"
+            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize flex items-end justify-end p-0.5 opacity-70 group-hover:opacity-100 z-10"
             onPointerDown={(e) => {
               e.stopPropagation();
               e.preventDefault();
               onResizeStart(item.id, e.clientX, e.clientY);
             }}
           >
-            <svg viewBox="0 0 10 10" className="w-3 h-3 text-gray-500" aria-hidden>
+            <svg viewBox="0 0 10 10" className="w-3 h-3 text-gray-600 dark:text-gray-300" aria-hidden>
               <path d="M9 1v8H1" fill="none" stroke="currentColor" strokeWidth="1.5" />
               <path d="M9 5v4H5" fill="none" stroke="currentColor" strokeWidth="1.5" />
             </svg>

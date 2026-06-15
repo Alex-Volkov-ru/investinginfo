@@ -54,14 +54,23 @@ export function cardAmountFontSize(width: number, height: number, isBudget: bool
   return Math.round(Math.max(13, Math.min(24, size)));
 }
 
-export const CARD_ACCENTS = [
-  'border-l-rose-500',
-  'border-l-amber-500',
-  'border-l-emerald-500',
-  'border-l-sky-500',
-  'border-l-violet-500',
-  'border-l-orange-500',
+export const CARD_COLOR_PRESETS = [
+  '#f43f5e',
+  '#f59e0b',
+  '#10b981',
+  '#0ea5e9',
+  '#8b5cf6',
+  '#f97316',
+  '#ec4899',
+  '#14b8a6',
 ] as const;
+
+export const DEFAULT_INCOME_COLOR = '#0ea5e9';
+export const DEFAULT_EXPENSE_COLOR = '#f43f5e';
+export const DEFAULT_BUDGET_COLOR = '#10b981';
+
+export const MIN_ZONE_WIDTH = 120;
+export const MIN_ZONE_HEIGHT = 96;
 
 export const AUTO_SAVE_INTERVAL_MS = 30_000;
 
@@ -116,6 +125,68 @@ export function normalizeItem(item: WhiteboardItem): WhiteboardItem {
     amount: Math.max(0, Number(item.amount) || 0),
     category_id: item.category_id ?? null,
     zone_id: item.zone_id ?? null,
+    color: item.color ?? null,
+  };
+}
+
+export function defaultItemColor(kind: WhiteboardItem['kind'], index = 0): string {
+  if (kind === 'budget') return DEFAULT_BUDGET_COLOR;
+  if (kind === 'income') return DEFAULT_INCOME_COLOR;
+  return CARD_COLOR_PRESETS[index % CARD_COLOR_PRESETS.length];
+}
+
+export function itemMarkerColor(item: WhiteboardItem, index = 0): string {
+  if (item.color) return item.color;
+  return defaultItemColor(item.kind, index);
+}
+
+/** Позиция новой карточки: доходы — в ряд с бюджетом, расходы — ниже */
+export function suggestCardPosition(
+  kind: 'expense' | 'income',
+  items: WhiteboardItem[]
+): { x: number; y: number } {
+  const gap = 16;
+  const w = DEFAULT_CARD_WIDTH;
+  const h = DEFAULT_CARD_HEIGHT;
+  const budget = items.find((i) => i.kind === 'budget');
+  const normalized = items.map(normalizeItem);
+
+  if (kind === 'income') {
+    const incomes = normalized.filter((i) => i.kind === 'income');
+    if (budget) {
+      const bw = budget.width ?? DEFAULT_BUDGET_WIDTH;
+      if (incomes.length === 0) {
+        return { x: budget.x + bw + gap, y: budget.y };
+      }
+      const rightmost = incomes.reduce((a, b) => (a.x + (a.width ?? w) > b.x + (b.width ?? w) ? a : b));
+      return { x: rightmost.x + (rightmost.width ?? w) + gap, y: rightmost.y };
+    }
+    return { x: 24 + incomes.length * (w + gap), y: 24 };
+  }
+
+  const expenses = normalized.filter(isExpenseItem);
+  const rowY = normalized.reduce((max, it) => {
+    const bottom = it.y + (it.height ?? h);
+    return Math.max(max, bottom);
+  }, budget ? budget.y + (budget.height ?? DEFAULT_BUDGET_HEIGHT) : h);
+  const baseY = rowY + gap;
+  const baseX = budget?.x ?? 24;
+  const col = expenses.length % 4;
+  const row = Math.floor(expenses.length / 4);
+  return { x: baseX + col * (w + gap), y: baseY + row * (h + gap) };
+}
+
+export function sortItemsForDisplay(items: WhiteboardItem[]): WhiteboardItem[] {
+  const budget = items.filter((i) => i.kind === 'budget');
+  const incomes = items.filter((i) => i.kind === 'income');
+  const expenses = items.filter(isExpenseItem);
+  return [...budget, ...incomes, ...expenses];
+}
+
+export function clampZoneSize(width: number, height: number): { width: number; height: number } {
+  return {
+    width: Math.round(Math.min(MAX_CARD_WIDTH, Math.max(MIN_ZONE_WIDTH, width))),
+    height: Math.round(Math.min(MAX_CARD_HEIGHT, Math.max(MIN_ZONE_HEIGHT, height))),
   };
 }
 

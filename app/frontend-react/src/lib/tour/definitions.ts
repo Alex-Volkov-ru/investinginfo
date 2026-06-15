@@ -187,7 +187,7 @@ const WHITEBOARD_STEPS: AppTourStep[] = [
   {
     element: '[data-tour="whiteboard-zones"]',
     title: 'Зоны приоритетов',
-    description: 'Кнопка «слои» включает зоны: обязательное, можно отложить, хотелки.',
+    description: 'Зоны «обязательное / отложить / хотелки». Тяните, меняйте размер и цвет. Замок фиксирует зону.',
     side: 'left',
   },
   {

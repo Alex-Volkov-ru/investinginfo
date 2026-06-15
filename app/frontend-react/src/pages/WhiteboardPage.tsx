@@ -27,6 +27,9 @@ import {
   MIN_CARD_WIDTH,
   normalizeItem,
   sanitizeBoardItems,
+  sortItemsForDisplay,
+  suggestCardPosition,
+  defaultItemColor,
 } from '../lib/whiteboardUtils';
 import { BOARD_TEMPLATES, applyTemplate } from '../lib/whiteboardTemplates';
 import { budgetService } from '../services/budgetService';
@@ -83,7 +86,7 @@ const WhiteboardPage = () => {
     [items]
   );
   const budgetCard = useMemo(() => items.find((i) => i.kind === 'budget'), [items]);
-  const cardItems = useMemo(() => items.filter(isCardItem), [items]);
+  const cardItems = useMemo(() => sortItemsForDisplay(items.filter(isCardItem)), [items]);
 
   const getSnapshot = useCallback(
     () => ({ items, zones, budget, canvasData, boardName }),
@@ -306,18 +309,25 @@ const WhiteboardPage = () => {
     kind: 'expense' | 'income',
     partial: { title: string; amount: number; category_id?: number; x?: number; y?: number }
   ) => {
-    const board = boardRef.current;
-    const x = partial.x ?? (board ? Math.max(20, board.clientWidth / 2 - 90) : 100);
-    const y = partial.y ?? (board ? Math.max(20, board.clientHeight / 2 - 50) : 100);
+    const current = ensureBudgetCard(items, budget);
+    const pos =
+      partial.x !== undefined && partial.y !== undefined
+        ? { x: partial.x, y: partial.y }
+        : suggestCardPosition(kind, current);
+    const kindCount = current.filter((i) => i.kind === kind).length;
     const item = normalizeItem({
       id: generateItemId(),
       kind,
       title: partial.title,
       amount: partial.amount,
       category_id: partial.category_id ?? null,
-      x,
-      y,
-      zone_id: detectZoneForItem({ x, y, width: 180, height: 100 } as WhiteboardItem, zones),
+      color: defaultItemColor(kind, kindCount),
+      x: pos.x,
+      y: pos.y,
+      zone_id: detectZoneForItem(
+        { x: pos.x, y: pos.y, width: 180, height: 100 } as WhiteboardItem,
+        zones
+      ),
     });
     commitChange(() => setItems((prev) => ensureBudgetCard([...prev, item], budget)));
   };
@@ -344,9 +354,9 @@ const WhiteboardPage = () => {
 
   const handleToggleZones = () => {
     if (zones.length === 0) {
-      commitChange(() => setZones(DEFAULT_ZONES.map((z) => ({ ...z }))));
+      commitChange(() => setZones(DEFAULT_ZONES.map((z) => ({ ...z, locked: false }))));
       setZonesVisible(true);
-      toast.success('Зоны добавлены на доску');
+      toast.success('Зоны приоритетов: перетащите, измените размер, замок — зафиксировать');
       return;
     }
     setZonesVisible((v) => !v);
@@ -520,7 +530,18 @@ const WhiteboardPage = () => {
         }`}
         onDoubleClick={handleBoardDoubleClick}
       >
-        <BoardZones zones={zones} visible={zonesVisible} gridMode={gridMode} />
+        <BoardZones
+          zones={zones}
+          visible={zonesVisible}
+          gridMode={gridMode}
+          onUpdateZone={(id, patch) => {
+            commitChange(
+              () => setZones((prev) => prev.map((z) => (z.id === id ? { ...z, ...patch } : z))),
+              false
+            );
+          }}
+          onDragStart={() => pushUndo(getSnapshot())}
+        />
         <DrawingCanvas
           enabled={drawingEnabled}
           canvasData={canvasData}
