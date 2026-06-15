@@ -46,12 +46,13 @@ DEFAULT_INSTRUMENT_CLASS = "other"
 # ===== Валидация =====
 
 # Пароли
-MIN_PASSWORD_LENGTH = 6
+MIN_PASSWORD_LENGTH = 8
 PASSWORD_PATTERN_LETTERS = r"[A-Za-z]"
 PASSWORD_PATTERN_DIGITS = r"\d"
 
-# Имена
-MIN_USERNAME_LENGTH = 2
+# Логин сервиса (tg_username)
+MIN_USERNAME_LENGTH = 3
+SERVICE_LOGIN_PATTERN = r"^[a-zA-Z0-9._-]+$"
 
 # Телефоны
 PHONE_PATTERN = r"\+?\d{10,15}"
@@ -125,8 +126,11 @@ ERROR_USERNAME_SHORT_TEMPLATE = "Имя слишком короткое (мин�
 ERROR_PHONE_FORMAT_TEMPLATE = "Телефон в формате +7999123... или {min}–{max} цифр"
 
 # Готовые сообщения (для обратной совместимости)
-ERROR_PASSWORD_WEAK = ERROR_PASSWORD_WEAK_TEMPLATE.format(min_len=MIN_PASSWORD_LENGTH)
+ERROR_PASSWORD_WEAK = "Пароль: минимум 8 символов, латиница (строчная и прописная), цифры и спецсимволы без кириллицы"
 ERROR_USERNAME_SHORT = ERROR_USERNAME_SHORT_TEMPLATE.format(min_len=MIN_USERNAME_LENGTH)
+ERROR_SERVICE_LOGIN_REQUIRED = "Логин сервиса обязателен"
+ERROR_SERVICE_LOGIN_CHARS = "Логин сервиса: только латиница, цифры и символы . _ -"
+ERROR_EMAIL_INVALID = "Некорректный формат email"
 ERROR_PHONE_FORMAT = ERROR_PHONE_FORMAT_TEMPLATE.format(min=PHONE_MIN_DIGITS, max=PHONE_MAX_DIGITS)
 
 # Портфель

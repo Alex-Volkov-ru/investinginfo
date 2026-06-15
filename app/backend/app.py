@@ -29,6 +29,7 @@ from app.backend.api.budget_obligations import router as budget_obligations_rout
 from app.backend.api.budget_obligation_blocks import router as budget_obligation_blocks_router
 from app.backend.api.backups import router as backups_router
 from app.backend.api.monthly_review import router as monthly_review_router
+from app.backend.api.whiteboard import router as whiteboard_router
 
 settings = get_settings()
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper(), logging.DEBUG))
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(budget_obligation_blocks_router)
     app.include_router(backups_router)
     app.include_router(monthly_review_router)
+    app.include_router(whiteboard_router)
 
     return app
 

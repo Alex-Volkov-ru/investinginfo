@@ -55,6 +55,7 @@ export const MobileLayout: React.FC = () => {
   const navigation = [
     { name: 'Инвестиции', href: '/mobile', icon: 'graph-up-arrow' },
     { name: 'Бюджет', href: '/budget_mobile', icon: 'wallet2' },
+    { name: 'Доска', href: '/whiteboard_mobile', icon: 'easel' },
     { name: 'Обязательства', href: '/obligations_mobile', icon: 'file-earmark-text' },
     ...(user?.is_staff
       ? [

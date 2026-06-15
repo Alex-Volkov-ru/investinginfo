@@ -56,6 +56,7 @@ export const Layout: React.FC = () => {
   const navigation = [
     { name: 'Инвестиции', href: '/', icon: 'graph-up-arrow' },
     { name: 'Бюджет', href: '/budget', icon: 'wallet2' },
+    { name: 'Доска', href: '/whiteboard', icon: 'easel' },
     { name: 'Обязательства', href: '/obligations', icon: 'file-earmark-text' },
     ...(user?.is_staff
       ? [

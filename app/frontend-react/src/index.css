@@ -91,5 +91,38 @@
   .dark .custom-scrollbar {
     scrollbar-color: rgb(75 85 99) rgb(55 65 81);
   }
+
+  /* Сетка бюджетной доски */
+  .whiteboard-grid {
+    @apply bg-slate-200 dark:bg-gray-950;
+    background-image: radial-gradient(circle, rgb(100 116 139 / 0.55) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+  }
+
+  .dark .whiteboard-grid {
+    background-image: radial-gradient(circle, rgb(148 163 184 / 0.45) 1.5px, transparent 1.5px);
+  }
+
+  .whiteboard-grid-active {
+    @apply bg-slate-100 dark:bg-gray-900;
+    background-image: none;
+  }
+
+  .whiteboard-grid-active::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgb(100 116 139 / 0.22) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(100 116 139 / 0.22) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .dark .whiteboard-grid-active::before {
+    background-image:
+      linear-gradient(to right, rgb(148 163 184 / 0.28) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 184 / 0.28) 1px, transparent 1px);
+  }
 }
 

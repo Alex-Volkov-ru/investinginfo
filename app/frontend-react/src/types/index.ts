@@ -216,3 +216,40 @@ export interface YearSummary {
   }>;
 }
 
+// Whiteboard types
+export type WhiteboardItemKind = 'expense' | 'budget';
+
+export interface WhiteboardItem {
+  id: string;
+  kind?: WhiteboardItemKind;
+  title: string;
+  amount: number;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+}
+
+export interface Whiteboard {
+  id: number;
+  name: string;
+  budget: number;
+  items: WhiteboardItem[];
+  canvas_data: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WhiteboardListItem {
+  id: number;
+  name: string;
+  updated_at: string;
+}
+
+export interface WhiteboardPayload {
+  name: string;
+  budget: number;
+  items: WhiteboardItem[];
+  canvas_data?: string | null;
+}
+

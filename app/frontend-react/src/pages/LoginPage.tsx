@@ -52,17 +52,28 @@ const LoginPage = () => {
     }
 
     if (!isLogin) {
-      // Валидация для регистрации
-      if (password.length < 6) {
-        toast.error('Пароль должен содержать минимум 6 символов');
+      if (!tgUsername.trim()) {
+        toast.error('Логин сервиса обязателен');
         return;
       }
-      if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
-        toast.error('Пароль должен содержать буквы и цифры');
+      if (tgUsername.trim().length < 3) {
+        toast.error('Логин сервиса: минимум 3 символа');
         return;
       }
-      if (tgUsername && tgUsername.trim().length > 0 && tgUsername.trim().length < 2) {
-        toast.error('Имя должно содержать минимум 2 символа');
+      if (!/^[a-zA-Z0-9._-]+$/.test(tgUsername.trim())) {
+        toast.error('Логин: только латиница, цифры и . _ -');
+        return;
+      }
+      if (password.length < 8) {
+        toast.error('Пароль: минимум 8 символов');
+        return;
+      }
+      if (!/[a-z]/.test(password) || !/[A-Z]/.test(password)) {
+        toast.error('Пароль: нужны строчная и прописная латинские буквы');
+        return;
+      }
+      if (!/^[\x21-\x7E]+$/.test(password)) {
+        toast.error('Пароль: только латиница, цифры и спецсимволы');
         return;
       }
       if (phone && phone.trim().length > 0 && !/^\+?\d{10,15}$/.test(phone.trim())) {
@@ -79,7 +90,7 @@ const LoginPage = () => {
         await register(
           email.trim(),
           password,
-          tgUsername?.trim() || undefined,
+          tgUsername.trim(),
           phone?.trim() || undefined,
           tinkoffToken?.trim() || undefined
         );
@@ -156,7 +167,7 @@ const LoginPage = () => {
                 autoComplete={isLogin ? "current-password" : "new-password"}
                 required
                 className="input"
-                placeholder={isLogin ? "Пароль" : "минимум 6 символов, буквы и цифры"}
+                placeholder={isLogin ? 'Пароль' : 'мин. 8 символов, Aa и спецсимволы'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -166,14 +177,15 @@ const LoginPage = () => {
               <>
                 <div>
                   <label htmlFor="tg_username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Имя (ник)
+                    Логин сервиса <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="tg_username"
                     name="tg_username"
                     type="text"
+                    required
                     className="input"
-                    placeholder="например, ivan"
+                    placeholder="ivan_01"
                     value={tgUsername}
                     onChange={(e) => setTgUsername(e.target.value)}
                   />
