@@ -22,6 +22,10 @@ from app.backend.core.constants import (
     TRANSACTION_TYPE_INCOME,
     TRANSACTION_TYPE_EXPENSE,
     ERROR_USER_NOT_FOUND,
+    ERROR_CANNOT_DELETE_SELF,
+    ERROR_CANNOT_DELETE_LAST_ADMIN,
+    ERROR_EMAIL_CONFIRM_MISMATCH,
+    HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
 )
 from app.backend.db.session import get_db
@@ -290,6 +294,17 @@ class AuditLogItem(BaseModel):
 
 class BulkExportIn(BaseModel):
     user_ids: List[int] = Field(default_factory=list)
+
+
+class DeleteUserIn(BaseModel):
+    confirm_email: str
+
+
+class DeleteUserOut(BaseModel):
+    success: bool
+    message: str
+    deleted_user_id: int
+    deleted_email: str
 
 
 # ===== INVESTMENTS =====
@@ -1141,6 +1156,53 @@ def impersonate_user(
         email=target.email,
         tg_username=target.tg_username,
         impersonated_by=admin.id,
+    )
+
+
+@router.delete("/users/{user_id}", response_model=DeleteUserOut)
+def delete_user(
+    user_id: int,
+    payload: DeleteUserIn,
+    admin: User = Depends(get_staff_user),
+    db: Session = Depends(get_db),
+):
+    target = _user_or_404(db, user_id)
+
+    if target.id == admin.id:
+        raise HTTPException(HTTP_400_BAD_REQUEST, ERROR_CANNOT_DELETE_SELF)
+
+    if target.is_staff:
+        staff_count = db.query(User).filter(User.is_staff.is_(True)).count()
+        if staff_count <= 1:
+            raise HTTPException(HTTP_400_BAD_REQUEST, ERROR_CANNOT_DELETE_LAST_ADMIN)
+
+    confirm = payload.confirm_email.strip()
+    if confirm.lower() != target.email.strip().lower():
+        raise HTTPException(HTTP_400_BAD_REQUEST, ERROR_EMAIL_CONFIRM_MISMATCH)
+
+    deleted_id = target.id
+    deleted_email = target.email
+
+    log_admin_action(
+        db,
+        admin,
+        "delete_user",
+        deleted_id,
+        {
+            "email": deleted_email,
+            "tg_username": target.tg_username,
+            "is_staff": target.is_staff,
+        },
+    )
+
+    db.delete(target)
+    db.commit()
+
+    return DeleteUserOut(
+        success=True,
+        message=f"Пользователь {deleted_email} удалён",
+        deleted_user_id=deleted_id,
+        deleted_email=deleted_email,
     )
 
 

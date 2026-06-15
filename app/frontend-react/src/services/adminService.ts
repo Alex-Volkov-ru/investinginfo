@@ -314,4 +314,9 @@ export const adminService = {
     const r = await apiClient.post('/admin/users/bulk-export', { user_ids: userIds }, { responseType: 'blob' });
     downloadBlob(r.data, 'users_export.csv');
   },
+
+  async deleteUser(userId: number, confirmEmail: string): Promise<{ success: boolean; message: string }> {
+    const r = await apiClient.delete(`/admin/users/${userId}`, { data: { confirm_email: confirmEmail } });
+    return r.data;
+  },
 };

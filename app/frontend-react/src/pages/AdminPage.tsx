@@ -10,6 +10,7 @@ import { AdminInvestmentsTab } from '../components/admin/AdminInvestmentsTab';
 import { AdminBudgetTab } from '../components/admin/AdminBudgetTab';
 import { AdminObligationsTab } from '../components/admin/AdminObligationsTab';
 import { AdminUserDrawer, AdminAuditLog } from '../components/admin/AdminUserExtras';
+import { DeleteUserDialog } from '../components/admin/DeleteUserDialog';
 import { adminService } from '../services/adminService';
 import { BootstrapIcon } from '../components/BootstrapIcon';
 
@@ -36,6 +37,7 @@ const AdminPage = () => {
   const [userMenuOpen, setUserMenuOpen] = useState<number | null>(null);
   const [backupMenuOpen, setBackupMenuOpen] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UserListItem | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set());
 
   const [confirm, setConfirm] = useState<{
@@ -354,36 +356,36 @@ const AdminPage = () => {
             </div>
           )}
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs md:text-sm divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+          <div className="admin-table-wrap custom-scrollbar">
+            <table className="admin-table">
+              <thead className="admin-table-head">
                 <tr>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 min-w-[200px]">Файл</th>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 hidden sm:table-cell whitespace-nowrap">Создан</th>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Размер</th>
-                  <th className="px-2 py-2 text-right font-medium text-gray-600 dark:text-gray-300 w-20">Действия</th>
+                  <th className="min-w-[200px]">Файл</th>
+                  <th className="hidden sm:table-cell whitespace-nowrap">Создан</th>
+                  <th className="whitespace-nowrap">Размер</th>
+                  <th className="w-20 text-right">Действия</th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="admin-table-body">
                 {backups.length === 0 ? (
                   <tr>
-                    <td className="px-2 py-4 text-gray-600 dark:text-gray-400" colSpan={4}>
+                    <td colSpan={4} className="admin-table-empty">
                       {loading ? 'Загрузка...' : 'Бэкапов нет'}
                     </td>
                   </tr>
                 ) : (
                   backups.map((b) => (
                     <tr key={b.filename}>
-                      <td className="px-2 py-2 text-gray-900 dark:text-gray-100 break-all">
-                        <div className="font-medium">{b.filename}</div>
+                      <td className="break-all">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">{b.filename}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 sm:hidden mt-1">
                           {b.created_at ? format(new Date(b.created_at), 'dd.MM.yyyy HH:mm') : '-'} • {b.size_mb} MB
                         </div>
                       </td>
-                      <td className="px-2 py-2 text-gray-700 dark:text-gray-300 hidden sm:table-cell whitespace-nowrap text-xs">
+                      <td className="hidden sm:table-cell whitespace-nowrap admin-cell-muted">
                         {b.created_at ? format(new Date(b.created_at), 'dd.MM.yyyy HH:mm') : '-'}
                       </td>
-                      <td className="px-2 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap text-xs">{b.size_mb} MB</td>
+                      <td className="whitespace-nowrap tabular-nums">{b.size_mb} MB</td>
                       <td className="px-2 py-2 relative">
                         <div className="flex justify-end">
                           <button
@@ -495,11 +497,11 @@ const AdminPage = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs md:text-sm divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+          <div className="admin-table-wrap custom-scrollbar">
+            <table className="admin-table">
+              <thead className="admin-table-head">
                 <tr>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 w-8">
+                  <th className="w-10">
                     <input
                       type="checkbox"
                       checked={filteredAndSortedUsers.length > 0 && selectedUserIds.size === filteredAndSortedUsers.length}
@@ -512,9 +514,10 @@ const AdminPage = () => {
                       }}
                     />
                   </th>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 w-12">ID</th>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 min-w-[150px]">
+                  <th className="w-12">ID</th>
+                  <th className="min-w-[150px]">
                     <button
+                      type="button"
                       className="hover:text-primary-600 dark:hover:text-primary-400"
                       onClick={() => {
                         if (sortField === 'email') {
@@ -528,10 +531,11 @@ const AdminPage = () => {
                       Email {sortField === 'email' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </button>
                   </th>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 hidden sm:table-cell min-w-[100px]">Имя</th>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 w-24">Роль</th>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 hidden md:table-cell whitespace-nowrap">
+                  <th className="hidden sm:table-cell min-w-[100px]">Имя</th>
+                  <th className="w-24">Роль</th>
+                  <th className="hidden md:table-cell whitespace-nowrap">
                     <button
+                      type="button"
                       className="hover:text-primary-600 dark:hover:text-primary-400"
                       onClick={() => {
                         if (sortField === 'created_at') {
@@ -545,8 +549,9 @@ const AdminPage = () => {
                       Регистрация {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </button>
                   </th>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300 hidden lg:table-cell whitespace-nowrap">
+                  <th className="hidden lg:table-cell whitespace-nowrap">
                     <button
+                      type="button"
                       className="hover:text-primary-600 dark:hover:text-primary-400"
                       onClick={() => {
                         if (sortField === 'last_login_at') {
@@ -560,26 +565,22 @@ const AdminPage = () => {
                       Последний вход {sortField === 'last_login_at' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </button>
                   </th>
-                  <th className="px-2 py-2 text-right font-medium text-gray-600 dark:text-gray-300 w-20">Действия</th>
+                  <th className="w-20 text-right">Действия</th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="admin-table-body">
                 {usersLoading ? (
                   <tr>
-                    <td className="px-2 py-4 text-gray-600 dark:text-gray-400" colSpan={8}>
-                      Загрузка...
-                    </td>
+                    <td colSpan={8} className="admin-table-empty">Загрузка...</td>
                   </tr>
                 ) : filteredAndSortedUsers.length === 0 ? (
                   <tr>
-                    <td className="px-2 py-4 text-gray-600 dark:text-gray-400" colSpan={8}>
-                      Пользователи не найдены
-                    </td>
+                    <td colSpan={8} className="admin-table-empty">Пользователи не найдены</td>
                   </tr>
                 ) : (
                   filteredAndSortedUsers.map((u) => (
-                    <tr key={u.id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" onClick={() => setSelectedUser(u)}>
-                      <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                    <tr key={u.id} className="cursor-pointer" onClick={() => setSelectedUser(u)}>
+                      <td onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selectedUserIds.has(u.id)}
@@ -593,29 +594,25 @@ const AdminPage = () => {
                           }}
                         />
                       </td>
-                      <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{u.id}</td>
-                      <td className="px-2 py-2 text-gray-900 dark:text-gray-100 break-all">
-                        <div className="font-medium">{u.email}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 sm:hidden mt-1">
+                      <td className="admin-cell-muted">{u.id}</td>
+                      <td className="admin-cell-email">
+                        <div>{u.email}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 sm:hidden mt-1 font-normal">
                           {u.tg_username || 'Без имени'} • {format(new Date(u.created_at), 'dd.MM.yyyy')}
                         </div>
                       </td>
-                      <td className="px-2 py-2 text-gray-700 dark:text-gray-300 hidden sm:table-cell">{u.tg_username || '-'}</td>
-                      <td className="px-2 py-2">
+                      <td className="hidden sm:table-cell">{u.tg_username || '—'}</td>
+                      <td>
                         {u.is_staff ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200">
-                            Админ
-                          </span>
+                          <span className="admin-badge admin-badge-ok">Админ</span>
                         ) : (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-                            Обыч.
-                          </span>
+                          <span className="admin-badge admin-badge-muted">Обыч.</span>
                         )}
                       </td>
-                      <td className="px-2 py-2 text-gray-700 dark:text-gray-300 hidden md:table-cell whitespace-nowrap text-xs">
+                      <td className="hidden md:table-cell whitespace-nowrap admin-cell-muted">
                         {format(new Date(u.created_at), 'dd.MM.yyyy')}
                       </td>
-                      <td className="px-2 py-2 text-gray-700 dark:text-gray-300 hidden lg:table-cell whitespace-nowrap text-xs">
+                      <td className="hidden lg:table-cell whitespace-nowrap admin-cell-muted">
                         {u.last_login_at ? format(new Date(u.last_login_at), 'dd.MM.yyyy HH:mm') : 'Никогда'}
                       </td>
                       <td className="px-2 py-2 relative" onClick={(e) => e.stopPropagation()}>
@@ -683,6 +680,21 @@ const AdminPage = () => {
                                   />
                                   {u.is_staff ? 'Снять админ' : 'Сделать админ'}
                                 </button>
+                                {user?.id !== u.id && (
+                                  <>
+                                    <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                                    <button
+                                      className="w-full text-left px-3 py-2 text-xs text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                                      onClick={() => {
+                                        setDeleteTarget(u);
+                                        setUserMenuOpen(null);
+                                      }}
+                                    >
+                                      <BootstrapIcon name="trash" className="mr-2" size={14} />
+                                      Удалить
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </>
                           )}
@@ -699,22 +711,22 @@ const AdminPage = () => {
       )}
 
       {activeTab === 'investments' && (
-        <div className="card">
-          <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Инвестиции</div>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 px-1">Инвестиции</h2>
           <AdminInvestmentsTab />
         </div>
       )}
 
       {activeTab === 'budget' && (
-        <div className="card">
-          <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Бюджет</div>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 px-1">Бюджет</h2>
           <AdminBudgetTab users={users} />
         </div>
       )}
 
       {activeTab === 'obligations' && (
-        <div className="card">
-          <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Обязательства</div>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 px-1">Обязательства</h2>
           <AdminObligationsTab users={users} />
         </div>
       )}
@@ -732,7 +744,31 @@ const AdminPage = () => {
       />
 
       {selectedUser && (
-        <AdminUserDrawer user={selectedUser} onClose={() => setSelectedUser(null)} />
+        <AdminUserDrawer
+          user={selectedUser}
+          currentUserId={user?.id}
+          onClose={() => setSelectedUser(null)}
+          onRequestDelete={() => {
+            setDeleteTarget(selectedUser);
+            setSelectedUser(null);
+          }}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteUserDialog
+          user={deleteTarget}
+          currentUserId={user?.id}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={async () => {
+            setSelectedUserIds((prev) => {
+              const next = new Set(prev);
+              next.delete(deleteTarget.id);
+              return next;
+            });
+            await loadUsers();
+          }}
+        />
       )}
 
       {editingUser && editField && (

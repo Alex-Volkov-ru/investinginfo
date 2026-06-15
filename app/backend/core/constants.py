@@ -145,6 +145,11 @@ ERROR_FIGI_NOT_FOUND_TEMPLATE = "FIGI по тикеру {ticker} не найде
 ERROR_NO_DATA_TEMPLATE = "Нет данных по FIGI={figi}"
 ERROR_NO_TINKOFF_TOKEN = "У пользователя не задан Tinkoff токен"
 
+# Админ: удаление пользователей
+ERROR_CANNOT_DELETE_SELF = "Нельзя удалить свой аккаунт"
+ERROR_CANNOT_DELETE_LAST_ADMIN = "Нельзя удалить последнего администратора"
+ERROR_EMAIL_CONFIRM_MISMATCH = "Email подтверждения не совпадает"
+
 # ===== HTTP статусы =====
 
 HTTP_400_BAD_REQUEST = 400
