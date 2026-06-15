@@ -10,8 +10,9 @@ import { useLocation } from 'react-router-dom';
 import { driver, DriveStep, Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { useAuth } from './AuthContext';
-import { resolveTour, AppTourDefinition } from '../lib/tour/definitions';
-import { dismissTour, isTourDismissed } from '../lib/tour/storage';
+import { useTheme } from './ThemeContext';
+import { resolveLayoutTour, resolveTour, AppTourDefinition } from '../lib/tour/definitions';
+import { dismissTour, isTourDismissed, LAYOUT_TOUR_ID } from '../lib/tour/storage';
 
 interface TourContextType {
   startTour: (force?: boolean) => void;
@@ -26,10 +27,12 @@ const isMobilePath = (pathname: string) =>
 
 export const TourProvider = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
+  const { theme } = useTheme();
   const { user, isAuthenticated, isInitializing } = useAuth();
   const driverRef = useRef<Driver | null>(null);
   const activeTourIdRef = useRef<string | null>(null);
-  const autoStartedRef = useRef<string | null>(null);
+  const pageAutoStartedRef = useRef<string | null>(null);
+  const layoutAutoStartedRef = useRef(false);
 
   const destroyDriver = useCallback(() => {
     driverRef.current?.destroy();
@@ -37,7 +40,7 @@ export const TourProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const runTour = useCallback(
-    (tour: AppTourDefinition, markDismissed: boolean) => {
+    (tour: AppTourDefinition, markDismissed: boolean, onDone?: () => void) => {
       destroyDriver();
       activeTourIdRef.current = tour.id;
 
@@ -50,27 +53,32 @@ export const TourProvider = ({ children }: { children: ReactNode }) => {
         },
       }));
 
+      const popoverClass = theme === 'dark' ? 'wt-tour-popover wt-tour-popover-dark' : 'wt-tour-popover';
+
       const driverObj = driver({
         showProgress: true,
         animate: true,
         smoothScroll: true,
         allowClose: true,
-        overlayOpacity: 0.55,
+        overlayOpacity: theme === 'dark' ? 0.72 : 0.55,
         stagePadding: 10,
         stageRadius: 10,
         nextBtnText: 'Далее',
         prevBtnText: 'Назад',
         doneBtnText: 'Готово',
         progressText: '{{current}} из {{total}}',
-        popoverClass: 'wt-tour-popover',
+        popoverClass,
         steps,
-        onDestroyStarted: () => {
-          if (markDismissed && activeTourIdRef.current) {
-            dismissTour(activeTourIdRef.current);
+        onDestroyed: () => {
+          const finishedId = activeTourIdRef.current;
+          if (markDismissed && finishedId) {
+            dismissTour(finishedId);
           }
           activeTourIdRef.current = null;
+          driverRef.current = null;
+          onDone?.();
         },
-        onPopoverRender: (popover) => {
+        onPopoverRender: (popover, { driver: drv }) => {
           const footer = popover.footerButtons;
           if (!footer || footer.querySelector('[data-tour-skip]')) return;
 
@@ -81,7 +89,7 @@ export const TourProvider = ({ children }: { children: ReactNode }) => {
           skipBtn.textContent = 'Пропустить';
           skipBtn.addEventListener('click', () => {
             if (activeTourIdRef.current) dismissTour(activeTourIdRef.current);
-            driverObj.destroy();
+            drv.destroy();
           });
           footer.insertBefore(skipBtn, footer.firstChild);
         },
@@ -90,26 +98,49 @@ export const TourProvider = ({ children }: { children: ReactNode }) => {
       driverRef.current = driverObj;
       driverObj.drive();
     },
-    [destroyDriver]
+    [destroyDriver, theme]
   );
 
-  const startTour = useCallback(
+  const startPageTour = useCallback(
     (force = false) => {
-      if (isInitializing) return;
+      if (isInitializing || location.pathname === '/login') return;
 
       const mobile = isMobilePath(location.pathname);
       const tour = resolveTour(location.pathname, mobile, Boolean(user?.is_staff));
       if (!tour || tour.steps.length === 0) return;
-
       if (!force && isTourDismissed(tour.id)) return;
 
       window.setTimeout(() => {
         const refreshed = resolveTour(location.pathname, mobile, Boolean(user?.is_staff));
         if (!refreshed || refreshed.steps.length === 0) return;
         runTour(refreshed, !force);
-      }, force ? 200 : 600);
+      }, force ? 200 : 400);
     },
     [isInitializing, location.pathname, user?.is_staff, runTour]
+  );
+
+  const startLayoutTour = useCallback(
+    (force = false) => {
+      if (isInitializing || !isAuthenticated) return false;
+      if (!force && isTourDismissed(LAYOUT_TOUR_ID)) return false;
+
+      const mobile = isMobilePath(location.pathname);
+      const layout = resolveLayoutTour(mobile);
+      if (!layout || layout.steps.length === 0) return false;
+
+      runTour(layout, !force, () => {
+        window.setTimeout(() => startPageTour(false), 300);
+      });
+      return true;
+    },
+    [isInitializing, isAuthenticated, location.pathname, runTour, startPageTour]
+  );
+
+  const startTour = useCallback(
+    (force = false) => {
+      startPageTour(force);
+    },
+    [startPageTour]
   );
 
   const skipTour = useCallback(() => {
@@ -119,24 +150,42 @@ export const TourProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     destroyDriver();
-    autoStartedRef.current = null;
+    pageAutoStartedRef.current = null;
   }, [location.pathname, destroyDriver]);
 
   useEffect(() => {
-    if (isInitializing || !isAuthenticated) return;
-    if (location.pathname === '/login') return;
+    if (isInitializing || !isAuthenticated || location.pathname === '/login') return;
 
-    const mobile = isMobilePath(location.pathname);
-    const tour = resolveTour(location.pathname, mobile, Boolean(user?.is_staff));
-    if (!tour || isTourDismissed(tour.id)) return;
+    const key = `${location.pathname}`;
+    if (pageAutoStartedRef.current === key && isTourDismissed(LAYOUT_TOUR_ID)) return;
 
-    const key = `${location.pathname}:${tour.id}`;
-    if (autoStartedRef.current === key) return;
-    autoStartedRef.current = key;
+    const timer = window.setTimeout(() => {
+      if (!isTourDismissed(LAYOUT_TOUR_ID) && !layoutAutoStartedRef.current) {
+        layoutAutoStartedRef.current = true;
+        const started = startLayoutTour(false);
+        if (started) {
+          pageAutoStartedRef.current = key;
+          return;
+        }
+      }
 
-    const timer = window.setTimeout(() => startTour(false), 800);
+      const mobile = isMobilePath(location.pathname);
+      const tour = resolveTour(location.pathname, mobile, Boolean(user?.is_staff));
+      if (!tour || isTourDismissed(tour.id)) return;
+
+      pageAutoStartedRef.current = key;
+      startPageTour(false);
+    }, 800);
+
     return () => window.clearTimeout(timer);
-  }, [location.pathname, isAuthenticated, isInitializing, user?.is_staff, startTour]);
+  }, [
+    location.pathname,
+    isAuthenticated,
+    isInitializing,
+    user?.is_staff,
+    startLayoutTour,
+    startPageTour,
+  ]);
 
   useEffect(() => () => destroyDriver(), [destroyDriver]);
 

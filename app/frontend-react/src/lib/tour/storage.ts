@@ -1,5 +1,8 @@
 const PREFIX = 'wt_tour_dismissed_v1_';
 
+/** Одноразовый тур по шапке приложения (навигация, профиль) */
+export const LAYOUT_TOUR_ID = 'app-layout';
+
 export function isTourDismissed(tourId: string): boolean {
   return localStorage.getItem(`${PREFIX}${tourId}`) === '1';
 }

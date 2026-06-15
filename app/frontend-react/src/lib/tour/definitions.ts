@@ -240,8 +240,10 @@ const LOGIN_STEPS: AppTourStep[] = [
   },
 ];
 
-function withLayout(steps: AppTourStep[], mobile: boolean): AppTourStep[] {
-  return [...(mobile ? LAYOUT_MOBILE : LAYOUT_DESKTOP), ...steps];
+export function resolveLayoutTour(mobile: boolean): AppTourDefinition | null {
+  const steps = (mobile ? LAYOUT_MOBILE : LAYOUT_DESKTOP).filter((s) => elementExists(s.element));
+  if (steps.length === 0) return null;
+  return { id: 'app-layout', title: 'Интерфейс', steps };
 }
 
 export const TOUR_BY_ROUTE: Record<string, AppTourDefinition> = {
@@ -270,7 +272,7 @@ const PAGE_STEPS: Record<string, AppTourStep[]> = {
   login: LOGIN_STEPS,
 };
 
-export function resolveTour(pathname: string, mobile: boolean, isStaff: boolean): AppTourDefinition | null {
+export function resolveTour(pathname: string, _mobile: boolean, isStaff: boolean): AppTourDefinition | null {
   const meta = TOUR_BY_ROUTE[pathname];
   if (!meta) return null;
 
@@ -279,7 +281,7 @@ export function resolveTour(pathname: string, mobile: boolean, isStaff: boolean)
   }
 
   const pageSteps = PAGE_STEPS[meta.id] || [];
-  const steps = withLayout(pageSteps, mobile).filter((step) => {
+  const steps = pageSteps.filter((step) => {
     if (step.staffOnly && !isStaff) return false;
     return elementExists(step.element);
   });

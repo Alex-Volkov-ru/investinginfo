@@ -132,6 +132,56 @@
     max-width: 360px !important;
   }
 
+  .wt-tour-popover-dark,
+  .dark .wt-tour-popover {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+    border: 1px solid #374151 !important;
+    box-shadow: 0 20px 50px rgb(0 0 0 / 0.55) !important;
+  }
+
+  .wt-tour-popover-dark .driver-popover-title,
+  .dark .wt-tour-popover .driver-popover-title {
+    color: #f9fafb !important;
+  }
+
+  .wt-tour-popover-dark .driver-popover-description,
+  .dark .wt-tour-popover .driver-popover-description {
+    color: #d1d5db !important;
+  }
+
+  .wt-tour-popover-dark .driver-popover-progress-text,
+  .dark .wt-tour-popover .driver-popover-progress-text {
+    color: #9ca3af !important;
+  }
+
+  .wt-tour-popover-dark .driver-popover-close-btn,
+  .dark .wt-tour-popover .driver-popover-close-btn {
+    color: #9ca3af !important;
+  }
+
+  .wt-tour-popover-dark .driver-popover-close-btn:hover,
+  .dark .wt-tour-popover .driver-popover-close-btn:hover {
+    color: #f3f4f6 !important;
+  }
+
+  .wt-tour-popover-dark .driver-popover-footer button,
+  .dark .wt-tour-popover .driver-popover-footer button {
+    background-color: #374151 !important;
+    color: #f3f4f6 !important;
+    border: 1px solid #4b5563 !important;
+    text-shadow: none !important;
+  }
+
+  .wt-tour-popover-dark .driver-popover-footer .driver-popover-next-btn,
+  .dark .wt-tour-popover .driver-popover-footer .driver-popover-next-btn,
+  .wt-tour-popover-dark .driver-popover-footer .driver-popover-done-btn,
+  .dark .wt-tour-popover .driver-popover-footer .driver-popover-done-btn {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    color: #fff !important;
+  }
+
   .wt-tour-popover .driver-popover-title {
     font-size: 1.05rem !important;
     font-weight: 700 !important;
@@ -153,6 +203,14 @@
 
   .wt-tour-skip-btn:hover {
     background: rgb(0 0 0 / 0.06);
+  }
+
+  .dark .wt-tour-skip-btn {
+    color: #9ca3af;
+  }
+
+  .dark .wt-tour-skip-btn:hover {
+    background: rgb(255 255 255 / 0.08);
   }
 
   .driver-active-element {
