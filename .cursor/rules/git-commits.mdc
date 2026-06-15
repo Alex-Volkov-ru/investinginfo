@@ -1,0 +1,10 @@
+---
+description: Git commits must not attribute Cursor as co-author
+alwaysApply: true
+---
+
+# Git commits
+
+- Never add `Co-authored-by: Cursor` or any Cursor/agent attribution to commit messages.
+- Commits must be authored only as the repository owner (Alex Volkov).
+- When creating commits, use only the commit message body — no co-author trailers.
