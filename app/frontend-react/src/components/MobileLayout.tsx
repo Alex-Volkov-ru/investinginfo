@@ -8,6 +8,7 @@ import { TourHelpButton } from './tour/TourHelpButton';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { userService } from '../services/userService';
+import { authService } from '../lib/auth';
 
 export const MobileLayout: React.FC = () => {
   const { user, logout, updateUser } = useAuth();
@@ -70,6 +71,22 @@ export const MobileLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 safe-area-top">
+      {authService.isImpersonating() && (
+        <div className="impersonation-banner bg-amber-500 text-amber-950 sticky top-0 z-[60]">
+          <span className="truncate min-w-0">Просмотр: {user?.email}</span>
+          <button
+            type="button"
+            className="shrink-0 underline font-medium min-h-[36px] px-2"
+            onClick={() => {
+              if (authService.stopImpersonation()) {
+                window.location.href = '/admin_mobile';
+              }
+            }}
+          >
+            В админку
+          </button>
+        </div>
+      )}
       {/* Compact Header for Telegram */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="px-4 py-3">
@@ -108,21 +125,23 @@ export const MobileLayout: React.FC = () => {
         </div>
 
         {/* Bottom Navigation Bar */}
-        <nav className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800" data-tour="mobile-nav">
-          <div className="flex justify-around">
+        <nav className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pb-safe-bottom" data-tour="mobile-nav">
+          <div className="admin-mobile-nav flex overflow-x-auto">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}
                 title={'title' in item ? item.title : undefined}
-                className={`flex flex-col items-center justify-center px-2 py-3 flex-1 min-h-[60px] transition-colors active:bg-gray-100 dark:active:bg-gray-700 ${
+                className={`admin-mobile-nav-link transition-colors active:bg-gray-100 dark:active:bg-gray-700 ${
                   isActive(item.href)
                     ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20'
                     : 'text-gray-600 dark:text-gray-400'
                 }`}
               >
                 <BootstrapIcon name={item.icon} size={20} />
-                <span className="text-xs mt-1 font-medium whitespace-nowrap">{item.name}</span>
+                <span className="text-[10px] sm:text-xs mt-1 font-medium text-center leading-tight max-w-full truncate px-0.5">
+                  {item.name}
+                </span>
               </Link>
             ))}
           </div>
@@ -130,7 +149,7 @@ export const MobileLayout: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="pb-20">
+      <main className="pb-24 pb-safe-bottom">
         {location.pathname !== '/monthly_report_mobile' && (
           <div className="px-3 pt-3">
             <MonthlyReviewBanner compact />

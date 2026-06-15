@@ -423,5 +423,132 @@
   .admin-checkbox-label {
     @apply flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 h-9;
   }
+
+  /* Admin page layout */
+  .admin-page {
+    @apply max-w-full overflow-x-hidden;
+  }
+
+  .admin-tabs-bar {
+    @apply flex gap-2 overflow-x-auto pb-1 -mx-1 px-1;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .admin-tabs-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-tab-btn {
+    @apply shrink-0 min-h-[44px] px-3 whitespace-nowrap;
+  }
+
+  .admin-mobile-nav {
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-mobile-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-mobile-nav-link {
+    @apply flex flex-col items-center justify-center flex-shrink-0 min-w-[4.25rem] max-w-[5.25rem] px-1.5 py-2.5 min-h-[56px];
+  }
+
+  .admin-mobile-stack {
+    @apply flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center sm:justify-between;
+  }
+
+  .admin-mobile-stack-actions {
+    @apply flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto;
+  }
+
+  .admin-mobile-stack-actions .btn {
+    @apply w-full sm:w-auto min-h-[44px];
+  }
+
+  .impersonation-banner {
+    @apply text-xs sm:text-sm px-3 py-2 flex items-center justify-between gap-2;
+  }
+
+  .mobile-sheet {
+    @apply fixed inset-x-0 bottom-0 z-50 w-full max-h-[92vh] overflow-y-auto custom-scrollbar
+           bg-white dark:bg-gray-800 rounded-t-2xl shadow-xl pb-safe-bottom;
+  }
+
+  .mobile-sheet-header {
+    @apply sticky top-0 z-10 flex items-start justify-between gap-3 p-4 border-b border-gray-200 dark:border-gray-700
+           bg-white dark:bg-gray-800;
+  }
+
+  .mobile-sheet-body {
+    @apply p-4 space-y-4;
+  }
+
+  .mobile-sheet-footer {
+    @apply flex flex-col-reverse sm:flex-row sm:justify-end gap-2 p-4 border-t border-gray-200 dark:border-gray-700;
+  }
+
+  .mobile-sheet-footer .btn {
+    @apply w-full sm:w-auto min-h-[44px];
+  }
+
+  @media (max-width: 640px) {
+    .admin-page .card {
+      @apply p-3 shadow-sm;
+    }
+
+    .admin-page h1 {
+      @apply text-xl;
+    }
+
+    .admin-table-head th {
+      @apply px-2 py-2 text-[10px];
+    }
+
+    .admin-table-body td {
+      @apply px-2 py-2 text-xs;
+    }
+
+    .admin-section-header {
+      @apply flex-col items-stretch gap-2;
+    }
+
+    .admin-toolbar {
+      @apply flex-col items-stretch gap-3 p-3;
+    }
+
+    .admin-toolbar-right {
+      @apply w-full;
+    }
+
+    .admin-toolbar-right .btn {
+      @apply flex-1 min-h-[44px];
+    }
+
+    .admin-form-row {
+      @apply flex-col items-stretch p-3;
+    }
+
+    .admin-input,
+    .admin-select,
+    .admin-input-wide,
+    .admin-select-wide {
+      @apply w-full;
+    }
+
+    .admin-stat-grid {
+      @apply grid-cols-1 gap-2 p-3;
+    }
+
+    .admin-page .btn {
+      min-height: 44px;
+    }
+
+    .admin-page input[type='checkbox'] {
+      @apply w-5 h-5;
+    }
+  }
 }
 

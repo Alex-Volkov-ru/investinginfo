@@ -252,45 +252,33 @@ const AdminPage = () => {
   }
 
   return (
-    <div className="px-4 py-4 md:px-0 md:py-0 space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">Админ</h1>
-        <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate max-w-[50%] text-right">
+    <div className="admin-page px-3 py-3 md:px-0 md:py-0 space-y-3 md:space-y-6">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 shrink-0">Админ</h1>
+        <div className="text-[11px] md:text-sm text-gray-600 dark:text-gray-400 truncate max-w-[55%] text-right">
           {user?.email}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2" data-tour="admin-tabs">
-        <button
-          className={`btn text-xs md:text-sm ${activeTab === 'backups' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('backups')}
-        >
-          Бэкапы
-        </button>
-        <button
-          className={`btn text-xs md:text-sm ${activeTab === 'users' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('users')}
-        >
-          Пользователи
-        </button>
-        <button
-          className={`btn text-xs md:text-sm ${activeTab === 'investments' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('investments')}
-        >
-          Инвестиции
-        </button>
-        <button
-          className={`btn text-xs md:text-sm ${activeTab === 'budget' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('budget')}
-        >
-          Бюджет
-        </button>
-        <button
-          className={`btn text-xs md:text-sm ${activeTab === 'obligations' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('obligations')}
-        >
-          Обязательства
-        </button>
+      <div className="admin-tabs-bar" data-tour="admin-tabs">
+        {(
+          [
+            ['backups', 'Бэкапы'],
+            ['users', 'Пользователи'],
+            ['investments', 'Инвестиции'],
+            ['budget', 'Бюджет'],
+            ['obligations', 'Обязательства'],
+          ] as const
+        ).map(([tab, label]) => (
+          <button
+            key={tab}
+            type="button"
+            className={`admin-tab-btn btn text-xs md:text-sm ${activeTab === tab ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div data-tour="admin-content">
@@ -301,7 +289,7 @@ const AdminPage = () => {
               <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">Бэкапы</div>
               <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Управление бэкапами БД.
-                <span className="ml-1">
+                <span className="hidden sm:inline ml-1">
                   «Ротация» — удаление старых бэкапов по правилу хранения (например, старше 30 дней).
                 </span>
               </div>
@@ -460,20 +448,22 @@ const AdminPage = () => {
                 Управление пользователями системы
               </div>
             </div>
-            <button
-              className="btn btn-secondary w-full sm:w-auto text-xs md:text-sm"
-              onClick={() => void loadUsers()}
-              disabled={usersLoading}
-            >
-              Обновить
-            </button>
-            <button
-              className="btn btn-secondary w-full sm:w-auto text-xs md:text-sm"
-              onClick={() => void adminService.bulkExportUsers(Array.from(selectedUserIds))}
-              disabled={usersLoading}
-            >
-              Экспорт CSV
-            </button>
+            <div className="admin-mobile-stack-actions">
+              <button
+                className="btn btn-secondary text-xs md:text-sm"
+                onClick={() => void loadUsers()}
+                disabled={usersLoading}
+              >
+                Обновить
+              </button>
+              <button
+                className="btn btn-secondary text-xs md:text-sm"
+                onClick={() => void adminService.bulkExportUsers(Array.from(selectedUserIds))}
+                disabled={usersLoading}
+              >
+                Экспорт CSV
+              </button>
+            </div>
           </div>
 
           <div className="mb-4 space-y-3">
@@ -711,22 +701,19 @@ const AdminPage = () => {
       )}
 
       {activeTab === 'investments' && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 px-1">Инвестиции</h2>
+        <div className="card !p-3 md:!p-6">
           <AdminInvestmentsTab />
         </div>
       )}
 
       {activeTab === 'budget' && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 px-1">Бюджет</h2>
+        <div className="card !p-3 md:!p-6">
           <AdminBudgetTab users={users} />
         </div>
       )}
 
       {activeTab === 'obligations' && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 px-1">Обязательства</h2>
+        <div className="card !p-3 md:!p-6">
           <AdminObligationsTab users={users} />
         </div>
       )}
@@ -772,8 +759,8 @@ const AdminPage = () => {
       )}
 
       {editingUser && editField && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-sm p-5">
+        <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-lg shadow-lg w-full sm:max-w-sm p-5 pb-safe-bottom">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               {editField === 'name' ? 'Изменить имя' : 'Изменить почту'}
             </h2>
@@ -784,13 +771,13 @@ const AdminPage = () => {
                 </label>
                 <input
                   type={editField === 'email' ? 'email' : 'text'}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="input min-h-[44px]"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
                   autoFocus
                 />
               </div>
-              <div className="flex justify-end space-x-2 pt-2">
+              <div className="mobile-sheet-footer !p-0 !border-0">
                 <button
                   type="button"
                   className="btn btn-secondary text-sm"

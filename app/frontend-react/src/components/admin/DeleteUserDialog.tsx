@@ -34,19 +34,26 @@ export const DeleteUserDialog = ({ user, currentUserId, onClose, onDeleted }: Pr
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto custom-scrollbar pb-safe-bottom"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mobile-sheet-header">
           <div>
             <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">Удаление пользователя</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Действие необратимо</p>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700 p-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-gray-700"
+          >
             <BootstrapIcon name="x-lg" size={18} />
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="mobile-sheet-body">
           {isSelf ? (
             <p className="text-sm text-red-600 dark:text-red-400">
               Нельзя удалить свой аккаунт. Попросите другого администратора.
@@ -56,7 +63,7 @@ export const DeleteUserDialog = ({ user, currentUserId, onClose, onDeleted }: Pr
               <p className="text-sm text-gray-700 dark:text-gray-300">
                 Будут удалены все данные пользователя: портфели, бюджет, доски, обязательства.
               </p>
-              <div className="rounded-lg bg-gray-50 dark:bg-gray-900/50 px-3 py-2 text-sm">
+              <div className="rounded-lg bg-gray-50 dark:bg-gray-900/50 px-3 py-2 text-sm break-all">
                 <span className="text-gray-500">Email: </span>
                 <span className="font-medium text-gray-900 dark:text-gray-100">{user.email}</span>
               </div>
@@ -66,7 +73,7 @@ export const DeleteUserDialog = ({ user, currentUserId, onClose, onDeleted }: Pr
                 </label>
                 <input
                   type="email"
-                  className="input text-sm"
+                  className="input text-sm min-h-[44px]"
                   placeholder={user.email}
                   value={confirmEmail}
                   onChange={(e) => setConfirmEmail(e.target.value)}
@@ -77,7 +84,7 @@ export const DeleteUserDialog = ({ user, currentUserId, onClose, onDeleted }: Pr
           )}
         </div>
 
-        <div className="flex justify-end gap-2 p-5 border-t border-gray-200 dark:border-gray-700">
+        <div className="mobile-sheet-footer">
           <button type="button" className="btn btn-secondary text-sm" onClick={onClose} disabled={deleting}>
             Отмена
           </button>
