@@ -47,7 +47,16 @@ export const AdminInvestmentsTab = () => {
     setRefreshing(true);
     try {
       const res = await adminService.refreshQuotes();
-      toast.success(`Обновлено: ${res.updated}, ошибок: ${res.failed}`);
+      if (res.errors.length > 0) {
+        toast.error(`Ошибки: ${res.errors.slice(0, 2).join('; ')}`);
+      }
+      if (res.updated > 0) {
+        toast.success(`Котировки: ${res.updated} обновлено${res.failed ? `, ошибок: ${res.failed}` : ''}`);
+      } else if (res.failed > 0) {
+        toast.error(`Не удалось обновить котировки (${res.failed} FIGI)`);
+      } else {
+        toast.success('Нет позиций для обновления');
+      }
     } finally {
       setRefreshing(false);
     }

@@ -493,6 +493,7 @@ async def refresh_quotes(
     admin: User = Depends(get_staff_user),
     db: Session = Depends(get_db),
     user_id: Optional[int] = Query(None),
+    refresh_cache: bool = Query(False, description="Полностью обновить кэш инструментов Tinkoff (долго)"),
 ):
     token = market_settings.TINKOFF_TOKEN
     if not token and user_id:
@@ -505,27 +506,48 @@ async def refresh_quotes(
             token = decrypt_token(admin_user.tinkoff_token_enc or "")
 
     if not token:
-        raise HTTPException(400, "Нет доступного Tinkoff токена для обновления котировок")
+        raise HTTPException(HTTP_400_BAD_REQUEST, "Нет доступного Tinkoff токена для обновления котировок")
 
     figis = [r[0] for r in db.query(Position.figi).distinct().all() if r[0]]
     if not figis:
         return RefreshQuotesResult(updated=0, failed=0, errors=[])
 
-    await run_in_threadpool(refresh_instruments_cache, token)
     updated = 0
     failed = 0
     errors: list[str] = []
+
+    if refresh_cache:
+        try:
+            await run_in_threadpool(refresh_instruments_cache, token)
+        except Exception as e:
+            errors.append(f"Кэш инструментов: {str(e)[:120]}")
+
     batch_size = 50
     for i in range(0, len(figis), batch_size):
         batch = figis[i : i + batch_size]
         try:
             prices = await run_in_threadpool(_get_last_prices_blocking, batch, token)
             updated += len(prices)
+            failed += len(batch) - len(prices)
         except Exception as e:
             failed += len(batch)
             errors.append(str(e)[:100])
 
-    log_admin_action(db, admin, "refresh_quotes", user_id, {"updated": updated, "failed": failed})
+    try:
+        db.refresh(admin)
+        log_admin_action(
+            db,
+            admin,
+            "refresh_quotes",
+            user_id,
+            {"updated": updated, "failed": failed, "figis": len(figis)},
+        )
+    except Exception:
+        db.rollback()
+
+    if updated == 0 and failed > 0 and not errors:
+        errors.append("Tinkoff API не вернул котировки — проверьте токен")
+
     return RefreshQuotesResult(updated=updated, failed=failed, errors=errors[:10])
 
 

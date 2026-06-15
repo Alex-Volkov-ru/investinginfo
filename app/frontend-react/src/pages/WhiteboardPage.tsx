@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { AddCardModal } from '../components/whiteboard/AddCardModal';
@@ -38,6 +39,11 @@ import { whiteboardService } from '../services/whiteboardService';
 import { BudgetAccount, BudgetCategory, WhiteboardItem, WhiteboardListItem, WhiteboardZone } from '../types';
 
 const WhiteboardPage = () => {
+  const location = useLocation();
+  const isMobileBoard =
+    location.pathname.includes('whiteboard_mobile') ||
+    (typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches);
+
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; startX: number; startY: number; itemX: number; itemY: number } | null>(null);
   const resizeRef = useRef<{ id: string; startX: number; startY: number; startW: number; startH: number } | null>(null);
@@ -59,7 +65,7 @@ const WhiteboardPage = () => {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [resizingId, setResizingId] = useState<string | null>(null);
 
-  const [gridMode, setGridMode] = useState(false);
+  const [gridMode, setGridMode] = useState(isMobileBoard);
   const [zonesVisible, setZonesVisible] = useState(false);
   const [drawingEnabled, setDrawingEnabled] = useState(false);
   const [showBoardPicker, setShowBoardPicker] = useState(false);
@@ -180,6 +186,13 @@ const WhiteboardPage = () => {
   useEffect(() => {
     loadInitial();
   }, [loadInitial]);
+
+  useEffect(() => {
+    if (isMobileBoard) {
+      setGridMode(true);
+      setDrawingEnabled(false);
+    }
+  }, [isMobileBoard]);
 
   useEffect(() => {
     if (!showBoardPicker) return;
@@ -464,9 +477,16 @@ const WhiteboardPage = () => {
   }
 
   return (
-    <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-8 flex flex-col min-h-[calc(100vh-4rem)]">
-      <div className="flex flex-col gap-3 p-4 sm:p-6 border-b-2 border-gray-300 dark:border-gray-700 bg-slate-100 dark:bg-gray-900">
+    <div
+      className={
+        isMobileBoard
+          ? 'flex flex-col min-h-0 whiteboard-mobile'
+          : '-mx-4 sm:-mx-6 lg:-mx-8 -my-8 flex flex-col min-h-[calc(100vh-4rem)]'
+      }
+    >
+      <div className={`flex flex-col gap-3 border-b-2 border-gray-300 dark:border-gray-700 bg-slate-100 dark:bg-gray-900 ${isMobileBoard ? 'p-3' : 'p-4 sm:p-6'}`}>
         <BoardToolbar
+          isMobile={isMobileBoard}
           boardName={boardName}
           boardList={boardList}
           currentBoardId={boardId}
@@ -528,9 +548,9 @@ const WhiteboardPage = () => {
       <div
         ref={boardRef}
         data-tour="whiteboard-canvas"
-        className={`relative flex-1 min-h-[480px] overflow-auto custom-scrollbar whiteboard-grid ${
+        className={`relative flex-1 overflow-auto custom-scrollbar whiteboard-grid ${
           gridMode ? 'whiteboard-grid-active' : ''
-        }`}
+        } ${isMobileBoard ? 'min-h-[360px]' : 'min-h-[480px]'}`}
         onDoubleClick={handleBoardDoubleClick}
       >
         <BoardZones
@@ -560,7 +580,7 @@ const WhiteboardPage = () => {
         )}
 
         {gridMode ? (
-          <div className="relative z-10 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={`relative z-10 grid grid-cols-1 gap-3 ${isMobileBoard ? 'p-3' : 'p-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4'}`}>
             {budgetCard && renderCard(budgetCard, -1)}
             {cardItems.map((item, i) => renderCard(item, i))}
           </div>
@@ -571,7 +591,7 @@ const WhiteboardPage = () => {
           </div>
         )}
 
-        <div className="fixed bottom-4 right-4 z-40">
+        <div className={`fixed z-40 ${isMobileBoard ? 'bottom-20 right-3' : 'bottom-4 right-4'}`}>
           <CalculatorWidget
             onSendToBoard={(amount) => addCard('expense', { title: `Калькулятор: ${amount}`, amount })}
           />

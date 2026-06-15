@@ -227,18 +227,18 @@ export function BoardCard({
               <button
                 type="button"
                 onClick={() => setEditing((v) => !v)}
-                className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className={`rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 ${isMobile ? 'p-2 min-w-[36px] min-h-[36px]' : 'p-1'}`}
                 aria-label="Редактировать"
               >
-                <Pencil className="h-3.5 w-3.5" />
+                <Pencil className={isMobile ? 'h-4 w-4' : 'h-3.5 w-3.5'} />
               </button>
               <button
                 type="button"
                 onClick={() => onDelete(item.id)}
-                className="p-1 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
+                className={`rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 ${isMobile ? 'p-2 min-w-[36px] min-h-[36px]' : 'p-1'}`}
                 aria-label="Удалить"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className={isMobile ? 'h-4 w-4' : 'h-3.5 w-3.5'} />
               </button>
             </div>
           )}
@@ -340,7 +340,9 @@ export function BoardCard({
         {!gridMode && (
           <div
             data-resize-handle
-            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize flex items-end justify-end p-0.5 opacity-70 group-hover:opacity-100 z-10"
+            className={`absolute bottom-0 right-0 cursor-se-resize flex items-end justify-end z-10 ${
+              isMobile ? 'w-8 h-8 p-1 opacity-90' : 'w-5 h-5 p-0.5 opacity-70 group-hover:opacity-100'
+            }`}
             onPointerDown={(e) => {
               e.stopPropagation();
               e.preventDefault();

@@ -550,5 +550,13 @@
       @apply w-5 h-5;
     }
   }
+
+  .whiteboard-mobile .btn {
+    min-height: 44px;
+  }
+
+  .whiteboard-mobile [data-board-card] {
+    touch-action: manipulation;
+  }
 }
 
