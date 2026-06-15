@@ -29,6 +29,7 @@ import {
   sanitizeBoardItems,
   sortItemsForDisplay,
   suggestCardPosition,
+  snapCardPosition,
   defaultItemColor,
 } from '../lib/whiteboardUtils';
 import { BOARD_TEMPLATES, applyTemplate } from '../lib/whiteboardTemplates';
@@ -59,7 +60,7 @@ const WhiteboardPage = () => {
   const [resizingId, setResizingId] = useState<string | null>(null);
 
   const [gridMode, setGridMode] = useState(false);
-  const [zonesVisible, setZonesVisible] = useState(true);
+  const [zonesVisible, setZonesVisible] = useState(false);
   const [drawingEnabled, setDrawingEnabled] = useState(false);
   const [showBoardPicker, setShowBoardPicker] = useState(false);
   const { startTour } = useTour();
@@ -158,7 +159,7 @@ const WhiteboardPage = () => {
       setBoardList(list);
       if (latest) {
         applyBoard(latest);
-        if (!latest.zones?.length) setZonesVisible(false);
+        setZonesVisible(false);
       } else {
         setBoardId(null);
         setBoardName(defaultBoardName());
@@ -266,22 +267,20 @@ const WhiteboardPage = () => {
       }
       if (!dragRef.current || gridMode) return;
       const { id, startX, startY, itemX, itemY } = dragRef.current;
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === id
-            ? {
-                ...it,
-                x: Math.max(0, itemX + e.clientX - startX),
-                y: Math.max(0, itemY + e.clientY - startY),
-              }
-            : it
-        )
-      );
+      setItems((prev) => {
+        const target = prev.find((it) => it.id === id);
+        const w = target?.width ?? MIN_CARD_WIDTH;
+        const h = target?.height ?? MIN_CARD_HEIGHT;
+        const rawX = Math.max(0, itemX + e.clientX - startX);
+        const rawY = Math.max(0, itemY + e.clientY - startY);
+        const snapped = snapCardPosition(rawX, rawY, w, h, id, prev);
+        return prev.map((it) => (it.id === id ? { ...it, x: snapped.x, y: snapped.y } : it));
+      });
       markDirty();
     };
 
     const onUp = () => {
-      if (dragRef.current && !gridMode && zones.length > 0) {
+      if (dragRef.current && !gridMode && zonesVisible && zones.length > 0) {
         const { id } = dragRef.current;
         setItems((prev) =>
           prev.map((it) => {
@@ -303,7 +302,7 @@ const WhiteboardPage = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [gridMode, markDirty, zones]);
+  }, [gridMode, markDirty, zones, zonesVisible]);
 
   const addCard = (
     kind: 'expense' | 'income',
@@ -324,10 +323,12 @@ const WhiteboardPage = () => {
       color: defaultItemColor(kind, kindCount),
       x: pos.x,
       y: pos.y,
-      zone_id: detectZoneForItem(
-        { x: pos.x, y: pos.y, width: 180, height: 100 } as WhiteboardItem,
-        zones
-      ),
+      zone_id: zonesVisible
+        ? detectZoneForItem(
+            { x: pos.x, y: pos.y, width: 180, height: 100 } as WhiteboardItem,
+            zones
+          )
+        : null,
     });
     commitChange(() => setItems((prev) => ensureBudgetCard([...prev, item], budget)));
   };
@@ -402,6 +403,7 @@ const WhiteboardPage = () => {
 
   const loadBoardById = async (id: number) => {
     applyBoard(await whiteboardService.getById(id));
+    setZonesVisible(false);
     setShowBoardPicker(false);
     toast.success('Доска загружена');
   };
@@ -416,6 +418,7 @@ const WhiteboardPage = () => {
       isResizing={resizingId === item.id}
       categories={categories}
       zones={zones}
+      zonesVisible={zonesVisible}
       onUpdate={(id, patch) => {
         commitChange(() =>
           setItems((prev) => ensureBudgetCard(
@@ -616,6 +619,7 @@ const WhiteboardPage = () => {
                   setItems([]);
                   setZones([]);
                   setCanvasData(null);
+                  setZonesVisible(false);
                 });
                 setShowNewBoardModal(false);
               })()}
@@ -633,6 +637,7 @@ const WhiteboardPage = () => {
                     setItems([]);
                     setZones([]);
                     setCanvasData(null);
+                    setZonesVisible(false);
                   });
                   setShowNewBoardModal(false);
                 }}

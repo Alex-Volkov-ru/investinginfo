@@ -74,6 +74,10 @@ export const MIN_ZONE_HEIGHT = 96;
 
 export const AUTO_SAVE_INTERVAL_MS = 30_000;
 
+export const BOARD_GRID_SIZE = 16;
+export const SNAP_THRESHOLD = 12;
+export const CARD_SNAP_GAP = 12;
+
 export const DEFAULT_ZONES: WhiteboardZone[] = [
   {
     id: 'zone_must',
@@ -247,4 +251,71 @@ export function detectZoneForItem(item: WhiteboardItem, zones: WhiteboardZone[])
 export function zoneColor(zoneId: string | null | undefined, zones: WhiteboardZone[]): string | undefined {
   if (!zoneId) return undefined;
   return zones.find((z) => z.id === zoneId)?.color;
+}
+
+/** Магнитное выравнивание к другим карточкам и сетке при перетаскивании */
+export function snapCardPosition(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  draggingId: string,
+  items: WhiteboardItem[]
+): { x: number; y: number } {
+  let nx = x;
+  let ny = y;
+  let minDx = SNAP_THRESHOLD + 1;
+  let minDy = SNAP_THRESHOLD + 1;
+
+  for (const raw of items) {
+    if (raw.id === draggingId) continue;
+    const it = normalizeItem(raw);
+    const ow = it.width ?? DEFAULT_CARD_WIDTH;
+    const oh = it.height ?? DEFAULT_CARD_HEIGHT;
+    const ox = it.x;
+    const oy = it.y;
+    const or = ox + ow;
+    const ob = oy + oh;
+
+    const xTargets = [
+      ox,
+      or - width,
+      or + CARD_SNAP_GAP,
+      ox - width - CARD_SNAP_GAP,
+      ox + (ow - width) / 2,
+    ];
+    for (const tx of xTargets) {
+      const d = Math.abs(x - tx);
+      if (d <= SNAP_THRESHOLD && d < minDx) {
+        minDx = d;
+        nx = tx;
+      }
+    }
+
+    const yTargets = [
+      oy,
+      ob - height,
+      ob + CARD_SNAP_GAP,
+      oy - height - CARD_SNAP_GAP,
+      oy + (oh - height) / 2,
+    ];
+    for (const ty of yTargets) {
+      const d = Math.abs(y - ty);
+      if (d <= SNAP_THRESHOLD && d < minDy) {
+        minDy = d;
+        ny = ty;
+      }
+    }
+  }
+
+  if (minDx > SNAP_THRESHOLD) {
+    const gx = Math.round(x / BOARD_GRID_SIZE) * BOARD_GRID_SIZE;
+    if (Math.abs(x - gx) <= SNAP_THRESHOLD) nx = gx;
+  }
+  if (minDy > SNAP_THRESHOLD) {
+    const gy = Math.round(y / BOARD_GRID_SIZE) * BOARD_GRID_SIZE;
+    if (Math.abs(y - gy) <= SNAP_THRESHOLD) ny = gy;
+  }
+
+  return { x: Math.max(0, Math.round(nx)), y: Math.max(0, Math.round(ny)) };
 }

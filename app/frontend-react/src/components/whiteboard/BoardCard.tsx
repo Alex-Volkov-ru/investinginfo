@@ -20,6 +20,7 @@ interface BoardCardProps {
   isResizing: boolean;
   categories: BudgetCategory[];
   zones: WhiteboardZone[];
+  zonesVisible: boolean;
   onUpdate: (id: string, patch: Partial<WhiteboardItem>) => void;
   onDelete: (id: string) => void;
   onDragStart: (id: string, clientX: number, clientY: number) => void;
@@ -34,6 +35,7 @@ export function BoardCard({
   isResizing,
   categories,
   zones,
+  zonesVisible,
   onUpdate,
   onDelete,
   onDragStart,
@@ -46,7 +48,7 @@ export function BoardCard({
   const isBudget = item.kind === 'budget';
   const isIncome = isIncomeItem(item);
   const markerColor = itemMarkerColor(item, index);
-  const zColor = zoneColor(item.zone_id, zones);
+  const zColor = zonesVisible ? zoneColor(item.zone_id, zones) : undefined;
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
 
   const width = item.width ?? 180;
