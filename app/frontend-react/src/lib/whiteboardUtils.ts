@@ -319,3 +319,55 @@ export function snapCardPosition(
 
   return { x: Math.max(0, Math.round(nx)), y: Math.max(0, Math.round(ny)) };
 }
+
+export interface ExportPreview {
+  incomeCount: number;
+  expenseCount: number;
+  readyCount: number;
+  skippedNoCategory: number;
+  skippedZeroAmount: number;
+  incomeTotal: number;
+  expenseTotal: number;
+}
+
+/** Предпросмотр экспорта доски в бюджет (логика совпадает с backend export). */
+export function summarizeExportItems(items: WhiteboardItem[]): ExportPreview {
+  let incomeCount = 0;
+  let expenseCount = 0;
+  let readyCount = 0;
+  let skippedNoCategory = 0;
+  let skippedZeroAmount = 0;
+  let incomeTotal = 0;
+  let expenseTotal = 0;
+
+  for (const item of items) {
+    if (!isCardItem(item)) continue;
+    const amount = Number(item.amount) || 0;
+    if (isIncomeItem(item)) {
+      incomeCount += 1;
+      incomeTotal += amount;
+    } else {
+      expenseCount += 1;
+      expenseTotal += amount;
+    }
+    if (amount <= 0) {
+      skippedZeroAmount += 1;
+      continue;
+    }
+    if (!item.category_id) {
+      skippedNoCategory += 1;
+      continue;
+    }
+    readyCount += 1;
+  }
+
+  return {
+    incomeCount,
+    expenseCount,
+    readyCount,
+    skippedNoCategory,
+    skippedZeroAmount,
+    incomeTotal,
+    expenseTotal,
+  };
+}

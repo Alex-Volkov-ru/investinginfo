@@ -11,6 +11,7 @@ import { CalculatorWidget } from '../components/whiteboard/CalculatorWidget';
 import { DrawingCanvas } from '../components/whiteboard/DrawingCanvas';
 import { ExportToBudgetModal } from '../components/whiteboard/ExportToBudgetModal';
 import { TemplatePickerModal } from '../components/whiteboard/TemplatePickerModal';
+import { WhiteboardHelp, dismissHelp, isHelpDismissed } from '../components/whiteboard/WhiteboardHelp';
 import { useBoardUndo } from '../hooks/useBoardUndo';
 import { useTour } from '../contexts/TourContext';
 import {
@@ -32,6 +33,7 @@ import {
   suggestCardPosition,
   snapCardPosition,
   defaultItemColor,
+  summarizeExportItems,
 } from '../lib/whiteboardUtils';
 import { BOARD_TEMPLATES, applyTemplate } from '../lib/whiteboardTemplates';
 import { budgetService } from '../services/budgetService';
@@ -70,6 +72,8 @@ const WhiteboardPage = () => {
   const [drawingEnabled, setDrawingEnabled] = useState(false);
   const [showBoardPicker, setShowBoardPicker] = useState(false);
   const { startTour } = useTour();
+  const [showHelpBanner, setShowHelpBanner] = useState(() => !isHelpDismissed());
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [addCardKind, setAddCardKind] = useState<'expense' | 'income' | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -94,6 +98,7 @@ const WhiteboardPage = () => {
   );
   const budgetCard = useMemo(() => items.find((i) => i.kind === 'budget'), [items]);
   const cardItems = useMemo(() => sortItemsForDisplay(items.filter(isCardItem)), [items]);
+  const exportPreview = useMemo(() => summarizeExportItems(cardItems), [cardItems]);
 
   const getSnapshot = useCallback(
     () => ({ items, zones, budget, canvasData, boardName }),
@@ -404,7 +409,10 @@ const WhiteboardPage = () => {
       });
       toast.success(`Создано транзакций: ${result.created}`);
       if (result.skipped > 0) {
-        toast.error(`Пропущено: ${result.skipped}. Назначьте категории карточкам.`);
+        const detail = result.messages?.length
+          ? result.messages.slice(0, 2).join(' · ')
+          : 'Назначьте категории карточкам.';
+        toast.error(`Пропущено: ${result.skipped}. ${detail}`, { duration: 6000 });
       }
       setShowExportModal(false);
     } catch {
@@ -485,6 +493,16 @@ const WhiteboardPage = () => {
       }
     >
       <div className={`flex flex-col gap-3 border-b-2 border-gray-300 dark:border-gray-700 bg-slate-100 dark:bg-gray-900 ${isMobileBoard ? 'p-3' : 'p-4 sm:p-6'}`}>
+        <WhiteboardHelp
+          showBanner={showHelpBanner && !loading}
+          showModal={showHelpModal}
+          onDismissBanner={() => {
+            dismissHelp();
+            setShowHelpBanner(false);
+          }}
+          onOpenModal={() => setShowHelpModal(true)}
+          onCloseModal={() => setShowHelpModal(false)}
+        />
         <BoardToolbar
           isMobile={isMobileBoard}
           boardName={boardName}
@@ -636,6 +654,7 @@ const WhiteboardPage = () => {
         isOpen={showExportModal}
         accounts={accounts}
         loading={exporting}
+        preview={exportPreview}
         onClose={() => setShowExportModal(false)}
         onExport={handleExport}
       />

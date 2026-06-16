@@ -8,7 +8,7 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy import func, and_, or_, cast
 from sqlalchemy.types import Date
 from sqlalchemy.orm import Session
@@ -69,6 +69,38 @@ def _user_or_404(db: Session, user_id: int) -> User:
     if not u:
         raise HTTPException(HTTP_404_NOT_FOUND, ERROR_USER_NOT_FOUND)
     return u
+
+
+def _apply_obligation_template_to_user(
+    db: Session,
+    template: AdminObligationTemplate,
+    user_id: int,
+) -> tuple[int, bool]:
+    existing = db.query(ObligationBlock).filter(
+        ObligationBlock.user_id == user_id,
+        ObligationBlock.title == template.title,
+        ObligationBlock.total == template.total,
+        ObligationBlock.monthly == template.monthly,
+        ObligationBlock.rate == template.rate,
+        ObligationBlock.due_day == template.due_day,
+        ObligationBlock.status == "Активный",
+    ).first()
+    if existing:
+        return existing.id, False
+
+    block = ObligationBlock(
+        user_id=user_id,
+        title=template.title,
+        total=float(template.total or 0),
+        monthly=float(template.monthly or 0),
+        rate=float(template.rate or 0),
+        due_day=template.due_day,
+        notes=template.notes or "",
+        status="Активный",
+    )
+    db.add(block)
+    db.flush()
+    return int(block.id), True
 
 
 # ===== Investments schemas =====
@@ -154,8 +186,7 @@ class CategoryTemplateOut(CategoryTemplateIn):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AdminTransactionOut(BaseModel):
@@ -237,8 +268,7 @@ class ObligationTemplateOut(ObligationTemplateIn):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ===== Users schemas =====
@@ -1052,21 +1082,32 @@ def apply_obligation_template(
     if not t:
         raise HTTPException(HTTP_404_NOT_FOUND, "Шаблон не найден")
     u = _user_or_404(db, user_id)
-    block = ObligationBlock(
-        user_id=u.id,
-        title=t.title,
-        total=float(t.total or 0),
-        monthly=float(t.monthly or 0),
-        rate=float(t.rate or 0),
-        due_day=t.due_day,
-        notes=t.notes or "",
-        status="Активный",
-    )
-    db.add(block)
+    block_id, created = _apply_obligation_template_to_user(db, t, u.id)
     db.commit()
-    db.refresh(block)
-    log_admin_action(db, admin, "apply_obligation_template", u.id, {"template_id": template_id, "block_id": block.id})
-    return {"block_id": block.id}
+    if created:
+        log_admin_action(db, admin, "apply_obligation_template", u.id, {"template_id": template_id, "block_id": block_id})
+    return {"block_id": block_id, "created": created}
+
+
+@router.post("/obligations/templates/apply/{user_id}")
+def apply_all_obligation_templates_to_user(
+    user_id: int,
+    admin: User = Depends(get_staff_user),
+    db: Session = Depends(get_db),
+):
+    u = _user_or_404(db, user_id)
+    templates = db.query(AdminObligationTemplate).order_by(AdminObligationTemplate.id).all()
+    created = 0
+    reused = 0
+    for t in templates:
+        _, is_created = _apply_obligation_template_to_user(db, t, u.id)
+        if is_created:
+            created += 1
+        else:
+            reused += 1
+    db.commit()
+    log_admin_action(db, admin, "apply_all_obligation_templates", u.id, {"created": created, "reused": reused})
+    return {"created": created, "reused": reused}
 
 
 # ===== USERS =====

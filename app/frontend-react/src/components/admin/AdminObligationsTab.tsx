@@ -103,7 +103,18 @@ export const AdminObligationsTab = ({ users }: Props) => {
   const onApplyTemplate = async () => {
     if (!applyTpl || !applyUser) return;
     const r = await adminService.applyObligationTemplate(applyTpl, applyUser);
-    toast.success(`Блок создан #${r.block_id}`);
+    if (r.created === false) {
+      toast(`У пользователя уже есть такой блок (#${r.block_id})`);
+    } else {
+      toast.success(`Блок создан #${r.block_id}`);
+    }
+    await load();
+  };
+
+  const onApplyAllTemplates = async () => {
+    if (!applyUser) return;
+    const r = await adminService.applyAllObligationTemplates(applyUser);
+    toast.success(`Готово: создано ${r.created}, пропущено дублей ${r.reused}`);
     await load();
   };
 
@@ -306,6 +317,8 @@ export const AdminObligationsTab = ({ users }: Props) => {
           <strong>Как применить:</strong> создайте шаблон (название, сумма, платёж/мес, день платежа) →
           внизу выберите шаблон и пользователя → «Создать обязательство».
           У клиента появится блок в его разделе «Обязательства» с этими параметрами — как если бы он сам его добавил.
+          Если такой же шаблон уже применён, повторный блок не создаётся.
+          Кнопка «Скопировать все шаблоны» применяет весь список сразу к выбранному пользователю.
         </AdminHelpHint>
         <AdminFormRow>
           <AdminField label="Название" className="flex-1 min-w-[120px]">
@@ -319,6 +332,16 @@ export const AdminObligationsTab = ({ users }: Props) => {
           </AdminField>
           <AdminField label="Ставка %">
             <input className={adminInputClass} placeholder="0" value={newTpl.rate} onChange={(e) => setNewTpl({ ...newTpl, rate: e.target.value })} />
+          </AdminField>
+          <AdminField label="День платежа">
+            <input
+              className={adminInputClass}
+              type="number"
+              min={1}
+              max={31}
+              value={newTpl.due_day}
+              onChange={(e) => setNewTpl({ ...newTpl, due_day: e.target.value })}
+            />
           </AdminField>
           <button type="button" className="btn btn-primary text-xs min-h-[44px] self-end" onClick={() => void onCreateTemplate()}>
             Добавить
@@ -356,6 +379,9 @@ export const AdminObligationsTab = ({ users }: Props) => {
             </AdminField>
             <button type="button" className="btn btn-secondary text-xs min-h-[44px] self-end" onClick={() => void onApplyTemplate()}>
               Создать обязательство
+            </button>
+            <button type="button" className="btn btn-primary text-xs min-h-[44px] self-end" onClick={() => void onApplyAllTemplates()}>
+              Скопировать все шаблоны
             </button>
           </AdminFormRow>
         )}

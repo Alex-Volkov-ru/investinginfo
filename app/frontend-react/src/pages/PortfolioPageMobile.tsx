@@ -1,18 +1,27 @@
 import { useState, useEffect } from 'react';
 import { BootstrapIcon } from '../components/BootstrapIcon';
 import 'bootstrap-icons/font/bootstrap-icons.css';
+import { format } from 'date-fns';
 import { portfolioService } from '../services/portfolioService';
 import { userService } from '../services/userService';
-import { Portfolio, PositionFull, Quote, ResolveItem } from '../types';
+import { Portfolio, PositionFull, ResolveItem } from '../types';
 import toast from 'react-hot-toast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { PortfolioCharts } from '../components/PortfolioCharts';
+import { usePortfolioQuotes } from '../hooks/usePortfolioQuotes';
+import {
+  countMissingQuotes,
+  hasLiveQuote,
+  positionCurrentPrice,
+  positionMarketValue,
+  positionPnL,
+} from '../lib/portfolioUtils';
 
 const PortfolioPageMobile = () => {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(null);
   const [positions, setPositions] = useState<PositionFull[]>([]);
-  const [quotes, setQuotes] = useState<Record<string, Quote>>({});
+  const { quotes, quotesLoading, quotesError, quotesUpdatedAt, refreshQuotes } = usePortfolioQuotes(positions);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPortfolioTitle, setNewPortfolioTitle] = useState('');
@@ -78,24 +87,6 @@ const PortfolioPageMobile = () => {
     try {
       const positionsData = await portfolioService.getPositionsFull(portfolioId);
       setPositions(positionsData);
-      
-      const tickers = positionsData
-        .map((p) => p.instrument?.ticker)
-        .filter((t): t is string => !!t);
-      
-      if (tickers.length > 0) {
-        portfolioService.getQuotesByTickers(tickers)
-          .then((response) => {
-            const quotesMap: Record<string, Quote> = {};
-            response.results.forEach((quote) => {
-              if (quote.figi) {
-                quotesMap[quote.figi] = quote;
-              }
-            });
-            setQuotes(quotesMap);
-          })
-          .catch(() => {});
-      }
     } catch (error) {
       // Ошибка обработана в interceptor
     } finally {
@@ -288,20 +279,11 @@ const PortfolioPageMobile = () => {
     setShowConfirmDialog(true);
   };
 
-  const calculateTotalValue = () => {
-    return positions.reduce((sum, pos) => {
-      const quote = quotes[pos.figi];
-      const currentPrice = quote?.price || 0;
-      const value = pos.quantity * currentPrice;
-      return sum + value;
-    }, 0);
-  };
+  const calculateTotalValue = () =>
+    positions.reduce((sum, pos) => sum + positionMarketValue(pos, quotes[pos.figi]), 0);
 
-  const calculateTotalCost = () => {
-    return positions.reduce((sum, pos) => {
-      return sum + pos.quantity * pos.avg_price;
-    }, 0);
-  };
+  const calculateTotalCost = () =>
+    positions.reduce((sum, pos) => sum + pos.quantity * pos.avg_price, 0);
 
   const totalValue = calculateTotalValue();
   const totalCost = calculateTotalCost();
@@ -315,13 +297,10 @@ const PortfolioPageMobile = () => {
     other: positions.filter((p) => !p.instrument?.class || !['share', 'bond', 'etf'].includes(p.instrument.class)),
   };
 
-  const calculateGroupValue = (group: PositionFull[]) => {
-    return group.reduce((sum, pos) => {
-      const quote = quotes[pos.figi];
-      const currentPrice = quote?.price || 0;
-      return sum + pos.quantity * currentPrice;
-    }, 0);
-  };
+  const calculateGroupValue = (group: PositionFull[]) =>
+    group.reduce((sum, pos) => sum + positionMarketValue(pos, quotes[pos.figi]), 0);
+
+  const missingQuotes = countMissingQuotes(positions, quotes);
 
   const sharesValue = calculateGroupValue(groupedPositions.shares);
   const bondsValue = calculateGroupValue(groupedPositions.bonds);
@@ -349,6 +328,17 @@ const PortfolioPageMobile = () => {
           >
             <BootstrapIcon name={hasTinkoffToken ? 'check-circle-fill' : 'key-fill'} size={20} />
           </button>
+          {positions.length > 0 && hasTinkoffToken && (
+            <button
+              type="button"
+              onClick={() => void refreshQuotes()}
+              disabled={quotesLoading}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg active:bg-gray-300 dark:active:bg-gray-600 disabled:opacity-50"
+              title="Обновить котировки"
+            >
+              <BootstrapIcon name="arrow-clockwise" size={20} className={quotesLoading ? 'animate-spin' : ''} />
+            </button>
+          )}
           {selectedPortfolio && (
             <button
               data-tour="portfolio-add-position"
@@ -369,6 +359,29 @@ const PortfolioPageMobile = () => {
           </button>
         </div>
       </div>
+
+      {positions.length > 0 && !hasTinkoffToken && (
+        <div className="mx-3 mb-3 rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 text-xs text-yellow-900 dark:text-yellow-100">
+          Подключите токен Tinkoff для котировок. Сейчас — средняя цена покупки.{' '}
+          <button type="button" className="underline font-medium" onClick={() => setShowTokenModal(true)}>
+            Настроить
+          </button>
+        </div>
+      )}
+
+      {positions.length > 0 && hasTinkoffToken && (quotesError || missingQuotes > 0) && !quotesLoading && (
+        <div className="mx-3 mb-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+          {quotesError
+            ? 'Котировки недоступны — показана средняя цена (*).'
+            : `Нет котировок для ${missingQuotes} поз. — средняя цена (*).`}
+        </div>
+      )}
+
+      {positions.length > 0 && hasTinkoffToken && quotesUpdatedAt && (
+        <div className="mx-3 mb-2 text-[11px] text-gray-500 dark:text-gray-400">
+          Котировки обновлены: {format(quotesUpdatedAt, 'dd.MM.yyyy HH:mm')}
+        </div>
+      )}
 
       {portfolios.length === 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center border-2 border-dashed border-gray-200 dark:border-gray-700">
@@ -499,11 +512,10 @@ const PortfolioPageMobile = () => {
                     <div className="divide-y divide-gray-200 dark:divide-gray-700">
                       {groupedPositions.shares.map((position) => {
                         const quote = quotes[position.figi];
-                        const currentPrice = quote?.price || 0;
-                        const value = position.quantity * currentPrice;
-                        const cost = position.quantity * position.avg_price;
-                        const pnl = value - cost;
-                        const pnlPercent = cost > 0 ? (pnl / cost) * 100 : 0;
+                        const live = hasLiveQuote(quote);
+                        const currentPrice = positionCurrentPrice(position, quote);
+                        const value = positionMarketValue(position, quote);
+                        const { pnl, pnlPercent } = positionPnL(position, quote);
                         return (
                           <div key={position.id} className="p-3">
                             <div className="flex justify-between items-start mb-2">
@@ -543,7 +555,11 @@ const PortfolioPageMobile = () => {
                               </div>
                               <div>
                                 <span className="text-gray-500 dark:text-gray-400">Тек. цена:</span>{' '}
-                                <span className="text-gray-900 dark:text-gray-100">{currentPrice > 0 ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' }) : '-'}</span>
+                                <span className="text-gray-900 dark:text-gray-100">
+                                  {live
+                                    ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })
+                                    : `${currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}*`}
+                                </span>
                               </div>
                               <div>
                                 <span className="text-gray-500 dark:text-gray-400">Стоимость:</span>{' '}
@@ -583,11 +599,10 @@ const PortfolioPageMobile = () => {
                     <div className="divide-y divide-gray-200 dark:divide-gray-700">
                       {groupedPositions.bonds.map((position) => {
                         const quote = quotes[position.figi];
-                        const currentPrice = quote?.price || 0;
-                        const value = position.quantity * currentPrice;
-                        const cost = position.quantity * position.avg_price;
-                        const pnl = value - cost;
-                        const pnlPercent = cost > 0 ? (pnl / cost) * 100 : 0;
+                        const live = hasLiveQuote(quote);
+                        const currentPrice = positionCurrentPrice(position, quote);
+                        const value = positionMarketValue(position, quote);
+                        const { pnl, pnlPercent } = positionPnL(position, quote);
                         return (
                           <div key={position.id} className="p-3">
                             <div className="flex justify-between items-start mb-2">
@@ -627,7 +642,11 @@ const PortfolioPageMobile = () => {
                               </div>
                               <div>
                                 <span className="text-gray-500 dark:text-gray-400">Тек. цена:</span>{' '}
-                                <span className="text-gray-900 dark:text-gray-100">{currentPrice > 0 ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' }) : '-'}</span>
+                                <span className="text-gray-900 dark:text-gray-100">
+                                  {live
+                                    ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })
+                                    : `${currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}*`}
+                                </span>
                               </div>
                               <div>
                                 <span className="text-gray-500 dark:text-gray-400">Стоимость:</span>{' '}
@@ -667,11 +686,10 @@ const PortfolioPageMobile = () => {
                     <div className="divide-y divide-gray-200 dark:divide-gray-700">
                       {groupedPositions.etfs.map((position) => {
                         const quote = quotes[position.figi];
-                        const currentPrice = quote?.price || 0;
-                        const value = position.quantity * currentPrice;
-                        const cost = position.quantity * position.avg_price;
-                        const pnl = value - cost;
-                        const pnlPercent = cost > 0 ? (pnl / cost) * 100 : 0;
+                        const live = hasLiveQuote(quote);
+                        const currentPrice = positionCurrentPrice(position, quote);
+                        const value = positionMarketValue(position, quote);
+                        const { pnl, pnlPercent } = positionPnL(position, quote);
                         return (
                           <div key={position.id} className="p-3">
                             <div className="flex justify-between items-start mb-2">
@@ -711,7 +729,11 @@ const PortfolioPageMobile = () => {
                               </div>
                               <div>
                                 <span className="text-gray-500 dark:text-gray-400">Тек. цена:</span>{' '}
-                                <span className="text-gray-900 dark:text-gray-100">{currentPrice > 0 ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' }) : '-'}</span>
+                                <span className="text-gray-900 dark:text-gray-100">
+                                  {live
+                                    ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })
+                                    : `${currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}*`}
+                                </span>
                               </div>
                               <div>
                                 <span className="text-gray-500 dark:text-gray-400">Стоимость:</span>{' '}
@@ -751,11 +773,10 @@ const PortfolioPageMobile = () => {
                     <div className="divide-y divide-gray-200 dark:divide-gray-700">
                       {groupedPositions.other.map((position) => {
                         const quote = quotes[position.figi];
-                        const currentPrice = quote?.price || 0;
-                        const value = position.quantity * currentPrice;
-                        const cost = position.quantity * position.avg_price;
-                        const pnl = value - cost;
-                        const pnlPercent = cost > 0 ? (pnl / cost) * 100 : 0;
+                        const live = hasLiveQuote(quote);
+                        const currentPrice = positionCurrentPrice(position, quote);
+                        const value = positionMarketValue(position, quote);
+                        const { pnl, pnlPercent } = positionPnL(position, quote);
                         return (
                           <div key={position.id} className="p-3">
                             <div className="flex justify-between items-start mb-2">
@@ -795,7 +816,11 @@ const PortfolioPageMobile = () => {
                               </div>
                               <div>
                                 <span className="text-gray-500 dark:text-gray-400">Тек. цена:</span>{' '}
-                                <span className="text-gray-900 dark:text-gray-100">{currentPrice > 0 ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' }) : '-'}</span>
+                                <span className="text-gray-900 dark:text-gray-100">
+                                  {live
+                                    ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })
+                                    : `${currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}*`}
+                                </span>
                               </div>
                               <div>
                                 <span className="text-gray-500 dark:text-gray-400">Стоимость:</span>{' '}

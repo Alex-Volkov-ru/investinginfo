@@ -91,7 +91,14 @@ export const AdminBudgetTab = ({ users }: Props) => {
   };
 
   const onCompare = async () => {
-    if (!compareA || !compareB) return;
+    if (!compareA || !compareB) {
+      toast.error('Выберите двух пользователей');
+      return;
+    }
+    if (compareA === compareB) {
+      toast.error('Выберите разных пользователей');
+      return;
+    }
     const res = await adminService.compareBudget(compareA, compareB);
     setCompareResult(res);
   };
@@ -129,7 +136,14 @@ export const AdminBudgetTab = ({ users }: Props) => {
           </tr>
         </AdminTableHead>
         <AdminTableBody>
-          {dashboard.map((u) => (
+          {dashboard.length === 0 ? (
+            <tr>
+              <td colSpan={7} className="admin-table-empty px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                Нет данных по бюджету за текущий месяц
+              </td>
+            </tr>
+          ) : (
+          dashboard.map((u) => (
             <tr key={u.user_id}>
               <td className="admin-cell-email">
                 <div>{u.email}</div>
@@ -159,7 +173,8 @@ export const AdminBudgetTab = ({ users }: Props) => {
                 </button>
               </td>
             </tr>
-          ))}
+          ))
+          )}
         </AdminTableBody>
       </AdminTableWrap>
 
@@ -210,7 +225,7 @@ export const AdminBudgetTab = ({ users }: Props) => {
         <AdminHelpHint>
           <strong>Как это работает:</strong> создайте шаблон → нажмите «Скопировать пользователю».
           У выбранного клиента появятся такие же категории в разделе «Бюджет» (дубликаты не создаются).
-          Галочка «Авто для новых» — пометка шаблонов, которые планируется выдавать при регистрации;
+          Галочка «Авто для новых» — такие шаблоны теперь автоматически выдаются при регистрации;
           ручное «Скопировать» добавляет <em>все</em> шаблоны из списка ниже.
         </AdminHelpHint>
         <AdminFormRow>
@@ -226,7 +241,7 @@ export const AdminBudgetTab = ({ users }: Props) => {
           <AdminField label="Лимит">
             <input className={adminInputClass} placeholder="0" value={newTpl.monthly_limit} onChange={(e) => setNewTpl({ ...newTpl, monthly_limit: e.target.value })} />
           </AdminField>
-          <label className="admin-checkbox-label self-end pb-1" title="Пометка для будущей автовыдачи при регистрации">
+          <label className="admin-checkbox-label self-end pb-1" title="Новые пользователи получают эти шаблоны автоматически">
             <input type="checkbox" checked={newTpl.apply_to_new_users} onChange={(e) => setNewTpl({ ...newTpl, apply_to_new_users: e.target.checked })} />
             Авто для новых
           </label>
@@ -273,6 +288,9 @@ export const AdminBudgetTab = ({ users }: Props) => {
       </AdminSection>
 
       <AdminSection title="Сравнение пользователей">
+        <AdminHelpHint>
+          Сравните доходы, расходы и число транзакций двух клиентов за текущий месяц.
+        </AdminHelpHint>
         <AdminFormRow>
           <AdminField label="Пользователь A" className="flex-1">
             <select className={`${adminSelectClass} admin-select-wide`} value={compareA} onChange={(e) => setCompareA(Number(e.target.value))}>

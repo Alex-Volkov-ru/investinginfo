@@ -370,8 +370,12 @@ export const adminService = {
   async deleteObligationTemplate(id: number): Promise<void> {
     await apiClient.delete(`/admin/obligations/templates/${id}`);
   },
-  async applyObligationTemplate(templateId: number, userId: number): Promise<{ block_id: number }> {
-    const r = await apiClient.post<{ block_id: number }>(`/admin/obligations/templates/${templateId}/apply/${userId}`);
+  async applyObligationTemplate(templateId: number, userId: number): Promise<{ block_id: number; created?: boolean }> {
+    const r = await apiClient.post<{ block_id: number; created?: boolean }>(`/admin/obligations/templates/${templateId}/apply/${userId}`);
+    return r.data;
+  },
+  async applyAllObligationTemplates(userId: number): Promise<{ created: number; reused: number }> {
+    const r = await apiClient.post<{ created: number; reused: number }>(`/admin/obligations/templates/apply/${userId}`);
     return r.data;
   },
 

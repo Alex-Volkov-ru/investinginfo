@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List
 
 from fastapi import APIRouter, HTTPException, Query, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from starlette.concurrency import run_in_threadpool
 from tinkoff.invest import Client
 from tinkoff.invest.schemas import CandleInterval
@@ -100,8 +100,7 @@ class ResolveItem(BaseModel):
     currency: str | None = None
     isin: str | None = None
     nominal: float | None = None
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 class ResolveOut(BaseModel):
     ticker: str
@@ -118,8 +117,7 @@ class QuoteOut(BaseModel):
     nominal: float | None = None
     aci: float | None = None
     dirty_price: float | None = None
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 class CandleOut(BaseModel):
     time: datetime

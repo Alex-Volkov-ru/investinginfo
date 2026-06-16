@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import List, Optional, Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from pydantic.types import StringConstraints
 from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
@@ -113,8 +113,7 @@ class WhiteboardOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WhiteboardListItem(BaseModel):
@@ -122,8 +121,7 @@ class WhiteboardListItem(BaseModel):
     name: str
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExportToBudgetIn(BaseModel):

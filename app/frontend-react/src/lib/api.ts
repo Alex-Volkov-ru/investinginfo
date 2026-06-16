@@ -31,13 +31,16 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
+        const silent = error.config?.headers?.['X-Silent-Error'] === '1';
+        const showError = (message: string) => {
+          if (!silent) toast.error(message);
+        };
         if (error.response) {
           const status = error.response.status;
           const data = error.response.data;
 
           // Обработка ошибок валидации (422)
           if (status === 422) {
-            const silent = error.config?.headers?.['X-Silent-Error'] === '1';
             if (!silent) {
               const detail = data?.detail;
               if (Array.isArray(detail)) {
@@ -62,31 +65,31 @@ class ApiClient {
             if (!window.location.pathname.includes('/login')) {
               saveReturnUrl(window.location.pathname + window.location.search);
               window.location.href = '/login';
-              toast.error('Сессия истекла. Пожалуйста, войдите снова.');
+              showError('Сессия истекла. Пожалуйста, войдите снова.');
             } else {
               // На странице логина просто показываем ошибку
-              toast.error(message);
+              showError(message);
             }
           } else if (status === 403) {
-            toast.error(data?.detail || 'Доступ запрещен');
+            showError(data?.detail || 'Доступ запрещен');
           } else if (status === 404) {
-            toast.error(data?.detail || 'Ресурс не найден');
+            showError(data?.detail || 'Ресурс не найден');
           } else if (status === 409) {
-            toast.error(data?.detail || 'Конфликт данных');
+            showError(data?.detail || 'Конфликт данных');
           } else if (status === 429) {
-            toast.error('Слишком много запросов. Подождите немного.');
+            showError('Слишком много запросов. Подождите немного.');
           } else if (status === 503) {
-            toast.error('Сервис временно недоступен. Попробуйте через минуту.');
+            showError('Сервис временно недоступен. Попробуйте через минуту.');
           } else if (status >= 500) {
-            toast.error(data?.detail || 'Ошибка сервера. Попробуйте позже.');
+            showError(data?.detail || 'Ошибка сервера. Попробуйте позже.');
           } else {
             const message = data?.detail || data?.message || error.message || 'Произошла ошибка';
-            toast.error(message);
+            showError(message);
           }
         } else if (error.request) {
-          toast.error('Нет соединения с сервером');
+          showError('Нет соединения с сервером');
         } else {
-          toast.error('Произошла ошибка');
+          showError('Произошла ошибка');
         }
         return Promise.reject(error);
       }

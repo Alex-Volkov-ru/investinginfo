@@ -154,7 +154,13 @@ export const AdminInvestmentsTab = () => {
           </tr>
         </AdminTableHead>
         <AdminTableBody>
-          {overview.map((u) => {
+          {overview.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="admin-table-empty px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                Нет портфелей у пользователей
+              </td>
+            </tr>
+          ) : overview.map((u) => {
             const tk = tinkoff.find((t) => t.user_id === u.user_id);
             return (
               <tr key={u.user_id}>

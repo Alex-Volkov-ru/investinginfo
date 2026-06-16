@@ -1,10 +1,11 @@
 from __future__ import annotations
 from typing import List, Optional
 import datetime as dt
+import math
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.backend.db.session import get_db
@@ -39,8 +40,7 @@ class PaymentDTO(BaseModel):
     amount: float = 0
     note: str = ""
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class BlockDTO(BaseModel):
     id: Optional[int] = None
@@ -68,8 +68,7 @@ class BlockDTO(BaseModel):
     remaining: float = 0
     progress_pct: float = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ---------- Helpers ----------
 
@@ -106,6 +105,81 @@ def _first_due(block: ObligationBlock) -> dt.date | None:
         nm_first = (block.start_date.replace(day=1) + dt.timedelta(days=MONTH_END_CALC_DAY + MONTH_END_CALC_OFFSET)).replace(day=1)
         return _due_for_month(nm_first.year, nm_first.month, int(block.due_day or DEFAULT_DUE_DAY))
     return None
+
+
+def resolve_next_payment_date(
+    block: ObligationBlock,
+    *,
+    anchor: dt.date | None = None,
+) -> dt.date | None:
+    """Ближайшая дата платежа не раньше anchor (по умолчанию сегодня)."""
+    today = anchor or dt.date.today()
+    next_date: dt.date | None = None
+
+    if block.next_payment and block.next_payment >= today:
+        next_date = block.next_payment
+
+    if not next_date:
+        unpaid = [p for p in (block.payments or []) if not p.ok and p.date and p.date >= today]
+        if unpaid:
+            unpaid.sort(key=lambda x: x.date)
+            next_date = unpaid[0].date
+
+    if not next_date and block.start_date:
+        next_date = _first_due(block)
+        if next_date and next_date < today:
+            next_month = (today.replace(day=1) + dt.timedelta(days=MONTH_END_CALC_DAY + MONTH_END_CALC_OFFSET)).replace(day=1)
+            next_date = _due_for_month(next_month.year, next_month.month, block.due_day or DEFAULT_DUE_DAY)
+
+    return next_date
+
+
+def resolve_next_payment_amount(
+    block: ObligationBlock,
+    next_date: dt.date | None,
+) -> float:
+    """Сумма ближайшего платежа: из строки графика или monthly."""
+    fallback = float(block.monthly or 0)
+    if not next_date:
+        return fallback
+    for p in block.payments or []:
+        if not p.ok and p.date == next_date:
+            return float(p.amount if p.amount is not None else fallback)
+    return fallback
+
+
+def _generate_payment_schedule(
+    *,
+    start_date: dt.date | None,
+    due_day: int,
+    monthly: float,
+    total: float,
+    max_count: int = DEFAULT_PAYMENTS_COUNT,
+) -> list[ObligationPayment]:
+    """График платежей: даты по due_day, суммы = monthly (последний — остаток)."""
+    if not start_date or monthly <= 0:
+        return [ObligationPayment(n=i, ok=False, amount=0, note="") for i in range(1, max_count + 1)]
+
+    count = min(max_count, max(1, math.ceil(total / monthly))) if total > 0 else max_count
+    payments: list[ObligationPayment] = []
+    y, m = start_date.year, start_date.month + 1
+    if m > 12:
+        y, m = y + 1, m - 12
+
+    for i in range(1, count + 1):
+        d = _due_for_month(y, m, due_day)
+        amount = float(monthly)
+        if i == count and total > 0:
+            remainder = float(total) - float(monthly) * (count - 1)
+            if 0 < remainder <= monthly:
+                amount = remainder
+        payments.append(ObligationPayment(n=i, ok=False, date=d, amount=amount, note=""))
+        m += 1
+        if m > 12:
+            y, m = y + 1, 1
+
+    return payments
+
 
 # ---------- Interest & principal allocation (ACT/365F) ----------
 
@@ -200,10 +274,25 @@ def create_block(payload: BlockDTO, db: Session = Depends(get_db), user: User = 
         status=payload.status or DEFAULT_OBLIGATION_STATUS,
         notes=payload.notes or "",
     )
-    # по умолчанию создаем платежи для удобства (можно добавлять больше)
-    for i in range(1, DEFAULT_PAYMENTS_COUNT + 1):
-        block.payments.append(ObligationPayment(n=i, ok=False, amount=0, note=""))
-
+    if payload.payments:
+        for p in payload.payments:
+            block.payments.append(
+                ObligationPayment(
+                    n=p.n,
+                    ok=bool(p.ok),
+                    date=p.date,
+                    amount=p.amount or 0,
+                    note=p.note or "",
+                )
+            )
+    else:
+        for p in _generate_payment_schedule(
+            start_date=payload.start_date,
+            due_day=int(payload.due_day or DEFAULT_DUE_DAY),
+            monthly=float(payload.monthly or 0),
+            total=float(payload.total or 0),
+        ):
+            block.payments.append(p)
     db.add(block)
     db.commit()
     db.refresh(block)
@@ -349,8 +438,7 @@ class UpcomingPaymentDTO(BaseModel):
     is_urgent: bool  # <= 1 дня
     is_warning: bool  # 2-3 дня
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 @router.get("/upcoming-payments", response_model=List[UpcomingPaymentDTO])
@@ -376,28 +464,7 @@ def get_upcoming_payments(
     
     upcoming = []
     for block in blocks:
-        # Определяем дату следующего платежа
-        next_date = None
-        
-        # Вариант 1: Используем next_payment если задано
-        if block.next_payment and block.next_payment >= today:
-            next_date = block.next_payment
-        
-        # Вариант 2: Ищем первый неоплаченный платеж с датой
-        if not next_date:
-            unpaid = [p for p in block.payments if not p.ok and p.date and p.date >= today]
-            if unpaid:
-                unpaid.sort(key=lambda x: x.date)
-                next_date = unpaid[0].date
-        
-        # Вариант 3: Вычисляем на основе start_date + due_day
-        if not next_date and block.start_date:
-            next_date = _first_due(block)
-            if next_date and next_date < today:
-                # Если прошло, берем следующий месяц
-                next_month = (today.replace(day=1) + dt.timedelta(days=MONTH_END_CALC_DAY + MONTH_END_CALC_OFFSET)).replace(day=1)
-                next_date = _due_for_month(next_month.year, next_month.month, block.due_day or DEFAULT_DUE_DAY)
-        
+        next_date = resolve_next_payment_date(block, anchor=today)
         if next_date and next_date <= end_date:
             days_until = (next_date - today).days
             
@@ -405,7 +472,7 @@ def get_upcoming_payments(
                 block_id=block.id,
                 block_title=block.title,
                 payment_date=next_date,
-                amount=float(block.monthly or 0),
+                amount=resolve_next_payment_amount(block, next_date),
                 days_until=days_until,
                 is_urgent=days_until <= 1,  # Срочно если <= 1 дня
                 is_warning=1 < days_until <= 3,  # Предупреждение если 2-3 дня

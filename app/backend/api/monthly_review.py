@@ -21,7 +21,16 @@ from app.backend.models.budget import (
     ObligationPayment,
 )
 from app.backend.models.portfolio import Portfolio, Position
-from app.backend.api.budget_obligation_blocks import _calc_metrics_exact
+from app.backend.api.budget_obligation_blocks import (
+    _calc_metrics_exact,
+    resolve_next_payment_date,
+    resolve_next_payment_amount,
+)
+from app.backend.api.monthly_review_utils import (
+    month_bounds,
+    resolve_review_month,
+    upcoming_window,
+)
 
 router = APIRouter(prefix="/monthly-review", tags=["monthly review"])
 
@@ -91,19 +100,9 @@ def get_monthly_review(
     month: Optional[int] = Query(None, ge=1, le=12, description="Месяц обзора (1–12)"),
 ):
     today = date.today()
-    first_day_current = today.replace(day=1)
 
-    if year is not None and month is not None:
-        review_month = date(year, month, 1)
-    else:
-        if today.day <= 5:
-            review_month = first_day_current - timedelta(days=1)
-            review_month = review_month.replace(day=1)
-        else:
-            review_month = first_day_current
-
-    month_start = review_month
-    month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+    review_month = resolve_review_month(today, year, month)
+    month_start, month_end = month_bounds(review_month)
     
     month_start_dt = datetime.combine(month_start, time.min)
     month_end_dt = datetime.combine(month_end, time.max)
@@ -181,9 +180,14 @@ def get_monthly_review(
     ).scalars().all()
     
     portfolios_count = len(portfolios)
-    positions_count = sum(
-        len(db.execute(select(Position).where(Position.portfolio_id == p.id)).scalars().all())
-        for p in portfolios
+    positions_count = int(
+        db.execute(
+            select(func.count(Position.id))
+            .select_from(Position)
+            .join(Portfolio, Portfolio.id == Position.portfolio_id)
+            .where(Portfolio.user_id == user.id)
+        ).scalar()
+        or 0
     )
     investment_review = InvestmentReview(
         has_portfolio=portfolios_count > 0,
@@ -225,16 +229,16 @@ def get_monthly_review(
             progress_pct=metrics["progress_pct"],
         ))
 
-    next_month_start = (month_end + timedelta(days=1))
-    next_month_end = (next_month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
-
+    window_start, window_end = upcoming_window(review_month, today, days_ahead=7)
     upcoming_payments_count = 0
     upcoming_payments_amount = 0.0
 
     for block in obligation_blocks:
-        if block.next_payment and next_month_start <= block.next_payment <= next_month_end:
-            upcoming_payments_count += 1
-            upcoming_payments_amount += float(block.monthly or 0)
+        payment_date = resolve_next_payment_date(block, anchor=window_start)
+        if not payment_date or payment_date < window_start or payment_date > window_end:
+            continue
+        upcoming_payments_count += 1
+        upcoming_payments_amount += resolve_next_payment_amount(block, payment_date)
 
     obligation_review = ObligationReview(
         paid_count=paid_count,

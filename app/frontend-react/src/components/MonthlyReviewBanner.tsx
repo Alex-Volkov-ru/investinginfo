@@ -165,6 +165,8 @@ export const MonthlyReviewBanner: React.FC<MonthlyReviewBannerProps> = ({ standa
   const isCurrentMonth = review.year === today.getFullYear() && review.month === today.getMonth() + 1;
 
   const budgetHref = compact ? '/budget_mobile' : '/budget';
+  const portfolioHref = compact ? '/mobile' : '/portfolio';
+  const obligationsHref = compact ? '/obligations_mobile' : '/obligations';
 
   return (
     <div className={`bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 border border-primary-200 dark:border-primary-700 rounded-lg shadow-sm ${compact ? 'mb-3 p-3' : 'mb-6 p-4'}`}>
@@ -203,7 +205,7 @@ export const MonthlyReviewBanner: React.FC<MonthlyReviewBannerProps> = ({ standa
             </div>
           </div>
 
-          <div className={`grid grid-cols-1 md:grid-cols-2 ${compact ? 'gap-2' : 'gap-4'}`}>
+          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${compact ? 'gap-2' : 'gap-4'}`}>
             {/* Бюджет */}
             <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${compact ? 'p-2' : 'p-3'}`}>
               <div className={`flex items-center ${compact ? 'mb-1' : 'mb-2'}`}>
@@ -246,6 +248,38 @@ export const MonthlyReviewBanner: React.FC<MonthlyReviewBannerProps> = ({ standa
               )}
             </div>
 
+            {/* Инвестиции */}
+            <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${compact ? 'p-2' : 'p-3'}`}>
+              <div className={`flex items-center ${compact ? 'mb-1' : 'mb-2'}`}>
+                <BootstrapIcon name="graph-up-arrow" className="text-primary-600 dark:text-primary-400 mr-1.5 shrink-0" size={compact ? 14 : 16} />
+                <span className={`font-medium text-gray-900 dark:text-gray-100 ${compact ? 'text-xs' : 'text-sm'}`}>Инвестиции</span>
+              </div>
+              {review.investments.has_portfolio ? (
+                <>
+                  <div className={`text-gray-600 dark:text-gray-400 ${compact ? 'text-[11px] mb-0.5' : 'text-xs mb-1'}`}>
+                    Портфелей: <span className="font-semibold text-gray-900 dark:text-gray-100">{review.investments.portfolios_count}</span>
+                  </div>
+                  <div className={`text-gray-600 dark:text-gray-400 ${compact ? 'text-[11px] mb-1' : 'text-xs mb-2'}`}>
+                    Позиций: <span className="font-semibold text-gray-900 dark:text-gray-100">{review.investments.positions_count}</span>
+                  </div>
+                  <Link
+                    to={portfolioHref}
+                    className={`text-primary-600 dark:text-primary-400 active:underline inline-flex items-center ${compact ? 'text-[11px]' : 'text-xs hover:underline'}`}
+                  >
+                    Открыть портфель
+                    <BootstrapIcon name="arrow-right" className="ml-1 shrink-0" size={compact ? 12 : 14} />
+                  </Link>
+                </>
+              ) : (
+                <div className={compact ? 'text-[11px] text-gray-500 dark:text-gray-400' : 'text-xs text-gray-500 dark:text-gray-400'}>
+                  Портфель не создан.{' '}
+                  <Link to={portfolioHref} className="text-primary-600 dark:text-primary-400 active:underline">
+                    Добавить
+                  </Link>
+                </div>
+              )}
+            </div>
+
             {/* Обязательства */}
             <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${compact ? 'p-2' : 'p-3'}`}>
               <div className={`flex items-center ${compact ? 'mb-1' : 'mb-2'}`}>
@@ -272,7 +306,7 @@ export const MonthlyReviewBanner: React.FC<MonthlyReviewBannerProps> = ({ standa
                   {review.obligations.upcoming_payments_count > 0 && (
                     <div className={`border-t border-gray-200 dark:border-gray-700 ${compact ? 'mt-1.5 pt-1.5' : 'mt-2 pt-2'}`}>
                       <div className={compact ? 'text-[11px] text-gray-600 dark:text-gray-400' : 'text-xs text-gray-600 dark:text-gray-400'}>
-                        Ближайшие платежи: {review.obligations.upcoming_payments_count}
+                        Ближайшие 7 дней: {review.obligations.upcoming_payments_count}
                       </div>
                       <div className={compact ? 'text-[11px] font-semibold text-gray-900 dark:text-gray-100' : 'text-xs font-semibold text-gray-900 dark:text-gray-100'}>
                         {review.obligations.upcoming_payments_amount.toLocaleString('ru-RU')} ₽
@@ -288,18 +322,25 @@ export const MonthlyReviewBanner: React.FC<MonthlyReviewBannerProps> = ({ standa
             </div>
           </div>
 
-          <div className={`flex items-center justify-between ${compact ? 'mt-2' : 'mt-4'}`}>
+          <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${compact ? 'mt-2' : 'mt-4'}`}>
             <Link
               to={budgetHref}
               className={`text-primary-600 dark:text-primary-400 active:underline flex items-center ${compact ? 'text-xs' : 'text-sm hover:underline'}`}
             >
-              Подробный отчёт по бюджету
+              Бюджет
+              <BootstrapIcon name="arrow-right" className="ml-1 shrink-0" size={compact ? 12 : 14} />
+            </Link>
+            <Link
+              to={obligationsHref}
+              className={`text-primary-600 dark:text-primary-400 active:underline flex items-center ${compact ? 'text-xs' : 'text-sm hover:underline'}`}
+            >
+              Обязательства
               <BootstrapIcon name="arrow-right" className="ml-1 shrink-0" size={compact ? 12 : 14} />
             </Link>
             {!standalone && (
               <button
                 onClick={handleDismiss}
-                className={`text-gray-500 dark:text-gray-400 ${compact ? 'text-xs active:text-gray-700 dark:active:text-gray-200' : 'text-sm hover:text-gray-700 dark:hover:text-gray-200'}`}
+                className={`ml-auto text-gray-500 dark:text-gray-400 ${compact ? 'text-xs active:text-gray-700 dark:active:text-gray-200' : 'text-sm hover:text-gray-700 dark:hover:text-gray-200'}`}
               >
                 Закрыть
               </button>

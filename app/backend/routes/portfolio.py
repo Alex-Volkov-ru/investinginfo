@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -38,8 +38,7 @@ class PortfolioOut(BaseModel):
     title: str
     type: str
     currency: str
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class InstrumentShort(BaseModel):
     ticker: str | None = None
@@ -47,9 +46,7 @@ class InstrumentShort(BaseModel):
     class_: str | None = Field(None, alias="class")
     currency: str | None = None
     nominal: float | None = None
-    class Config:
-        populate_by_name = True
-        from_attributes = True
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
 class PositionUpsertIn(BaseModel):
     portfolio_id: int
@@ -68,8 +65,7 @@ class PositionOut(BaseModel):
     figi: str
     quantity: float
     avg_price: float
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PositionFullOut(PositionOut):
     instrument: InstrumentShort

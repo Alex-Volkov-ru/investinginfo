@@ -13,11 +13,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import asyncio
 
-from app.backend.core.auth import get_current_user, get_staff_user
+from app.backend.core.auth import get_staff_user
 from app.backend.core.config import get_settings
 from app.backend.core.constants import (
     HTTP_404_NOT_FOUND,
-    HTTP_403_FORBIDDEN,
 )
 from app.backend.db.session import get_db
 from app.backend.models.user import User
@@ -93,23 +92,13 @@ class DbStatsOut(BaseModel):
     categories: int
 
 
-# ===== Helpers =====
-
-def _check_admin_access(user: User) -> None:
-    """Проверяет доступ администратора."""
-    if not user or not user.is_staff:
-        raise HTTPException(
-            status_code=HTTP_403_FORBIDDEN,
-            detail="Требуются права администратора",
-        )
-
 
 # ===== Endpoints =====
 
 @router.post("/create", response_model=BackupCreateResponse)
 async def create_backup(
     background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_staff_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -117,8 +106,6 @@ async def create_backup(
     Возвращает ответ сразу, бэкап создается в фоновом режиме.
     Требует аутентификации.
     """
-    _check_admin_access(user)
-    
     try:
         logger.info(f"Запуск создания бэкапа пользователем {user.email}")
         
@@ -150,14 +137,12 @@ async def create_backup(
 
 @router.get("/list", response_model=BackupListResponse)
 async def list_backups(
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_staff_user)
 ):
     """
     Возвращает список всех доступных бэкапов.
     Требует аутентификации.
     """
-    _check_admin_access(user)
-    
     try:
         backups = backup_manager.list_backups()
         disk_usage = backup_manager.get_disk_usage()
@@ -178,14 +163,12 @@ async def list_backups(
 @router.get("/info/{filename}", response_model=BackupInfo)
 async def get_backup_info(
     filename: str,
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_staff_user)
 ):
     """
     Получает информацию о конкретном бэкапе.
     Требует аутентификации.
     """
-    _check_admin_access(user)
-    
     backup_info = backup_manager.get_backup_info(filename)
     
     if not backup_info:
@@ -237,14 +220,12 @@ async def download_backup(
 @router.delete("/delete/{filename}", response_model=BackupDeleteResponse)
 async def delete_backup(
     filename: str,
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_staff_user)
 ):
     """
     Удаляет бэкап.
     Требует аутентификации.
     """
-    _check_admin_access(user)
-    
     try:
         deleted = backup_manager.delete_backup(filename)
         
@@ -274,7 +255,7 @@ async def delete_backup(
 async def restore_backup(
     request: BackupRestoreRequest,
     background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_staff_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -283,8 +264,6 @@ async def restore_backup(
     Возвращает ответ сразу, восстановление выполняется в фоновом режиме.
     Требует аутентификации.
     """
-    _check_admin_access(user)
-    
     try:
         logger.warning(f"Запуск восстановления бэкапа {request.filename} пользователем {user.email}")
         
@@ -338,14 +317,12 @@ async def restore_backup(
 
 @router.get("/disk-usage")
 async def get_disk_usage(
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_staff_user)
 ):
     """
     Получает информацию об использовании диска для бэкапов.
     Требует аутентификации.
     """
-    _check_admin_access(user)
-    
     try:
         return backup_manager.get_disk_usage()
     except Exception as e:
@@ -359,14 +336,12 @@ async def get_disk_usage(
 @router.post("/rotate")
 async def rotate_backups(
     background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_staff_user)
 ):
     """
     Вручную запускает ротацию старых бэкапов в фоне.
     Требует аутентификации.
     """
-    _check_admin_access(user)
-    
     try:
         def _rotate_task():
             try:

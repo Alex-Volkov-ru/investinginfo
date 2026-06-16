@@ -1,19 +1,27 @@
 import { useState, useEffect } from 'react';
-import { Plus, TrendingUp, TrendingDown, Search, X, Key, CheckCircle, Edit2, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Search, X, Key, CheckCircle, Edit2, Trash2, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
 import { portfolioService } from '../services/portfolioService';
 import { userService } from '../services/userService';
-import { Portfolio, PositionFull, Quote, ResolveItem } from '../types';
+import { Portfolio, PositionFull, ResolveItem } from '../types';
 import toast from 'react-hot-toast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { PortfolioCharts } from '../components/PortfolioCharts';
 import { DatePicker } from '../components/DatePicker';
 import { format } from 'date-fns';
+import { usePortfolioQuotes } from '../hooks/usePortfolioQuotes';
+import {
+  countMissingQuotes,
+  hasLiveQuote,
+  positionCurrentPrice,
+  positionMarketValue,
+  positionPnL,
+} from '../lib/portfolioUtils';
 
 const PortfolioPage = () => {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(null);
   const [positions, setPositions] = useState<PositionFull[]>([]);
-  const [quotes, setQuotes] = useState<Record<string, Quote>>({});
+  const { quotes, quotesLoading, quotesError, quotesUpdatedAt, refreshQuotes } = usePortfolioQuotes(positions);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPortfolioTitle, setNewPortfolioTitle] = useState('');
@@ -74,29 +82,7 @@ const PortfolioPage = () => {
     try {
       // Загружаем позиции
       const positionsData = await portfolioService.getPositionsFull(portfolioId);
-      setPositions(positionsData); // Показываем позиции сразу
-      
-      // Параллельно загружаем котировки (использует кэш Redis - быстро)
-      const tickers = positionsData
-        .map((p) => p.instrument?.ticker)
-        .filter((t): t is string => !!t);
-      
-      if (tickers.length > 0) {
-        // Загружаем котировки параллельно, не ждем их для отображения позиций
-        portfolioService.getQuotesByTickers(tickers)
-          .then((response) => {
-            const quotesMap: Record<string, Quote> = {};
-            response.results.forEach((quote) => {
-              if (quote.figi) {
-                quotesMap[quote.figi] = quote;
-              }
-            });
-            setQuotes(quotesMap); // Обновляем котировки когда придут
-          })
-          .catch(() => {
-            // Ошибка обработана в interceptor
-          });
-      }
+      setPositions(positionsData);
     } catch (error) {
       // Ошибка обработана в interceptor
     } finally {
@@ -292,20 +278,11 @@ const PortfolioPage = () => {
     setShowConfirmDialog(true);
   };
 
-  const calculateTotalValue = () => {
-    return positions.reduce((sum, pos) => {
-      const quote = quotes[pos.figi];
-      const currentPrice = quote?.price || 0;
-      const value = pos.quantity * currentPrice;
-      return sum + value;
-    }, 0);
-  };
+  const calculateTotalValue = () =>
+    positions.reduce((sum, pos) => sum + positionMarketValue(pos, quotes[pos.figi]), 0);
 
-  const calculateTotalCost = () => {
-    return positions.reduce((sum, pos) => {
-      return sum + pos.quantity * pos.avg_price;
-    }, 0);
-  };
+  const calculateTotalCost = () =>
+    positions.reduce((sum, pos) => sum + pos.quantity * pos.avg_price, 0);
 
   const totalValue = calculateTotalValue();
   const totalCost = calculateTotalCost();
@@ -321,13 +298,8 @@ const PortfolioPage = () => {
   };
 
   // Расчет сумм по группам
-  const calculateGroupValue = (group: PositionFull[]) => {
-    return group.reduce((sum, pos) => {
-      const quote = quotes[pos.figi];
-      const currentPrice = quote?.price || 0;
-      return sum + pos.quantity * currentPrice;
-    }, 0);
-  };
+  const calculateGroupValue = (group: PositionFull[]) =>
+    group.reduce((sum, pos) => sum + positionMarketValue(pos, quotes[pos.figi]), 0);
 
   const sharesValue = calculateGroupValue(groupedPositions.shares);
   const bondsValue = calculateGroupValue(groupedPositions.bonds);
@@ -343,6 +315,8 @@ const PortfolioPage = () => {
   const toggleGroup = (group: string) => {
     setExpandedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
   };
+
+  const missingQuotes = countMissingQuotes(positions, quotes);
 
   return (
     <div className="space-y-6">
@@ -371,6 +345,18 @@ const PortfolioPage = () => {
               </>
             )}
           </button>
+          {positions.length > 0 && hasTinkoffToken && (
+            <button
+              type="button"
+              onClick={() => void refreshQuotes()}
+              disabled={quotesLoading}
+              className="btn btn-secondary flex items-center"
+              title="Обновить котировки"
+            >
+              <RefreshCw className={`h-5 w-5 mr-2 ${quotesLoading ? 'animate-spin' : ''}`} />
+              Обновить
+            </button>
+          )}
           {selectedPortfolio && (
             <button
               data-tour="portfolio-add-position"
@@ -391,6 +377,31 @@ const PortfolioPage = () => {
           </button>
         </div>
       </div>
+
+      {positions.length > 0 && !hasTinkoffToken && (
+        <div className="rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-yellow-900 dark:text-yellow-100">
+            Подключите токен Tinkoff для актуальных котировок. Сейчас в расчётах используется средняя цена покупки.
+          </p>
+          <button type="button" className="btn btn-secondary text-sm shrink-0" onClick={() => setShowTokenModal(true)}>
+            Настроить токен
+          </button>
+        </div>
+      )}
+
+      {positions.length > 0 && hasTinkoffToken && (quotesError || missingQuotes > 0) && !quotesLoading && (
+        <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+          {quotesError
+            ? 'Не удалось загрузить котировки. Показаны средние цены покупки (*).'
+            : `Котировки недоступны для ${missingQuotes} из ${positions.length} позиций — показана средняя цена (*).`}
+        </div>
+      )}
+
+      {positions.length > 0 && hasTinkoffToken && quotesUpdatedAt && (
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          Котировки обновлены: {format(quotesUpdatedAt, 'dd.MM.yyyy HH:mm')}
+        </div>
+      )}
 
       {portfolios.length === 0 && (
         <div className="card p-8 text-center border-dashed border-2 border-gray-200 dark:border-gray-700">
@@ -536,11 +547,10 @@ const PortfolioPage = () => {
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                           {groupedPositions.shares.map((position) => {
                             const quote = quotes[position.figi];
-                            const currentPrice = quote?.price || 0;
-                            const value = position.quantity * currentPrice;
-                            const cost = position.quantity * position.avg_price;
-                            const pnl = value - cost;
-                            const pnlPercent = cost > 0 ? (pnl / cost) * 100 : 0;
+                            const live = hasLiveQuote(quote);
+                            const currentPrice = positionCurrentPrice(position, quote);
+                            const value = positionMarketValue(position, quote);
+                            const { pnl, pnlPercent } = positionPnL(position, quote);
                             return (
                               <tr key={position.id}>
                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -558,7 +568,13 @@ const PortfolioPage = () => {
                                   {position.avg_price.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                  {currentPrice > 0 ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' }) : '-'}
+                                  {live
+                                    ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })
+                                    : (
+                                      <span title="Средняя цена покупки">
+                                        {currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}*
+                                      </span>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                   {value.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
@@ -624,11 +640,10 @@ const PortfolioPage = () => {
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                           {groupedPositions.bonds.map((position) => {
                             const quote = quotes[position.figi];
-                            const currentPrice = quote?.price || 0;
-                            const value = position.quantity * currentPrice;
-                            const cost = position.quantity * position.avg_price;
-                            const pnl = value - cost;
-                            const pnlPercent = cost > 0 ? (pnl / cost) * 100 : 0;
+                            const live = hasLiveQuote(quote);
+                            const currentPrice = positionCurrentPrice(position, quote);
+                            const value = positionMarketValue(position, quote);
+                            const { pnl, pnlPercent } = positionPnL(position, quote);
                             return (
                               <tr key={position.id}>
                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -646,7 +661,13 @@ const PortfolioPage = () => {
                                   {position.avg_price.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                  {currentPrice > 0 ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' }) : '-'}
+                                  {live
+                                    ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })
+                                    : (
+                                      <span title="Средняя цена покупки">
+                                        {currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}*
+                                      </span>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                   {value.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
@@ -712,11 +733,10 @@ const PortfolioPage = () => {
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                           {groupedPositions.etfs.map((position) => {
                             const quote = quotes[position.figi];
-                            const currentPrice = quote?.price || 0;
-                            const value = position.quantity * currentPrice;
-                            const cost = position.quantity * position.avg_price;
-                            const pnl = value - cost;
-                            const pnlPercent = cost > 0 ? (pnl / cost) * 100 : 0;
+                            const live = hasLiveQuote(quote);
+                            const currentPrice = positionCurrentPrice(position, quote);
+                            const value = positionMarketValue(position, quote);
+                            const { pnl, pnlPercent } = positionPnL(position, quote);
                             return (
                               <tr key={position.id}>
                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -734,7 +754,13 @@ const PortfolioPage = () => {
                                   {position.avg_price.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                  {currentPrice > 0 ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' }) : '-'}
+                                  {live
+                                    ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })
+                                    : (
+                                      <span title="Средняя цена покупки">
+                                        {currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}*
+                                      </span>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                   {value.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
@@ -800,11 +826,10 @@ const PortfolioPage = () => {
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                           {groupedPositions.other.map((position) => {
                             const quote = quotes[position.figi];
-                            const currentPrice = quote?.price || 0;
-                            const value = position.quantity * currentPrice;
-                            const cost = position.quantity * position.avg_price;
-                            const pnl = value - cost;
-                            const pnlPercent = cost > 0 ? (pnl / cost) * 100 : 0;
+                            const live = hasLiveQuote(quote);
+                            const currentPrice = positionCurrentPrice(position, quote);
+                            const value = positionMarketValue(position, quote);
+                            const { pnl, pnlPercent } = positionPnL(position, quote);
                             return (
                               <tr key={position.id}>
                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -822,7 +847,13 @@ const PortfolioPage = () => {
                                   {position.avg_price.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                  {currentPrice > 0 ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' }) : '-'}
+                                  {live
+                                    ? currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })
+                                    : (
+                                      <span title="Средняя цена покупки">
+                                        {currentPrice.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}*
+                                      </span>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                   {value.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}

@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Save, X, AlertCircle, Calendar } from 'lucide-react';
+import { Plus, Trash2, Edit2, AlertCircle, Calendar } from 'lucide-react';
 import { budgetService } from '../services/budgetService';
-import { ObligationBlock, ObligationPayment, UpcomingPayment } from '../types';
+import { ObligationBlock, UpcomingPayment } from '../types';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { ObligationChart } from '../components/ObligationChart';
 import { DatePicker } from '../components/DatePicker';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ObligationPaymentsPanel } from '../components/obligations/ObligationPaymentsPanel';
+import { estimatePaymentCount } from '../lib/obligationUtils';
 
 const ObligationsPage = () => {
   const [blocks, setBlocks] = useState<ObligationBlock[]>([]);
   const [loading, setLoading] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [editingBlock, setEditingBlock] = useState<ObligationBlock | null>(null);
-  const [editingPayments, setEditingPayments] = useState<Record<number, ObligationPayment[]>>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
   const [upcomingPayments, setUpcomingPayments] = useState<UpcomingPayment[]>([]);
@@ -92,129 +93,9 @@ const ObligationsPage = () => {
     return null;
   };
 
-  const handleUpdatePayments = async (blockId: number) => {
-    const payments = editingPayments[blockId];
-    if (!payments) return;
-
-    const block = blocks.find((b) => b.id === blockId);
-    if (!block) return;
-
-    try {
-      const updated = await budgetService.updateObligationBlock(blockId, {
-        ...block,
-        payments: payments,
-      });
-      setBlocks(blocks.map((b) => (b.id === updated.id ? updated : b)));
-      setEditingPayments({ ...editingPayments, [blockId]: [] });
-      toast.success('Платежи обновлены');
-      await loadUpcomingPayments();
-    } catch (error) {
-      // Ошибка обработана в interceptor
-    }
-  };
-
-  const startEditingPayments = (block: ObligationBlock) => {
-    if (!block.id) return;
-    setEditingPayments({
-      ...editingPayments,
-      [block.id]: JSON.parse(JSON.stringify(block.payments || [])),
-    });
-  };
-
-  const cancelEditingPayments = (blockId: number) => {
-    setEditingPayments({ ...editingPayments, [blockId]: [] });
-  };
-
-  const autoFillPayments = (block: ObligationBlock) => {
-    if (!block.id || !block.start_date || !block.monthly || block.monthly === 0) {
-      toast.error('Заполните дату начала и ежемесячный платеж для автозаполнения');
-      return;
-    }
-
-    const payments = editingPayments[block.id] || block.payments || [];
-    const startDate = new Date(block.start_date);
-    const dueDay = block.due_day || 15;
-    const monthlyAmount = block.monthly;
-
-    // Вычисляем первую дату платежа
-    const firstPaymentDate = new Date(startDate);
-    firstPaymentDate.setMonth(firstPaymentDate.getMonth() + 1);
-    firstPaymentDate.setDate(Math.min(dueDay, new Date(firstPaymentDate.getFullYear(), firstPaymentDate.getMonth() + 1, 0).getDate()));
-
-    const updatedPayments: ObligationPayment[] = payments.map((payment, index) => {
-      if (index === 0 && payment.date) {
-        // Если первая дата уже заполнена, используем её как базовую
-        const baseDate = new Date(payment.date);
-        const newDate = new Date(baseDate);
-        newDate.setMonth(newDate.getMonth() + index);
-        newDate.setDate(Math.min(dueDay, new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0).getDate()));
-        return {
-          ...payment,
-          date: format(newDate, 'yyyy-MM-dd'),
-          amount: payment.amount || monthlyAmount,
-        };
-      } else if (index === 0) {
-        // Первый платеж
-        return {
-          ...payment,
-          date: format(firstPaymentDate, 'yyyy-MM-dd'),
-          amount: monthlyAmount,
-        };
-      } else {
-        // Последующие платежи - вычисляем дату от предыдущего
-        const prevPayment: ObligationPayment = updatedPayments[index - 1];
-        if (prevPayment && prevPayment.date) {
-          const prevDate = new Date(prevPayment.date);
-          const newDate = new Date(prevDate);
-          newDate.setMonth(newDate.getMonth() + 1);
-          newDate.setDate(Math.min(dueDay, new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0).getDate()));
-          return {
-            ...payment,
-            date: format(newDate, 'yyyy-MM-dd'),
-            amount: payment.amount || monthlyAmount,
-          };
-        } else {
-          const newDate = new Date(firstPaymentDate);
-          newDate.setMonth(newDate.getMonth() + index);
-          newDate.setDate(Math.min(dueDay, new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0).getDate()));
-          return {
-            ...payment,
-            date: format(newDate, 'yyyy-MM-dd'),
-            amount: payment.amount || monthlyAmount,
-          };
-        }
-      }
-    });
-
-    setEditingPayments({ ...editingPayments, [block.id]: updatedPayments });
-    toast.success('Платежи автозаполнены');
-  };
-
-  const addPayment = (block: ObligationBlock) => {
-    if (!block.id) return;
-    const payments = editingPayments[block.id] || block.payments || [];
-    const maxN = payments.length > 0 ? Math.max(...payments.map((p) => p.n)) : 0;
-    const newPayment: ObligationPayment = {
-      n: maxN + 1,
-      ok: false,
-      date: undefined,
-      amount: block.monthly || 0,
-      note: '',
-    };
-    setEditingPayments({
-      ...editingPayments,
-      [block.id]: [...payments, newPayment],
-    });
-  };
-
-  const removePayment = (block: ObligationBlock, paymentN: number) => {
-    if (!block.id) return;
-    const payments = editingPayments[block.id] || block.payments || [];
-    const updated = payments.filter((p) => p.n !== paymentN);
-    setEditingPayments({
-      ...editingPayments,
-      [block.id]: updated,
-    });
+  const handleBlockUpdated = (updated: ObligationBlock) => {
+    setBlocks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+    void loadUpcomingPayments();
   };
 
   const handleCreateBlock = async () => {
@@ -235,7 +116,7 @@ const ObligationsPage = () => {
       setBlocks([...blocks, block]);
       resetBlockForm();
       setShowBlockModal(false);
-      toast.success('Кредитный блок создан');
+      toast.success('Кредит создан — график платежей заполнен автоматически');
       await loadUpcomingPayments();
     } catch (error) {
       // Ошибка обработана в interceptor
@@ -426,11 +307,7 @@ const ObligationsPage = () => {
             </button>
           </div>
         ) : (
-          blocks.map((block) => {
-            const isEditingPayments = block.id && editingPayments[block.id]?.length > 0;
-            const payments = isEditingPayments ? editingPayments[block.id!] : (block.payments || []);
-
-            return (
+          blocks.map((block) => (
               <div key={block.id} className="card">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
@@ -523,157 +400,14 @@ const ObligationsPage = () => {
                   </div>
                 </div>
 
-                {/* График платежей */}
-                {payments.length > 0 && (
-                  <div className="mt-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">График платежей</h4>
-                      {!isEditingPayments ? (
-                        <button
-                          onClick={() => startEditingPayments(block)}
-                          className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-                        >
-                          Редактировать
-                        </button>
-                      ) : (
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => autoFillPayments(block)}
-                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center"
-                            title="Автозаполнить даты и суммы"
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Автозаполнить
-                          </button>
-                          <button
-                            onClick={() => addPayment(block)}
-                            className="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center"
-                            title="Добавить платеж"
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Добавить
-                          </button>
-                          <button
-                            onClick={() => block.id && handleUpdatePayments(block.id)}
-                            className="text-sm text-green-600 dark:text-green-400 hover:underline flex items-center"
-                          >
-                            <Save className="h-4 w-4 mr-1" />
-                            Сохранить
-                          </button>
-                          <button
-                            onClick={() => block.id && cancelEditingPayments(block.id)}
-                            className="text-sm text-gray-600 dark:text-gray-400 hover:underline flex items-center"
-                          >
-                            <X className="h-4 w-4 mr-1" />
-                            Отмена
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">№</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Дата</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Сумма</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Статус</th>
-                            {isEditingPayments && (
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Действия</th>
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                          {payments.map((payment) => {
-                            // Показываем все платежи, не только первые 6
-                            return (
-                            <tr key={payment.n}>
-                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">{payment.n}</td>
-                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
-                                {isEditingPayments ? (
-                                  <DatePicker
-                                    value={payment.date ? format(new Date(payment.date), 'yyyy-MM-dd') : ''}
-                                    onChange={(value) => {
-                                      const updated = payments.map((p) =>
-                                        p.n === payment.n ? { ...p, date: value || undefined } : p
-                                      );
-                                      setEditingPayments({ ...editingPayments, [block.id!]: updated });
-                                    }}
-                                    className="w-full"
-                                    placeholder="дд.мм.гггг"
-                                  />
-                                ) : (
-                                  payment.date ? format(new Date(payment.date), 'dd.MM.yyyy') : '-'
-                                )}
-                              </td>
-                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
-                                {isEditingPayments ? (
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={payment.amount || ''}
-                                    onChange={(e) => {
-                                      const updated = payments.map((p) =>
-                                        p.n === payment.n ? { ...p, amount: parseFloat(e.target.value) || 0 } : p
-                                      );
-                                      setEditingPayments({ ...editingPayments, [block.id!]: updated });
-                                    }}
-                                    className="input text-xs py-1"
-                                  />
-                                ) : (
-                                  payment.amount.toLocaleString('ru-RU', {
-                                    style: 'currency',
-                                    currency: 'RUB',
-                                  })
-                                )}
-                              </td>
-                              <td className="px-4 py-2">
-                                {isEditingPayments ? (
-                                  <input
-                                    type="checkbox"
-                                    checked={payment.ok || false}
-                                    onChange={(e) => {
-                                      const updated = payments.map((p) =>
-                                        (payment.id && p.id === payment.id) || (!payment.id && p.n === payment.n)
-                                          ? { ...p, ok: e.target.checked } 
-                                          : p
-                                      );
-                                      setEditingPayments({ ...editingPayments, [block.id!]: updated });
-                                    }}
-                                    className="h-4 w-4"
-                                  />
-                                ) : payment.ok ? (
-                                  <span className="px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full">
-                                    Оплачено
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-full">
-                                    Ожидает
-                                  </span>
-                                )}
-                              </td>
-                              {isEditingPayments && (
-                                <td className="px-4 py-2">
-                                  <button
-                                    onClick={() => removePayment(block, payment.n)}
-                                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                                    title="Удалить платеж"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                {block.id && (
+                  <ObligationPaymentsPanel
+                    block={block}
+                    onBlockUpdated={handleBlockUpdated}
+                  />
                 )}
               </div>
-            );
-          })
+            ))
         )}
       </div>
 
@@ -791,6 +525,13 @@ const ObligationsPage = () => {
                   />
                 </div>
               </div>
+              {!editingBlock && newBlock.total > 0 && newBlock.monthly > 0 && (
+                <p className="text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
+                  После создания автоматически появится график из{' '}
+                  <strong>{estimatePaymentCount(newBlock.total, newBlock.monthly)}</strong> платежей
+                  (день {newBlock.due_day || 15} каждого месяца).
+                </p>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Дата выдачи (начало начисления)
