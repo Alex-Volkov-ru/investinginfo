@@ -82,7 +82,7 @@ def validate_email(email: str) -> str:
         if not _DOMAIN_LABEL_RE.match(label):
             raise ValueError("Некорректный формат email: недопустимые символы в домене")
 
-    return value
+    return value.lower()
 
 
 def validate_service_login(value: str | None, *, required: bool = False) -> str | None:
