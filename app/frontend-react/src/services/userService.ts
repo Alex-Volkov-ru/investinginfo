@@ -3,6 +3,7 @@ import { apiClient } from '../lib/api';
 export interface UserInfo {
   id: number;
   email: string;
+  full_name?: string;
   tg_username?: string;
   has_tinkoff: boolean;
   is_staff?: boolean;
@@ -11,6 +12,7 @@ export interface UserInfo {
 export interface UserListItem {
   id: number;
   email: string;
+  full_name?: string;
   tg_username?: string;
   is_staff: boolean;
   created_at: string;
@@ -37,9 +39,9 @@ export const userService = {
     return response.data;
   },
 
-  async updateName(tg_username: string): Promise<UserInfo> {
+  async updateName(full_name: string): Promise<UserInfo> {
     const response = await apiClient.put<UserInfo>('/users/me/name', {
-      tg_username,
+      full_name,
     });
     return response.data;
   },
@@ -64,9 +66,9 @@ export const userService = {
     return response.data;
   },
 
-  async adminUpdateName(userId: number, tg_username: string): Promise<UserListItem> {
+  async adminUpdateName(userId: number, full_name: string): Promise<UserListItem> {
     const response = await apiClient.put<UserListItem>(`/users/${userId}/name`, {
-      tg_username,
+      full_name,
     });
     return response.data;
   },

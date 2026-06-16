@@ -5,13 +5,16 @@ import toast from 'react-hot-toast';
 export const authService = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
-      const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
+      const response = await apiClient.post<LoginResponse>('/auth/login', credentials, {
+        headers: { 'X-Silent-Error': '1' },
+      });
       const data = response.data;
       
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('user', JSON.stringify({
         id: data.user_id,
         email: data.email,
+        full_name: data.full_name,
         tg_username: data.tg_username,
         has_tinkoff: !!data.has_tinkoff,
         is_staff: !!data.is_staff,
@@ -30,19 +33,23 @@ export const authService = {
       // Убираем пустые строки, заменяя их на undefined
       const cleanCredentials: RegisterRequest = {
         email: credentials.email.trim(),
+        full_name: credentials.full_name.trim(),
         password: credentials.password,
         tg_username: credentials.tg_username?.trim() || undefined,
         phone: credentials.phone?.trim() || undefined,
         tinkoff_token: credentials.tinkoff_token?.trim() || undefined,
       };
 
-      const response = await apiClient.post<LoginResponse>('/auth/register', cleanCredentials);
+      const response = await apiClient.post<LoginResponse>('/auth/register', cleanCredentials, {
+        headers: { 'X-Silent-Error': '1' },
+      });
       const data = response.data;
       
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('user', JSON.stringify({
         id: data.user_id,
         email: data.email,
+        full_name: data.full_name,
         tg_username: data.tg_username,
         has_tinkoff: !!data.has_tinkoff,
         is_staff: !!data.is_staff,
@@ -97,6 +104,7 @@ export const authService = {
     localStorage.setItem('user', JSON.stringify({
       id: res.user_id,
       email: res.email,
+      full_name: res.tg_username || res.email,
       tg_username: res.tg_username,
       is_staff: false,
       impersonated_by: res.impersonated_by,

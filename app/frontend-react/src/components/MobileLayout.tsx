@@ -21,7 +21,7 @@ export const MobileLayout: React.FC = () => {
 
   const openEdit = (field: 'name' | 'email') => {
     setEditField(field);
-    setEditValue(field === 'name' ? (user?.tg_username || '') : (user?.email || ''));
+    setEditValue(field === 'name' ? (user?.full_name || '') : (user?.email || ''));
     setProfileOpen(false);
   };
 
@@ -39,7 +39,7 @@ export const MobileLayout: React.FC = () => {
     try {
       if (editField === 'name') {
         const updated = await userService.updateName(value);
-        updateUser({ tg_username: updated.tg_username });
+        updateUser({ full_name: updated.full_name });
         toast.success('Имя обновлено');
       } else {
         const updated = await userService.updateEmail(value);
@@ -59,11 +59,9 @@ export const MobileLayout: React.FC = () => {
     { name: 'Бюджет', href: '/budget_mobile', icon: 'wallet2' },
     { name: 'Доска', href: '/whiteboard_mobile', icon: 'easel' },
     { name: 'Обязательства', href: '/obligations_mobile', icon: 'file-earmark-text' },
+    { name: 'Сводка', href: '/monthly_report_mobile', icon: 'calendar-check' as const, title: 'Сводка месяца' },
     ...(user?.is_staff
-      ? [
-          { name: 'Сводка', href: '/monthly_report_mobile', icon: 'calendar-check' as const, title: 'Сводка месяца' },
-          { name: 'Админ', href: '/admin_mobile', icon: 'shield-lock' as const },
-        ]
+      ? [{ name: 'Админ', href: '/admin_mobile', icon: 'shield-lock' as const }]
       : []),
   ];
 
@@ -103,7 +101,7 @@ export const MobileLayout: React.FC = () => {
                 onClick={() => setProfileOpen(true)}
                 className="text-xs text-gray-600 dark:text-gray-400 active:opacity-70 px-2 py-1 rounded"
               >
-                {user?.tg_username || 'Гость'}
+                {user?.full_name || 'Гость'}
               </button>
               <div data-tour="payment-reminders">
                 <PaymentReminders isMobile={true} />
@@ -178,7 +176,7 @@ export const MobileLayout: React.FC = () => {
             <div className="px-4 py-4 space-y-1">
               <div className="px-4 py-3 mb-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                 <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {user?.tg_username || 'Без имени'}
+                  {user?.full_name || 'Без имени'}
                 </div>
                 <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 break-all">
                   {user?.email}

@@ -18,6 +18,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    full_name: Mapped[str] = mapped_column(Text, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tg_username: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

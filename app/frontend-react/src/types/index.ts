@@ -6,6 +6,7 @@ export interface LoginRequest {
 
 export interface RegisterRequest {
   email: string;
+  full_name: string;
   password: string;
   tg_username?: string;
   phone?: string;
@@ -17,6 +18,7 @@ export interface LoginResponse {
   token_type: string;
   user_id: number;
   email: string;
+  full_name?: string;
   tg_username?: string;
   has_tinkoff?: boolean;
   is_staff?: boolean;
@@ -25,6 +27,7 @@ export interface LoginResponse {
 export interface User {
   id: number;
   email: string;
+  full_name?: string;
   tg_username?: string;
   has_tinkoff?: boolean;
   is_staff?: boolean;

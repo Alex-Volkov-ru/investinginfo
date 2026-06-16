@@ -22,7 +22,7 @@ export const Layout: React.FC = () => {
 
   const openEdit = (field: 'name' | 'email') => {
     setEditField(field);
-    setEditValue(field === 'name' ? (user?.tg_username || '') : (user?.email || ''));
+    setEditValue(field === 'name' ? (user?.full_name || '') : (user?.email || ''));
     setProfileOpen(false);
   };
 
@@ -40,7 +40,7 @@ export const Layout: React.FC = () => {
     try {
       if (editField === 'name') {
         const updated = await userService.updateName(value);
-        updateUser({ tg_username: updated.tg_username });
+        updateUser({ full_name: updated.full_name });
         toast.success('Имя обновлено');
       } else {
         const updated = await userService.updateEmail(value);
@@ -60,11 +60,9 @@ export const Layout: React.FC = () => {
     { name: 'Бюджет', href: '/budget', icon: 'wallet2' },
     { name: 'Доска', href: '/whiteboard', icon: 'easel' },
     { name: 'Обязательства', href: '/obligations', icon: 'file-earmark-text' },
+    { name: 'Сводка месяца', href: '/monthly-report', icon: 'calendar-check' as const },
     ...(user?.is_staff
-      ? [
-          { name: 'Сводка месяца', href: '/monthly-report', icon: 'calendar-check' as const },
-          { name: 'Админ', href: '/admin', icon: 'shield-lock' as const },
-        ]
+      ? [{ name: 'Админ', href: '/admin', icon: 'shield-lock' as const }]
       : []),
   ];
 
@@ -141,14 +139,14 @@ export const Layout: React.FC = () => {
                   onClick={() => setProfileOpen((v) => !v)}
                   className="flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
-                  <span className="mr-2">{user?.tg_username || 'Гость'}</span>
+                  <span className="mr-2">{user?.full_name || 'Гость'}</span>
                   <BootstrapIcon name="chevron-down" size={14} />
                 </button>
                 {profileOpen && (
                   <div className="absolute right-0 mt-2 w-64 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 z-30">
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {user?.tg_username || 'Без имени'}
+                        {user?.full_name || 'Без имени'}
                       </div>
                       <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 break-all">
                         {user?.email}
@@ -233,7 +231,7 @@ export const Layout: React.FC = () => {
                     </>
                   )}
                 </button>
-                <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{user?.tg_username || 'Гость'}</div>
+                <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{user?.full_name || 'Гость'}</div>
                 <button
                   onClick={() => {
                     logout();
@@ -252,9 +250,11 @@ export const Layout: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="hidden md:block">
-          <MonthlyReviewBanner />
-        </div>
+        {location.pathname !== '/monthly-report' && (
+          <div className="hidden md:block">
+            <MonthlyReviewBanner />
+          </div>
+        )}
         <Outlet />
       </main>
 

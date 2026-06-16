@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user, get_staff_user
@@ -13,8 +13,10 @@ from app.backend.core.constants import (
     ERROR_USER_NOT_FOUND,
     HTTP_404_NOT_FOUND,
     HTTP_400_BAD_REQUEST,
+    ERROR_USER_EXISTS,
+    HTTP_409_CONFLICT,
 )
-from app.backend.core.validators import validate_email, validate_service_login
+from app.backend.core.validators import validate_email
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 from app.backend.services.admin_audit import log_admin_action
@@ -25,6 +27,7 @@ router = APIRouter()
 class UserMeOut(BaseModel):
     id: int
     email: str
+    full_name: str
     tg_username: Optional[str] = None
     has_tinkoff: bool = False
     is_staff: bool = False
@@ -35,13 +38,30 @@ class TokenUpdateIn(BaseModel):
 
 
 class UserNameUpdateIn(BaseModel):
-    tg_username: str
+    full_name: Optional[str] = None
+    tg_username: Optional[str] = None  # backward-compat for older clients
 
-    @field_validator("tg_username")
+    @model_validator(mode="after")
+    def ensure_name_exists(self):
+        if self.full_name or self.tg_username:
+            return self
+        raise ValueError("Имя обязательно")
+
+    @field_validator("full_name")
     @classmethod
-    def service_login_valid(cls, v: str) -> str:
-        result = validate_service_login(v, required=True)
-        return result  # type: ignore[return-value]
+    def full_name_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        value = v.strip()
+        if len(value) < 2:
+            raise ValueError("Имя: минимум 2 символа")
+        if len(value) > 80:
+            raise ValueError("Имя: максимум 80 символов")
+        return value
+
+    @property
+    def resolved_name(self) -> str:
+        return (self.full_name or self.tg_username or "").strip()
 
 
 class UserEmailUpdateIn(BaseModel):
@@ -56,6 +76,7 @@ class UserEmailUpdateIn(BaseModel):
 class UserListOut(BaseModel):
     id: int
     email: str
+    full_name: str
     tg_username: Optional[str] = None
     is_staff: bool = False
     created_at: datetime
@@ -70,7 +91,12 @@ class StaffToggleIn(BaseModel):
 @router.get("/me", response_model=UserMeOut)
 def me(user: User = Depends(get_current_user)):
     return UserMeOut(
-        id=user.id, email=user.email, tg_username=user.tg_username, has_tinkoff=user.has_tinkoff_token, is_staff=user.is_staff
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        tg_username=user.tg_username,
+        has_tinkoff=user.has_tinkoff_token,
+        is_staff=user.is_staff,
     )
 
 
@@ -84,18 +110,28 @@ def update_token(payload: TokenUpdateIn, user: User = Depends(get_current_user),
     db.commit()
     db.refresh(user)
     return UserMeOut(
-        id=user.id, email=user.email, tg_username=user.tg_username, has_tinkoff=user.has_tinkoff_token, is_staff=user.is_staff
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        tg_username=user.tg_username,
+        has_tinkoff=user.has_tinkoff_token,
+        is_staff=user.is_staff,
     )
 
 
 @router.put("/me/name", response_model=UserMeOut)
 def update_name(payload: UserNameUpdateIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    user.tg_username = payload.tg_username
+    user.full_name = payload.resolved_name
     db.add(user)
     db.commit()
     db.refresh(user)
     return UserMeOut(
-        id=user.id, email=user.email, tg_username=user.tg_username, has_tinkoff=user.has_tinkoff_token, is_staff=user.is_staff
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        tg_username=user.tg_username,
+        has_tinkoff=user.has_tinkoff_token,
+        is_staff=user.is_staff,
     )
 
 
@@ -109,7 +145,12 @@ def update_email(payload: UserEmailUpdateIn, user: User = Depends(get_current_us
     db.commit()
     db.refresh(user)
     return UserMeOut(
-        id=user.id, email=user.email, tg_username=user.tg_username, has_tinkoff=user.has_tinkoff_token, is_staff=user.is_staff
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        tg_username=user.tg_username,
+        has_tinkoff=user.has_tinkoff_token,
+        is_staff=user.is_staff,
     )
 
 
@@ -123,6 +164,7 @@ def list_users(
         UserListOut(
             id=u.id,
             email=u.email,
+            full_name=u.full_name,
             tg_username=u.tg_username,
             is_staff=u.is_staff,
             created_at=u.created_at or datetime.utcnow(),
@@ -157,6 +199,7 @@ def toggle_staff(
     return UserListOut(
         id=target_user.id,
         email=target_user.email,
+        full_name=target_user.full_name,
         tg_username=target_user.tg_username,
         is_staff=target_user.is_staff,
         created_at=target_user.created_at or datetime.utcnow(),
@@ -175,16 +218,17 @@ def admin_update_name(
     if not target_user:
         raise HTTPException(HTTP_404_NOT_FOUND, ERROR_USER_NOT_FOUND)
 
-    target_user.tg_username = payload.tg_username
+    target_user.full_name = payload.resolved_name
     db.add(target_user)
     db.commit()
     db.refresh(target_user)
 
-    log_admin_action(db, admin, "update_name", target_user.id, {"name": payload.tg_username})
+    log_admin_action(db, admin, "update_name", target_user.id, {"name": payload.resolved_name})
 
     return UserListOut(
         id=target_user.id,
         email=target_user.email,
+        full_name=target_user.full_name,
         tg_username=target_user.tg_username,
         is_staff=target_user.is_staff,
         created_at=target_user.created_at or datetime.utcnow(),
@@ -217,6 +261,7 @@ def admin_update_email(
     return UserListOut(
         id=target_user.id,
         email=target_user.email,
+        full_name=target_user.full_name,
         tg_username=target_user.tg_username,
         is_staff=target_user.is_staff,
         created_at=target_user.created_at or datetime.utcnow(),
