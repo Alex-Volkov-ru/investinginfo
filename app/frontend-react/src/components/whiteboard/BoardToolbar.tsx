@@ -10,14 +10,17 @@ import {
   MoreHorizontal,
   Move,
   Paintbrush,
+  Pencil,
   Plus,
   RefreshCw,
   Save,
   FilePlus,
   Undo2,
   TrendingUp,
+  Check,
+  X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { WhiteboardListItem } from '../../types';
 
 interface BoardToolbarProps {
@@ -45,6 +48,7 @@ interface BoardToolbarProps {
   onToggleGrid: () => void;
   onToggleDrawing: () => void;
   onOpenHelp: () => void;
+  onBoardNameChange?: (name: string) => void;
 }
 
 export function BoardToolbar({
@@ -72,8 +76,23 @@ export function BoardToolbar({
   onToggleGrid,
   onToggleDrawing,
   onOpenHelp,
+  onBoardNameChange,
 }: BoardToolbarProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(boardName);
+
+  useEffect(() => {
+    if (!editingName) setNameDraft(boardName);
+  }, [boardName, editingName]);
+
+  const commitName = () => {
+    const trimmed = nameDraft.trim();
+    if (trimmed && trimmed !== boardName) {
+      onBoardNameChange?.(trimmed);
+    }
+    setEditingName(false);
+  };
 
   const iconBtn = (active = false) =>
     `btn text-sm min-h-[44px] min-w-[44px] p-2 flex items-center justify-center ${active ? 'btn-primary' : 'btn-secondary'}`;
@@ -115,7 +134,54 @@ export function BoardToolbar({
     <div className="flex flex-col gap-2" data-tour="whiteboard-toolbar">
       <div className="flex items-center justify-between gap-2 min-w-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{boardName}</h2>
+          {editingName ? (
+            <div className="flex items-center gap-1 min-w-0 flex-1">
+              <input
+                type="text"
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitName();
+                  if (e.key === 'Escape') {
+                    setNameDraft(boardName);
+                    setEditingName(false);
+                  }
+                }}
+                onBlur={commitName}
+                autoFocus
+                className="input py-1.5 text-base sm:text-lg font-bold min-w-0 flex-1"
+                aria-label="Название доски"
+              />
+              <button type="button" onClick={commitName} className={iconBtn()} title="Сохранить название">
+                <Check className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setNameDraft(boardName);
+                  setEditingName(false);
+                }}
+                className={iconBtn()}
+                title="Отмена"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{boardName}</h2>
+              {onBoardNameChange && (
+                <button
+                  type="button"
+                  onClick={() => setEditingName(true)}
+                  className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 shrink-0"
+                  title="Переименовать доску"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
           {isDirty && !saving && (
             <span className="text-[10px] sm:text-xs text-amber-600 dark:text-amber-400 whitespace-nowrap shrink-0">
               не сохранено

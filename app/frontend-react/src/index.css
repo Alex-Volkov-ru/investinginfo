@@ -289,6 +289,11 @@ body.auth-transitioning #root {
            border border-gray-200 dark:border-gray-700 text-[10px] sm:text-xs;
   }
 
+  .admin-heatmap-day-clickable {
+    @apply cursor-pointer transition-shadow hover:ring-2 hover:ring-primary-400
+           disabled:cursor-default disabled:hover:ring-0;
+  }
+
   .admin-heatmap-day-empty {
     @apply aspect-square;
   }

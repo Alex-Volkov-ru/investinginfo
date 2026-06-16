@@ -190,12 +190,6 @@ const WHITEBOARD_STEPS: AppTourStep[] = [
     description: 'Зоны «обязательное / отложить / хотелки». Тяните, меняйте размер и цвет. Замок фиксирует зону.',
     side: 'left',
   },
-  {
-    element: '[data-tour="whiteboard-calculator"]',
-    title: 'Калькулятор',
-    description: 'Посчитайте сумму и нажмите «На доску» — появится карточка расхода.',
-    side: 'left',
-  },
 ];
 
 const ADMIN_STEPS: AppTourStep[] = [

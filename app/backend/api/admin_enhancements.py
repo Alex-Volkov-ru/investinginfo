@@ -221,6 +221,8 @@ class ObligationRiskItem(BaseModel):
     amount: float
     due_date: Optional[date] = None
     days_until: Optional[int] = None
+    block_id: Optional[int] = None
+    obligation_id: Optional[int] = None
 
 
 @router.get("/obligations/calendar-heatmap", response_model=CalendarHeatmapOut)
@@ -322,24 +324,28 @@ def obligations_risks_detailed(
                 user_id=user.id, email=user.email, kind="block", severity="overdue",
                 title=block.title or "", message="Просрочен платёж",
                 amount=amt, due_date=block.next_payment, days_until=nd,
+                block_id=block.id,
             ))
         elif block.next_payment == today:
             items.append(ObligationRiskItem(
                 user_id=user.id, email=user.email, kind="block", severity="today",
                 title=block.title or "", message="Платёж сегодня",
                 amount=amt, due_date=block.next_payment, days_until=0,
+                block_id=block.id,
             ))
         elif block.next_payment <= soon:
             items.append(ObligationRiskItem(
                 user_id=user.id, email=user.email, kind="block", severity="soon",
                 title=block.title or "", message="Платёж в ближайшие 3 дня",
                 amount=amt, due_date=block.next_payment, days_until=nd,
+                block_id=block.id,
             ))
         elif block.next_payment <= week:
             items.append(ObligationRiskItem(
                 user_id=user.id, email=user.email, kind="block", severity="upcoming",
                 title=block.title or "", message="Платёж на этой неделе",
                 amount=amt, due_date=block.next_payment, days_until=nd,
+                block_id=block.id,
             ))
 
     for obl, user in (
@@ -366,6 +372,7 @@ def obligations_risks_detailed(
         items.append(ObligationRiskItem(
             user_id=user.id, email=user.email, kind="simple", severity=sev,
             title=obl.title, message=msg, amount=amt, due_date=obl.due_date, days_until=nd,
+            obligation_id=obl.id,
         ))
 
     order = {"overdue": 0, "today": 1, "soon": 2, "upcoming": 3}

@@ -242,6 +242,13 @@ class CalendarPayment(BaseModel):
     title: str
     amount: float
     kind: str  # block | simple
+    block_id: Optional[int] = None
+    obligation_id: Optional[int] = None
+    monthly: Optional[float] = None
+    remaining: Optional[float] = None
+    rate: Optional[float] = None
+    status: Optional[str] = None
+    payment_number: Optional[int] = None
 
 
 class ObligationRisk(BaseModel):
@@ -926,19 +933,31 @@ def obligations_calendar(
     m = month or today.month
     d1, d2 = _month_range(y, m)
 
+    from app.backend.api.budget_obligation_blocks import _calc_metrics_exact
+
     out: List[CalendarPayment] = []
 
     blocks = db.query(ObligationBlock, User).join(User, User.id == ObligationBlock.user_id).all()
     for block, user in blocks:
+        db.refresh(block, ["payments"])
+        metrics = _calc_metrics_exact(block)
+        block_common = {
+            "user_id": user.id,
+            "email": user.email,
+            "kind": "block",
+            "block_id": block.id,
+            "monthly": float(block.monthly or 0),
+            "remaining": metrics.get("remaining", 0),
+            "rate": float(block.rate or 0),
+            "status": block.status or "Активный",
+        }
         if block.next_payment and d1 <= block.next_payment <= d2:
             out.append(
                 CalendarPayment(
-                    user_id=user.id,
-                    email=user.email,
+                    **block_common,
                     date=block.next_payment,
                     title=block.title or "",
                     amount=float(block.monthly or 0),
-                    kind="block",
                 )
             )
         payments = db.query(ObligationPayment).filter(ObligationPayment.obligation_id == block.id).all()
@@ -946,12 +965,11 @@ def obligations_calendar(
             if p.date and d1 <= p.date <= d2 and not p.ok:
                 out.append(
                     CalendarPayment(
-                        user_id=user.id,
-                        email=user.email,
+                        **block_common,
                         date=p.date,
-                        title=f"{block.title} (#{p.n})",
+                        title=block.title or "",
                         amount=float(p.amount or 0),
-                        kind="block",
+                        payment_number=p.n,
                     )
                 )
 
@@ -969,6 +987,8 @@ def obligations_calendar(
                 title=obl.title,
                 amount=float(obl.amount or 0),
                 kind="simple",
+                obligation_id=obl.id,
+                status="Активный" if not obl.is_done else "Закрыт",
             )
         )
 
@@ -1068,6 +1088,40 @@ def delete_obligation_template(
         raise HTTPException(HTTP_404_NOT_FOUND, "Шаблон не найден")
     db.delete(t)
     db.commit()
+    return {"status": "ok"}
+
+
+@router.delete("/obligations/blocks/{block_id}")
+def admin_delete_obligation_block(
+    block_id: int,
+    admin: User = Depends(get_staff_user),
+    db: Session = Depends(get_db),
+):
+    block = db.get(ObligationBlock, block_id)
+    if not block:
+        raise HTTPException(HTTP_404_NOT_FOUND, "Блок не найден")
+    user_id = block.user_id
+    title = block.title or ""
+    db.delete(block)
+    db.commit()
+    log_admin_action(db, admin, "delete_obligation_block", user_id, {"block_id": block_id, "title": title})
+    return {"status": "ok"}
+
+
+@router.delete("/obligations/simple/{obligation_id}")
+def admin_delete_simple_obligation(
+    obligation_id: int,
+    admin: User = Depends(get_staff_user),
+    db: Session = Depends(get_db),
+):
+    row = db.get(BudgetObligation, obligation_id)
+    if not row:
+        raise HTTPException(HTTP_404_NOT_FOUND, "Обязательство не найдено")
+    user_id = row.user_id
+    title = row.title or ""
+    db.delete(row)
+    db.commit()
+    log_admin_action(db, admin, "delete_simple_obligation", user_id, {"obligation_id": obligation_id, "title": title})
     return {"status": "ok"}
 
 

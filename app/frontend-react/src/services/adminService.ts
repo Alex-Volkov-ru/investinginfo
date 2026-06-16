@@ -123,6 +123,13 @@ export interface CalendarPayment {
   title: string;
   amount: number;
   kind: string;
+  block_id?: number;
+  obligation_id?: number;
+  monthly?: number;
+  remaining?: number;
+  rate?: number;
+  status?: string;
+  payment_number?: number;
 }
 
 export interface ObligationRisk {
@@ -213,6 +220,8 @@ export interface ObligationRiskDetailed {
   amount: number;
   due_date?: string;
   days_until?: number;
+  block_id?: number;
+  obligation_id?: number;
 }
 
 export interface PortfolioMarketRow {
@@ -369,6 +378,12 @@ export const adminService = {
   },
   async deleteObligationTemplate(id: number): Promise<void> {
     await apiClient.delete(`/admin/obligations/templates/${id}`);
+  },
+  async deleteObligationBlock(blockId: number): Promise<void> {
+    await apiClient.delete(`/admin/obligations/blocks/${blockId}`);
+  },
+  async deleteSimpleObligation(obligationId: number): Promise<void> {
+    await apiClient.delete(`/admin/obligations/simple/${obligationId}`);
   },
   async applyObligationTemplate(templateId: number, userId: number): Promise<{ block_id: number; created?: boolean }> {
     const r = await apiClient.post<{ block_id: number; created?: boolean }>(`/admin/obligations/templates/${templateId}/apply/${userId}`);

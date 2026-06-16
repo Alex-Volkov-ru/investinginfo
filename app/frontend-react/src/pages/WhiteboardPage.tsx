@@ -7,7 +7,6 @@ import { BoardCard } from '../components/whiteboard/BoardCard';
 import { BoardToolbar } from '../components/whiteboard/BoardToolbar';
 import { BoardZones } from '../components/whiteboard/BoardZones';
 import { BudgetPanel } from '../components/whiteboard/BudgetPanel';
-import { CalculatorWidget } from '../components/whiteboard/CalculatorWidget';
 import { DrawingCanvas } from '../components/whiteboard/DrawingCanvas';
 import { ExportToBudgetModal } from '../components/whiteboard/ExportToBudgetModal';
 import { TemplatePickerModal } from '../components/whiteboard/TemplatePickerModal';
@@ -540,6 +539,9 @@ const WhiteboardPage = () => {
           onToggleGrid={() => setGridMode((v) => !v)}
           onToggleDrawing={() => setDrawingEnabled((v) => !v)}
           onOpenHelp={() => startTour(true)}
+          onBoardNameChange={(name) => {
+            commitChange(() => setBoardName(name));
+          }}
         />
         <BudgetPanel
           budget={budget}
@@ -632,11 +634,6 @@ const WhiteboardPage = () => {
           </div>
         )}
 
-        <div className={`fixed z-40 ${isMobileBoard ? 'bottom-20 right-3' : 'bottom-4 right-4'}`}>
-          <CalculatorWidget
-            onSendToBoard={(amount) => addCard('expense', { title: `Калькулятор: ${amount}`, amount })}
-          />
-        </div>
       </div>
 
       <AddCardModal

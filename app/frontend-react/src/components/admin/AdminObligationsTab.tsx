@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, getDay, getDaysInMonth } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   adminService,
@@ -11,6 +13,7 @@ import {
   ObligationRiskDetailed,
 } from '../../services/adminService';
 import { UserListItem } from '../../services/userService';
+import { MonthYearPicker } from '../MonthYearPicker';
 import {
   AdminDeleteBtn,
   AdminField,
@@ -29,6 +32,10 @@ interface Props {
   users: UserListItem[];
 }
 
+function monthYearValue(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
 export const AdminObligationsTab = ({ users }: Props) => {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<ObligationSummaryItem[]>([]);
@@ -40,16 +47,23 @@ export const AdminObligationsTab = ({ users }: Props) => {
   const [applyUser, setApplyUser] = useState<number>(0);
   const [heatmap, setHeatmap] = useState<CalendarHeatmap | null>(null);
   const [risksDetailed, setRisksDetailed] = useState<ObligationRiskDetailed[]>([]);
+  const [monthYear, setMonthYear] = useState(() => format(new Date(), 'yyyy-MM'));
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  const load = async () => {
+  const [year, month] = useMemo(() => {
+    const [y, m] = monthYear.split('-').map(Number);
+    return [y, m];
+  }, [monthYear]);
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const [s, c, r, t, hm, rd] = await Promise.all([
         adminService.getObligationsSummary(),
-        adminService.getObligationsCalendar(),
+        adminService.getObligationsCalendar(year, month),
         adminService.getObligationsRisks(),
         adminService.listObligationTemplates(),
-        adminService.getObligationsHeatmap(),
+        adminService.getObligationsHeatmap(year, month),
         adminService.getObligationsRisksDetailed(),
       ]);
       setSummary(s);
@@ -61,9 +75,11 @@ export const AdminObligationsTab = ({ users }: Props) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [year, month]);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const heatmapCells = useMemo(() => {
     if (!heatmap) return [];
@@ -84,6 +100,23 @@ export const AdminObligationsTab = ({ users }: Props) => {
     }
     return cells;
   }, [heatmap]);
+
+  const summaryByBlockId = useMemo(
+    () => new Map(summary.map((s) => [s.block_id, s])),
+    [summary]
+  );
+
+  const dayPayments = useMemo(() => {
+    if (!selectedDay || !heatmap) return [];
+    return calendar.filter((c) => {
+      const d = new Date(c.date);
+      return (
+        d.getDate() === selectedDay &&
+        d.getMonth() + 1 === heatmap.month &&
+        d.getFullYear() === heatmap.year
+      );
+    });
+  }, [selectedDay, calendar, heatmap]);
 
   const onCreateTemplate = async () => {
     if (!newTpl.title.trim()) return;
@@ -118,6 +151,27 @@ export const AdminObligationsTab = ({ users }: Props) => {
     await load();
   };
 
+  const onDeleteRisk = async (risk: ObligationRiskDetailed) => {
+    const label = risk.kind === 'block' ? 'кредитный блок' : 'обязательство';
+    if (!window.confirm(`Удалить ${label} «${risk.title}» у ${risk.email}? История будет очищена.`)) {
+      return;
+    }
+    try {
+      if (risk.kind === 'block' && risk.block_id) {
+        await adminService.deleteObligationBlock(risk.block_id);
+      } else if (risk.kind === 'simple' && risk.obligation_id) {
+        await adminService.deleteSimpleObligation(risk.obligation_id);
+      } else {
+        toast.error('Не удалось определить запись для удаления');
+        return;
+      }
+      toast.success('Удалено');
+      await load();
+    } catch {
+      // interceptor
+    }
+  };
+
   if (loading) return <AdminLoading />;
 
   const severityLabel: Record<ObligationRiskDetailed['severity'], string> = {
@@ -138,7 +192,8 @@ export const AdminObligationsTab = ({ users }: Props) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <MonthYearPicker value={monthYear} onChange={setMonthYear} />
         <button type="button" className="btn btn-secondary text-xs min-h-[44px]" onClick={() => void load()}>
           Обновить
         </button>
@@ -154,11 +209,12 @@ export const AdminObligationsTab = ({ users }: Props) => {
                 <th>Обязательство</th>
                 <th className="hidden sm:table-cell">Сумма</th>
                 <th>Срок</th>
+                <th className="w-10" />
               </tr>
             </AdminTableHead>
             <AdminTableBody>
               {risksDetailed.map((r, i) => (
-                <tr key={`${r.user_id}-${r.kind}-${i}`}>
+                <tr key={`${r.user_id}-${r.kind}-${r.block_id ?? r.obligation_id ?? i}`}>
                   <td className="admin-cell-email">{r.email}</td>
                   <td>
                     <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${severityClass[r.severity]}`}>
@@ -175,6 +231,9 @@ export const AdminObligationsTab = ({ users }: Props) => {
                     {r.days_until != null && r.severity !== 'overdue' && (
                       <span className="admin-cell-muted"> ({r.days_until}д)</span>
                     )}
+                  </td>
+                  <td>
+                    <AdminDeleteBtn onClick={() => void onDeleteRisk(r)} />
                   </td>
                 </tr>
               ))}
@@ -244,7 +303,7 @@ export const AdminObligationsTab = ({ users }: Props) => {
         >
           <AdminHelpHint>
             <strong>Зачем:</strong> видно «пиковые» дни — когда у многих клиентов совпадают платежи (ипотека, кредиты).
-            Синий цвет = есть платежи в этот день, цифра внизу = количество платежей, при наведении — сумма.
+            Синий цвет = есть платежи в этот день, цифра внизу = количество платежей. Нажмите на день — откроется детализация.
             <br />
             <strong>Прогноз 7д/30д</strong> — сумма предстоящих платежей по всем пользователям.
             <strong> Просрочено</strong> — блоки с просроченной датой. Действие: смотрите «Эскалация рисков» и связывайтесь с клиентом.
@@ -256,7 +315,7 @@ export const AdminObligationsTab = ({ users }: Props) => {
             <div>Скоро (3 дня): <strong>{heatmap.upcoming_count}</strong></div>
           </div>
           <div className="admin-heatmap-legend">
-            <span>Число в ячейке — кол-во платежей в этот день</span>
+            <span>Число в ячейке — кол-во платежей в этот день. Нажмите на день для деталей.</span>
             <span className="inline-flex items-center gap-1">
               <span className="w-3 h-3 rounded" style={{ backgroundColor: 'rgba(59,130,246,0.5)' }} /> есть платежи
             </span>
@@ -270,11 +329,15 @@ export const AdminObligationsTab = ({ users }: Props) => {
                 return <div key={`e-${i}`} className="admin-heatmap-day-empty" />;
               }
               const intensity = cell.payment_count / maxHeat;
+              const clickable = cell.payment_count > 0;
               return (
-                <div
+                <button
                   key={cell.day}
+                  type="button"
+                  disabled={!clickable}
+                  onClick={() => setSelectedDay(cell.day)}
                   title={`${cell.day} ${heatmap.month}.${heatmap.year}: ${cell.payment_count} плат., ${cell.total_amount.toLocaleString('ru-RU')} ₽`}
-                  className="admin-heatmap-day"
+                  className={`admin-heatmap-day ${clickable ? 'admin-heatmap-day-clickable' : ''}`}
                   style={{
                     backgroundColor: cell.payment_count
                       ? `rgba(59, 130, 246, ${0.15 + intensity * 0.65})`
@@ -285,25 +348,34 @@ export const AdminObligationsTab = ({ users }: Props) => {
                   {cell.payment_count > 0 && (
                     <span className="tabular-nums opacity-80 font-medium">{cell.payment_count}</span>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
         </AdminSection>
       )}
 
-      <AdminSection title="Календарь платежей">
+      <AdminSection title={`Платежи за ${month}.${year}`}>
         {calendar.length === 0 ? (
           <div className="text-xs text-gray-500 px-4 pb-4">Нет платежей в этом месяце</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs px-4 pb-4">
             {calendar.map((c, i) => (
-              <div key={i} className="flex flex-col sm:flex-row sm:justify-between gap-0.5 bg-gray-50 dark:bg-gray-800 rounded px-2 py-2">
+              <button
+                key={`${c.user_id}-${c.date}-${c.title}-${i}`}
+                type="button"
+                onClick={() => {
+                  const d = new Date(c.date);
+                  setMonthYear(monthYearValue(d.getFullYear(), d.getMonth() + 1));
+                  setSelectedDay(d.getDate());
+                }}
+                className="flex flex-col sm:flex-row sm:justify-between gap-0.5 bg-gray-50 dark:bg-gray-800 rounded px-2 py-2 text-left hover:ring-2 hover:ring-primary-400 transition-shadow"
+              >
                 <span className="break-words">
                   {format(new Date(c.date), 'dd.MM')} — {c.title} ({c.email})
                 </span>
                 <span className="shrink-0 tabular-nums">{c.amount.toLocaleString('ru-RU')} ₽</span>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -386,6 +458,112 @@ export const AdminObligationsTab = ({ users }: Props) => {
           </AdminFormRow>
         )}
       </AdminSection>
+
+      {selectedDay != null && heatmap && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/55 p-0 sm:p-4"
+          onClick={() => setSelectedDay(null)}
+        >
+          <div
+            className="bg-white dark:bg-gray-800 w-full sm:max-w-2xl rounded-t-2xl sm:rounded-xl shadow-xl flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex items-start justify-between gap-3 px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Платежи на {selectedDay} {format(new Date(heatmap.year, heatmap.month - 1, selectedDay), 'MMMM yyyy', { locale: ru })}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  {dayPayments.length} платеж(ей) ·{' '}
+                  {dayPayments.reduce((s, p) => s + p.amount, 0).toLocaleString('ru-RU')} ₽
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDay(null)}
+                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                aria-label="Закрыть"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-6 py-3 space-y-3">
+              {dayPayments.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-8">Нет платежей в этот день</p>
+              ) : (
+                dayPayments.map((p, i) => {
+                  const extra = p.block_id ? summaryByBlockId.get(p.block_id) : undefined;
+                  return (
+                    <div
+                      key={`${p.user_id}-${p.date}-${p.title}-${i}`}
+                      className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50/80 dark:bg-gray-900/40"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                        <div>
+                          <div className="font-semibold text-gray-900 dark:text-gray-100">{p.title}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{p.email}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                            {p.amount.toLocaleString('ru-RU')} ₽
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {format(new Date(p.date), 'dd.MM.yyyy')}
+                            {p.payment_number ? ` · платёж №${p.payment_number}` : ''}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <span className="text-gray-500">Тип: </span>
+                          {p.kind === 'block' ? 'Кредит/ипотека' : 'Простое обязательство'}
+                        </div>
+                        {p.monthly != null && (
+                          <div>
+                            <span className="text-gray-500">Платёж/мес: </span>
+                            {p.monthly.toLocaleString('ru-RU')} ₽
+                          </div>
+                        )}
+                        {p.remaining != null && (
+                          <div>
+                            <span className="text-gray-500">Остаток: </span>
+                            {p.remaining.toLocaleString('ru-RU')} ₽
+                          </div>
+                        )}
+                        {p.rate != null && p.rate > 0 && (
+                          <div>
+                            <span className="text-gray-500">Ставка: </span>
+                            {p.rate}%
+                          </div>
+                        )}
+                        {(p.status || extra?.status) && (
+                          <div>
+                            <span className="text-gray-500">Статус: </span>
+                            {p.status || extra?.status}
+                          </div>
+                        )}
+                        {extra?.next_payment && (
+                          <div>
+                            <span className="text-gray-500">След. платёж: </span>
+                            {format(new Date(extra.next_payment), 'dd.MM.yyyy')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+              <button type="button" className="btn btn-secondary w-full min-h-[44px]" onClick={() => setSelectedDay(null)}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
