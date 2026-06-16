@@ -9,6 +9,7 @@ import gzip
 import shutil
 import asyncio
 import json
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, List
@@ -18,6 +19,17 @@ from urllib.parse import urlparse
 from app.backend.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+_BACKUP_FILENAME_RE = re.compile(r"^backup_\d{8}_\d{6}\.sql(\.gz)?$")
+
+
+def validate_backup_filename(filename: str) -> str:
+    """Reject path traversal; return basename only."""
+    name = Path(filename).name
+    if not _BACKUP_FILENAME_RE.match(name):
+        raise ValueError(f"Invalid backup filename: {filename}")
+    return name
+
 
 class BackupManager:
     """Управление бэкапами базы данных."""
@@ -44,6 +56,14 @@ class BackupManager:
         self._parse_database_url()
         
         self._restore_lock = None
+
+    def _safe_backup_path(self, filename: str) -> Path:
+        safe_name = validate_backup_filename(filename)
+        base = self.backup_dir.resolve()
+        path = (base / safe_name).resolve()
+        if not path.is_relative_to(base):
+            raise ValueError(f"Path traversal blocked: {filename}")
+        return path
     
     def _parse_database_url(self):
         """Парсит DATABASE_URL для получения параметров подключения из .env."""
@@ -246,7 +266,7 @@ class BackupManager:
         Returns:
             Dict с информацией о бэкапе или None если не найден
         """
-        backup_path = self.backup_dir / filename
+        backup_path = self._safe_backup_path(filename)
         
         if not backup_path.exists():
             return None
@@ -285,16 +305,16 @@ class BackupManager:
         Returns:
             True если удален успешно, False если не найден
         """
-        backup_path = self.backup_dir / filename
-        metadata_path = self._get_metadata_filename(filename)
-        metadata_file = self.backup_dir / metadata_path
+        safe_name = validate_backup_filename(filename)
+        backup_path = self._safe_backup_path(safe_name)
+        metadata_file = self.backup_dir / self._get_metadata_filename(safe_name)
         
         deleted = False
         
         if backup_path.exists():
             backup_path.unlink()
             deleted = True
-            logger.info(f"Удален бэкап: {filename}")
+            logger.info(f"Удален бэкап: {safe_name}")
         
         if metadata_file.exists():
             metadata_file.unlink()
@@ -349,10 +369,11 @@ class BackupManager:
             self._restore_lock = asyncio.Lock()
         
         async with self._restore_lock:
-            backup_path = self.backup_dir / filename
+            safe_name = validate_backup_filename(filename)
+            backup_path = self._safe_backup_path(safe_name)
             
             if not backup_path.exists():
-                raise FileNotFoundError(f"Бэкап не найден: {filename}")
+                raise FileNotFoundError(f"Бэкап не найден: {safe_name}")
             
             backup_size_mb = backup_path.stat().st_size / (1024 * 1024)
             logger.info(f"Восстановление из бэкапа: {filename} (размер: {backup_size_mb:.2f} MB)")

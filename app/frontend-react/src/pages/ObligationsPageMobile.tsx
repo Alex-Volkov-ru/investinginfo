@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BootstrapIcon } from '../components/BootstrapIcon';
-import { AlertCircle, Calendar } from 'lucide-react';
+import { AlertCircle, Calendar, Plus } from 'lucide-react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { budgetService } from '../services/budgetService';
 import { ObligationBlock, ObligationPayment, UpcomingPayment } from '../types';
@@ -54,7 +54,7 @@ const ObligationsPageMobile = () => {
 
   const loadUpcomingPayments = async () => {
     try {
-      const data = await budgetService.getUpcomingPayments(3); // Только на 3 дня
+      const data = await budgetService.getUpcomingPayments(7);
       setUpcomingPayments(data);
     } catch (error) {
       // Ошибка обработана в interceptor
@@ -355,8 +355,16 @@ const ObligationsPageMobile = () => {
         {loading ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">Загрузка...</div>
         ) : blocks.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow text-center text-gray-500 dark:text-gray-400">
-            Кредитов пока нет
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow text-center">
+            <Calendar className="h-10 w-10 mx-auto text-primary-500 mb-3" />
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Нет обязательств</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Добавьте кредит или ипотеку — напомним о платежах заранее.
+            </p>
+            <button type="button" className="btn btn-primary min-h-[44px]" onClick={() => setShowBlockModal(true)}>
+              <Plus className="h-4 w-4 mr-2 inline" />
+              Добавить
+            </button>
           </div>
         ) : (
           blocks.map((block) => {

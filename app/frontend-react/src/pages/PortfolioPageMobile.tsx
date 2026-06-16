@@ -370,6 +370,24 @@ const PortfolioPageMobile = () => {
         </div>
       </div>
 
+      {portfolios.length === 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center border-2 border-dashed border-gray-200 dark:border-gray-700">
+          <BootstrapIcon name="graph-up-arrow" size={32} className="text-primary-500 mx-auto mb-2" />
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Создайте портфель</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Отслеживайте акции, ETF и облигации в одном месте.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary min-h-[44px]"
+          >
+            <BootstrapIcon name="plus-lg" size={16} className="mr-2" />
+            Новый портфель
+          </button>
+        </div>
+      )}
+
       {/* Charts */}
       {selectedPortfolio && positions.length > 0 && (
         <div data-tour="portfolio-charts">

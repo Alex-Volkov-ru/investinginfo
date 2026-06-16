@@ -1,23 +1,25 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_staff_user
 from app.backend.core.config import get_settings
-from app.backend.core.constants import ERROR_INVALID_TOKEN, ERROR_USER_NOT_FOUND
+from app.backend.core.constants import ERROR_INVALID_TOKEN
 from app.backend.db.session import SessionLocal, get_db
 from app.backend.models.user import User
 from app.backend.services.presence import presence_service
-from fastapi import Depends
 
 log = logging.getLogger("presence.ws")
 router = APIRouter()
 settings = get_settings()
+
+WS_AUTH_TIMEOUT_SEC = 10.0
 
 
 def _user_from_token(token: str, db: Session) -> User | None:
@@ -29,18 +31,42 @@ def _user_from_token(token: str, db: Session) -> User | None:
     return db.query(User).filter(User.id == user_id).first()
 
 
+async def _authenticate_ws(websocket: WebSocket, db: Session) -> User | None:
+    """Auth via first JSON message {type: auth, token: ...} — token not in URL."""
+    try:
+        raw = await asyncio.wait_for(websocket.receive_text(), timeout=WS_AUTH_TIMEOUT_SEC)
+        msg = json.loads(raw)
+    except asyncio.TimeoutError:
+        await websocket.close(code=4401, reason="auth timeout")
+        return None
+    except (json.JSONDecodeError, WebSocketDisconnect):
+        await websocket.close(code=4401, reason=ERROR_INVALID_TOKEN)
+        return None
+
+    if msg.get("type") != "auth" or not msg.get("token"):
+        await websocket.close(code=4401, reason="auth required")
+        return None
+
+    user = _user_from_token(str(msg["token"]), db)
+    if not user:
+        await websocket.close(code=4401, reason=ERROR_INVALID_TOKEN)
+        return None
+
+    await websocket.send_json({"type": "auth_ok"})
+    return user
+
+
 @router.websocket("/ws/presence")
-async def presence_websocket(websocket: WebSocket, token: str = Query(...)) -> None:
+async def presence_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
     db = SessionLocal()
     user: User | None = None
     is_staff = False
     try:
-        user = _user_from_token(token, db)
+        user = await _authenticate_ws(websocket, db)
         if not user:
-            await websocket.close(code=4401, reason=ERROR_INVALID_TOKEN)
             return
 
-        await websocket.accept()
         is_staff = bool(user.is_staff)
 
         became_online = await presence_service.connect(user.id)

@@ -4,7 +4,6 @@ import { format } from 'date-fns';
 import { backupService, BackupInfo } from '../services/backupService';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAuth } from '../contexts/AuthContext';
-import { authService } from '../lib/auth';
 import { userService, UserListItem } from '../services/userService';
 import { AdminInvestmentsTab } from '../components/admin/AdminInvestmentsTab';
 import { AdminBudgetTab } from '../components/admin/AdminBudgetTab';
@@ -412,20 +411,17 @@ const AdminPage = () => {
                                 onClick={() => setBackupMenuOpen(null)}
                               />
                               <div className="absolute right-0 mt-1 z-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 min-w-[160px] py-1">
-                                <a
+                                <button
+                                  type="button"
                                   className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                                  href={
-                                    `${backupService.downloadUrl(b.filename)}?token=${encodeURIComponent(
-                                      authService.getToken() || '',
-                                    )}`
-                                  }
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={() => setBackupMenuOpen(null)}
+                                  onClick={() => {
+                                    setBackupMenuOpen(null);
+                                    void backupService.download(b.filename);
+                                  }}
                                 >
                                   <BootstrapIcon name="download" className="mr-2" size={14} />
                                   Скачать
-                                </a>
+                                </button>
                                 <button
                                   className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                                   onClick={() => {

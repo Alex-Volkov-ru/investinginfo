@@ -9,7 +9,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { useAuth } from './AuthContext';
-import { getPresenceWebSocketUrl, OnlineUser } from '../lib/presence';
+import { getPresenceWebSocketUrl, buildPresenceAuthMessage, OnlineUser } from '../lib/presence';
 
 interface PresenceContextType {
   onlineUsers: OnlineUser[];
@@ -106,21 +106,32 @@ export const PresenceProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     closeSocket();
 
-    const ws = new WebSocket(getPresenceWebSocketUrl(token));
+    const ws = new WebSocket(getPresenceWebSocketUrl());
     wsRef.current = ws;
 
     ws.onopen = () => {
       if (!mountedRef.current) return;
-      attemptRef.current = 0;
-      setIsConnected(true);
-      pingRef.current = window.setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'ping' }));
-        }
-      }, PING_INTERVAL_MS);
+      ws.send(buildPresenceAuthMessage(token));
     };
 
-    ws.onmessage = handleMessage;
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(String(event.data)) as { type: string };
+        if (msg.type === 'auth_ok') {
+          attemptRef.current = 0;
+          setIsConnected(true);
+          pingRef.current = window.setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'ping' }));
+            }
+          }, PING_INTERVAL_MS);
+          return;
+        }
+      } catch {
+        // fall through
+      }
+      handleMessage(event);
+    };
 
     ws.onclose = () => {
       if (!mountedRef.current) return;

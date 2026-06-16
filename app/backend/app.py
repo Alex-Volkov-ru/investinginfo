@@ -55,7 +55,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log.info("Server shutdown")
 
 def create_app() -> FastAPI:
-    app = FastAPI(lifespan=lifespan, title=APP_TITLE, version=APP_VERSION)
+    app = FastAPI(
+        lifespan=lifespan,
+        title=APP_TITLE,
+        version=APP_VERSION,
+        docs_url="/docs" if settings.DEBUG else None,
+        redoc_url="/redoc" if settings.DEBUG else None,
+        openapi_url="/openapi.json" if settings.DEBUG else None,
+    )
 
     # CORS: если указан "*", отключаем credentials для безопасности
     allow_credentials = not ("*" in settings.ALLOWED_ORIGINS)

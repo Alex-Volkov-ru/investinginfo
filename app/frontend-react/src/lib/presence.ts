@@ -4,7 +4,8 @@ export interface OnlineUser {
   tg_username?: string | null;
 }
 
-export function getPresenceWebSocketUrl(token: string): string {
+/** WebSocket URL without token — auth is sent as first message after connect. */
+export function getPresenceWebSocketUrl(): string {
   const apiBase = import.meta.env.VITE_API_URL || '/api';
   let wsBase: string;
 
@@ -18,5 +19,9 @@ export function getPresenceWebSocketUrl(token: string): string {
     wsBase = `${protocol}//${window.location.host}${path}`.replace(/\/$/, '');
   }
 
-  return `${wsBase}/ws/presence?token=${encodeURIComponent(token)}`;
+  return `${wsBase}/ws/presence`;
+}
+
+export function buildPresenceAuthMessage(token: string): string {
+  return JSON.stringify({ type: 'auth', token });
 }

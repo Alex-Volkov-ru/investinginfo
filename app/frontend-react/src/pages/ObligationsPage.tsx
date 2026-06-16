@@ -51,7 +51,7 @@ const ObligationsPage = () => {
 
   const loadUpcomingPayments = async () => {
     try {
-      const data = await budgetService.getUpcomingPayments(3); // Только на 3 дня
+      const data = await budgetService.getUpcomingPayments(7);
       setUpcomingPayments(data);
     } catch (error) {
       // Ошибка обработана в interceptor
@@ -414,7 +414,17 @@ const ObligationsPage = () => {
         {loading ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">Загрузка...</div>
         ) : blocks.length === 0 ? (
-          <div className="card text-center py-8 text-gray-500 dark:text-gray-400">Кредитов пока нет</div>
+          <div className="card text-center py-10 px-4">
+            <Calendar className="h-10 w-10 mx-auto text-primary-500 mb-3" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Нет обязательств</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-md mx-auto">
+              Добавьте ипотеку, кредит или рассрочку — приложение напомнит о платежах и покажет остаток долга.
+            </p>
+            <button type="button" className="btn btn-primary" onClick={() => setShowBlockModal(true)}>
+              <Plus className="h-4 w-4 mr-2 inline" />
+              Добавить обязательство
+            </button>
+          </div>
         ) : (
           blocks.map((block) => {
             const isEditingPayments = block.id && editingPayments[block.id]?.length > 0;

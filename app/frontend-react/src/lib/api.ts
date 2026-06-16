@@ -75,6 +75,8 @@ class ApiClient {
             toast.error(data?.detail || 'Конфликт данных');
           } else if (status === 429) {
             toast.error('Слишком много запросов. Подождите немного.');
+          } else if (status === 503) {
+            toast.error('Сервис временно недоступен. Попробуйте через минуту.');
           } else if (status >= 500) {
             toast.error(data?.detail || 'Ошибка сервера. Попробуйте позже.');
           } else {

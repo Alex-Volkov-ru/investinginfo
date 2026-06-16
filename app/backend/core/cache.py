@@ -54,12 +54,18 @@ async def cached_json(key: str, ttl_sec: int, loader: Callable[[], Awaitable[Any
     return data
 
 # ---------- simple rate limit (fixed window) ----------
-async def rate_limit(key: str, limit: int, window_sec: int) -> None:
+async def rate_limit(key: str, limit: int, window_sec: int, *, fail_closed: bool = False) -> None:
     """
     Не более `limit` инкрементов за `window_sec`.
-    Используем фиксированное окно: EXPIRE ставим только при первом INCR.
+    fail_closed=True — при недоступности Redis отклонять запрос (для auth).
     """
-    r = await get_redis()
+    try:
+        r = await get_redis()
+    except Exception:
+        if fail_closed:
+            raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+        return
+
     now_bucket = int(time.time()) // window_sec
     window_key = f"rl:{key}:{now_bucket}"
     try:
@@ -71,4 +77,5 @@ async def rate_limit(key: str, limit: int, window_sec: int) -> None:
     except HTTPException:
         raise
     except Exception:
-        pass
+        if fail_closed:
+            raise HTTPException(status_code=503, detail="Service temporarily unavailable")

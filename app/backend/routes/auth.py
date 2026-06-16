@@ -3,13 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.backend.core.security import verify_password, hash_password, encrypt_token
 from app.backend.core.auth import create_access_token
 from app.backend.core.cache import rate_limit
+from app.backend.core.request_utils import client_ip
 from app.backend.core.constants import (
     PHONE_PATTERN,
     LOGIN_RATE_LIMIT,
@@ -87,8 +88,10 @@ class LoginOut(BaseModel):
 
 
 @router.post("/login", response_model=LoginOut)
-async def login(payload: LoginIn, db: Session = Depends(get_db)):
-    await rate_limit(f"login:email:{payload.email}", limit=LOGIN_RATE_LIMIT, window_sec=LOGIN_RATE_WINDOW_SEC)
+async def login(payload: LoginIn, request: Request, db: Session = Depends(get_db)):
+    ip = client_ip(request)
+    await rate_limit(f"login:ip:{ip}", limit=LOGIN_RATE_LIMIT * 3, window_sec=LOGIN_RATE_WINDOW_SEC, fail_closed=True)
+    await rate_limit(f"login:email:{payload.email}", limit=LOGIN_RATE_LIMIT, window_sec=LOGIN_RATE_WINDOW_SEC, fail_closed=True)
 
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.password_hash):
@@ -107,8 +110,9 @@ async def login(payload: LoginIn, db: Session = Depends(get_db)):
 
 
 @router.post("/register", response_model=LoginOut)
-async def register(payload: RegisterIn, db: Session = Depends(get_db)):
-    await rate_limit("register:ip", limit=REGISTER_RATE_LIMIT, window_sec=REGISTER_RATE_WINDOW_SEC)
+async def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db)):
+    ip = client_ip(request)
+    await rate_limit(f"register:ip:{ip}", limit=REGISTER_RATE_LIMIT, window_sec=REGISTER_RATE_WINDOW_SEC, fail_closed=True)
 
     existing_user = db.query(User).filter(User.email == payload.email).first()
     if existing_user:

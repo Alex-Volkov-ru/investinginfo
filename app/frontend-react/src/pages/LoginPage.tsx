@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { consumeReturnUrl } from '../lib/authReturn';
-import { Wallet } from 'lucide-react';
+import { Wallet, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTour } from '../contexts/TourContext';
 
@@ -13,6 +13,7 @@ const LoginPage = () => {
   const [tgUsername, setTgUsername] = useState('');
   const [phone, setPhone] = useState('');
   const [tinkoffToken, setTinkoffToken] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, register, isAuthenticated, isInitializing } = useAuth();
   const navigate = useNavigate();
@@ -165,17 +166,33 @@ const LoginPage = () => {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Пароль
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete={isLogin ? "current-password" : "new-password"}
-                required
-                className="input"
-                placeholder={isLogin ? 'Пароль' : 'мин. 8 символов, Aa и спецсимволы'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete={isLogin ? 'current-password' : 'new-password'}
+                  required
+                  className="input pr-10"
+                  placeholder={isLogin ? 'Пароль' : 'мин. 8 символов, Aa и спецсимволы'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  onClick={() => setShowPassword((v) => !v)}
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {!isLogin && (
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Латиница: строчные и прописные, цифры, спецсимволы. Без кириллицы.
+                </p>
+              )}
             </div>
             
             {!isLogin && (

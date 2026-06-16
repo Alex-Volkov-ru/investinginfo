@@ -89,6 +89,7 @@ services:
       ALGORITHM: ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      DEBUG: ${DEBUG:-true}
       TZ: ${TZ:-Europe/Moscow}
       REDIS_URL: ${REDIS_URL:-redis://bigs-redis:6379/0}
       BACKUP_DIR: ${BACKUP_DIR:-/app/backups}

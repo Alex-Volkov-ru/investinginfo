@@ -543,6 +543,29 @@ const WhiteboardPage = () => {
             });
           }}
         />
+        {!boardId && boardList.length === 0 && (
+          <div className="rounded-xl border-2 border-dashed border-primary-300 dark:border-primary-700 bg-primary-50/50 dark:bg-primary-900/10 p-6 text-center">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Финансовая доска</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-lg mx-auto">
+              Визуально распределите бюджет: карточки доходов и расходов, зоны, рисунок. Можно начать с шаблона или пустой доски.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button type="button" className="btn btn-primary" onClick={() => setShowTemplateModal(true)}>
+                Выбрать шаблон
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setNewBoardName(defaultBoardName());
+                  setShowNewBoardModal(true);
+                }}
+              >
+                Пустая доска
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div

@@ -387,6 +387,23 @@ const BudgetPage = () => {
               Также отображаются графики распределения доходов и расходов по категориям для визуального анализа структуры бюджета.
             </p>
           </div>
+          {!summary && !loading && (
+            <div className="card text-center py-10 px-4">
+              <TrendingUp className="h-10 w-10 mx-auto text-primary-500 mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Начните вести бюджет</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-md mx-auto">
+                Создайте счёт и категорию, затем добавьте первую транзакцию — сводка и графики появятся автоматически.
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <button type="button" className="btn btn-primary" onClick={() => { setActiveTab('accounts'); setShowAccountModal(true); }}>
+                  Создать счёт
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(true)}>
+                  Добавить транзакцию
+                </button>
+              </div>
+            </div>
+          )}
           {summary && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="card">

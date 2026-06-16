@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import Optional
 
@@ -9,55 +8,18 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.backend.core.auth import get_current_user, get_staff_user
-from app.backend.core.security import hash_password, encrypt_token
+from app.backend.core.security import encrypt_token
 from app.backend.core.constants import (
-    PHONE_PATTERN,
-    ERROR_PHONE_FORMAT,
-    ERROR_USER_EXISTS,
     ERROR_USER_NOT_FOUND,
-    HTTP_409_CONFLICT,
     HTTP_404_NOT_FOUND,
+    HTTP_400_BAD_REQUEST,
 )
-from app.backend.core.validators import validate_email, validate_password, validate_service_login
+from app.backend.core.validators import validate_email, validate_service_login
 from app.backend.db.session import get_db
 from app.backend.models.user import User
 from app.backend.services.admin_audit import log_admin_action
 
 router = APIRouter()
-
-
-class UserCreateIn(BaseModel):
-    email: str
-    password: str
-    tg_username: str
-    phone: Optional[str] = None
-    tinkoff_token: Optional[str] = None
-
-    @field_validator("email")
-    @classmethod
-    def email_valid(cls, v: str) -> str:
-        return validate_email(v)
-
-    @field_validator("password")
-    @classmethod
-    def password_strong(cls, v: str) -> str:
-        return validate_password(v)
-
-    @field_validator("tg_username")
-    @classmethod
-    def service_login_valid(cls, v: str) -> str:
-        result = validate_service_login(v, required=True)
-        return result  # type: ignore[return-value]
-
-    @field_validator("phone")
-    @classmethod
-    def phone_format(cls, v: Optional[str]) -> Optional[str]:
-        if not v:
-            return None
-        v = v.strip()
-        if not re.fullmatch(PHONE_PATTERN, v):
-            raise ValueError(ERROR_PHONE_FORMAT)
-        return v
 
 
 class UserMeOut(BaseModel):
@@ -103,30 +65,6 @@ class UserListOut(BaseModel):
 class StaffToggleIn(BaseModel):
     user_id: int
     is_staff: bool
-
-
-@router.post("/register", response_model=UserMeOut)
-def register(payload: UserCreateIn, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == payload.email).first():
-        raise HTTPException(HTTP_409_CONFLICT, ERROR_USER_EXISTS)
-
-    u = User(
-        email=payload.email,
-        password_hash=hash_password(payload.password),
-        tg_username=payload.tg_username,
-        phone=payload.phone,
-        created_at=datetime.utcnow(),
-    )
-
-    if payload.tinkoff_token:
-        u.tinkoff_token_enc = encrypt_token(payload.tinkoff_token)
-
-    db.add(u)
-    db.commit()
-    db.refresh(u)
-    return UserMeOut(
-        id=u.id, email=u.email, tg_username=u.tg_username, has_tinkoff=u.has_tinkoff_token, is_staff=u.is_staff
-    )
 
 
 @router.get("/me", response_model=UserMeOut)
@@ -203,6 +141,11 @@ def toggle_staff(
     target_user = db.query(User).filter(User.id == payload.user_id).first()
     if not target_user:
         raise HTTPException(HTTP_404_NOT_FOUND, ERROR_USER_NOT_FOUND)
+
+    if not payload.is_staff and target_user.is_staff:
+        staff_count = db.query(User).filter(User.is_staff.is_(True)).count()
+        if staff_count <= 1:
+            raise HTTPException(HTTP_400_BAD_REQUEST, "Нельзя снять права у последнего администратора")
 
     target_user.is_staff = payload.is_staff
     db.add(target_user)

@@ -392,6 +392,20 @@ const PortfolioPage = () => {
         </div>
       </div>
 
+      {portfolios.length === 0 && (
+        <div className="card p-8 text-center border-dashed border-2 border-gray-200 dark:border-gray-700">
+          <TrendingUp className="h-10 w-10 mx-auto text-primary-500 mb-3" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Создайте первый портфель</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-md mx-auto">
+            Добавьте брокерский счёт или кошелёк, чтобы отслеживать акции, ETF и облигации. Подключите токен Tinkoff для автоматических котировок.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+            <Plus className="h-4 w-4 mr-2 inline" />
+            Создать портфель
+          </button>
+        </div>
+      )}
+
       {/* Charts */}
       {selectedPortfolio && positions.length > 0 && (
         <div data-tour="portfolio-charts">

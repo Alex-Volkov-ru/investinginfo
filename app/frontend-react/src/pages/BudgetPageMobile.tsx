@@ -525,7 +525,21 @@ const BudgetPageMobile = () => {
               )}
             </>
           ) : (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">Нет данных</div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow text-center">
+              <BootstrapIcon name="wallet2" size={32} className="text-primary-500 mx-auto mb-2" />
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Начните вести бюджет</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Создайте счёт и добавьте первую транзакцию — здесь появится сводка и графики.
+              </p>
+              <div className="flex flex-col gap-2">
+                <button type="button" className="btn btn-primary min-h-[44px]" onClick={() => { setActiveTab('accounts'); setShowAccountModal(true); }}>
+                  Создать счёт
+                </button>
+                <button type="button" className="btn btn-secondary min-h-[44px]" onClick={() => setShowAddModal(true)}>
+                  Добавить транзакцию
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}

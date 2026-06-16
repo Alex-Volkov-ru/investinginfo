@@ -18,11 +18,9 @@ from cryptography.fernet import Fernet, InvalidToken
 from app.backend.core.config import get_settings
 
 def _get_fernet() -> Fernet:
-    """
-    Производим ключ для Fernet из SECRET_KEY приложения (SHA-256 → urlsafe b64).
-    ВАЖНО: смена SECRET_KEY сделает расшифровку старых токенов невозможной.
-    """
     settings = get_settings()
+    if settings.ENCRYPTION_KEY:
+        return Fernet(settings.ENCRYPTION_KEY.encode("utf-8"))
     digest = hashlib.sha256(settings.SECRET_KEY.encode("utf-8")).digest()
     key = base64.urlsafe_b64encode(digest)
     return Fernet(key)

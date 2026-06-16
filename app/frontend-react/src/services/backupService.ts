@@ -1,5 +1,14 @@
 import { apiClient } from '../lib/api';
 
+function downloadBlob(data: Blob, filename: string) {
+  const url = URL.createObjectURL(data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export interface BackupInfo {
   filename: string;
   path: string;
@@ -73,6 +82,13 @@ export const backupService = {
   downloadUrl(filename: string): string {
     const base = (import.meta as any).env?.VITE_API_URL || '/api';
     return `${base}/backups/download/${encodeURIComponent(filename)}`;
+  },
+
+  async download(filename: string): Promise<void> {
+    const res = await apiClient.get(`/backups/download/${encodeURIComponent(filename)}`, {
+      responseType: 'blob',
+    });
+    downloadBlob(res.data, filename);
   },
 
   async getCurrentStats(): Promise<DbStats> {
