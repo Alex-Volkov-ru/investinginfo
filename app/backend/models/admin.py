@@ -45,3 +45,16 @@ class AdminObligationTemplate(Base):
     notes = Column(Text, nullable=False, server_default="")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now())
+
+
+class AdminObligationRiskDismissal(Base):
+    __tablename__ = "admin_obligation_risk_dismissals"
+    __table_args__ = {"schema": "pf"}
+
+    id = Column(sa.BigInteger, primary_key=True)
+    user_id = Column(sa.BigInteger, ForeignKey("pf.users.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind = Column(String(32), nullable=False)
+    block_id = Column(sa.BigInteger, nullable=True)
+    obligation_id = Column(sa.BigInteger, nullable=True)
+    dismissed_by = Column(sa.BigInteger, ForeignKey("pf.users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=sa.func.now())

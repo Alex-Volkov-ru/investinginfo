@@ -379,6 +379,14 @@ export const adminService = {
   async deleteObligationTemplate(id: number): Promise<void> {
     await apiClient.delete(`/admin/obligations/templates/${id}`);
   },
+  async dismissObligationRisk(data: {
+    user_id: number;
+    kind: string;
+    block_id?: number;
+    obligation_id?: number;
+  }): Promise<void> {
+    await apiClient.post('/admin/obligations/risks/dismiss', data);
+  },
   async deleteObligationBlock(blockId: number): Promise<void> {
     await apiClient.delete(`/admin/obligations/blocks/${blockId}`);
   },

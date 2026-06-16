@@ -27,8 +27,10 @@ from app.backend.models.user import User
 from app.backend.models.portfolio import Portfolio, Position
 from app.backend.models.instrument import Instrument
 from app.backend.models.budget import BudgetTransaction, BudgetCategory, BudgetObligation, ObligationBlock, ObligationPayment
+from app.backend.models.admin import AdminObligationRiskDismissal
 from app.backend.models.whiteboard import Whiteboard
 from app.backend.routes.market import _get_last_prices_blocking, settings as market_settings
+from app.backend.services.admin_audit import log_admin_action
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -225,6 +227,27 @@ class ObligationRiskItem(BaseModel):
     obligation_id: Optional[int] = None
 
 
+class RiskDismissIn(BaseModel):
+    user_id: int
+    kind: str
+    block_id: Optional[int] = None
+    obligation_id: Optional[int] = None
+
+
+def _risk_is_dismissed(db: Session, item: ObligationRiskItem) -> bool:
+    q = db.query(AdminObligationRiskDismissal).filter(
+        AdminObligationRiskDismissal.user_id == item.user_id,
+        AdminObligationRiskDismissal.kind == item.kind,
+    )
+    if item.block_id is not None:
+        q = q.filter(AdminObligationRiskDismissal.block_id == item.block_id)
+    elif item.obligation_id is not None:
+        q = q.filter(AdminObligationRiskDismissal.obligation_id == item.obligation_id)
+    else:
+        return False
+    return q.first() is not None
+
+
 @router.get("/obligations/calendar-heatmap", response_model=CalendarHeatmapOut)
 def obligations_calendar_heatmap(
     admin: User = Depends(get_staff_user),
@@ -377,7 +400,48 @@ def obligations_risks_detailed(
 
     order = {"overdue": 0, "today": 1, "soon": 2, "upcoming": 3}
     items.sort(key=lambda x: (order.get(x.severity, 9), x.days_until or 99))
-    return items
+    return [item for item in items if not _risk_is_dismissed(db, item)]
+
+
+@router.post("/obligations/risks/dismiss")
+def dismiss_obligation_risk(
+    payload: RiskDismissIn,
+    admin: User = Depends(get_staff_user),
+    db: Session = Depends(get_db),
+):
+    if payload.kind == "block" and not payload.block_id:
+        raise HTTPException(HTTP_404_NOT_FOUND, "block_id обязателен")
+    if payload.kind == "simple" and not payload.obligation_id:
+        raise HTTPException(HTTP_404_NOT_FOUND, "obligation_id обязателен")
+
+    q = db.query(AdminObligationRiskDismissal).filter(
+        AdminObligationRiskDismissal.user_id == payload.user_id,
+        AdminObligationRiskDismissal.kind == payload.kind,
+    )
+    if payload.block_id is not None:
+        q = q.filter(AdminObligationRiskDismissal.block_id == payload.block_id)
+    if payload.obligation_id is not None:
+        q = q.filter(AdminObligationRiskDismissal.obligation_id == payload.obligation_id)
+
+    if not q.first():
+        db.add(
+            AdminObligationRiskDismissal(
+                user_id=payload.user_id,
+                kind=payload.kind,
+                block_id=payload.block_id,
+                obligation_id=payload.obligation_id,
+                dismissed_by=admin.id,
+            )
+        )
+        db.commit()
+        log_admin_action(
+            db,
+            admin,
+            "dismiss_obligation_risk",
+            payload.user_id,
+            payload.model_dump(),
+        )
+    return {"status": "ok"}
 
 
 # ── Investments ──

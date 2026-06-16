@@ -14,6 +14,7 @@ import {
 } from '../../services/adminService';
 import { UserListItem } from '../../services/userService';
 import { MonthYearPicker } from '../MonthYearPicker';
+import { ConfirmDialog } from '../ConfirmDialog';
 import {
   AdminDeleteBtn,
   AdminField,
@@ -49,6 +50,14 @@ export const AdminObligationsTab = ({ users }: Props) => {
   const [risksDetailed, setRisksDetailed] = useState<ObligationRiskDetailed[]>([]);
   const [monthYear, setMonthYear] = useState(() => format(new Date(), 'yyyy-MM'));
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [dayEmailFilter, setDayEmailFilter] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmText: string;
+    confirmButtonClass?: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   const [year, month] = useMemo(() => {
     const [y, m] = monthYear.split('-').map(Number);
@@ -108,15 +117,18 @@ export const AdminObligationsTab = ({ users }: Props) => {
 
   const dayPayments = useMemo(() => {
     if (!selectedDay || !heatmap) return [];
+    const needle = dayEmailFilter.trim().toLowerCase();
     return calendar.filter((c) => {
       const d = new Date(c.date);
-      return (
+      const sameDay =
         d.getDate() === selectedDay &&
         d.getMonth() + 1 === heatmap.month &&
-        d.getFullYear() === heatmap.year
-      );
+        d.getFullYear() === heatmap.year;
+      if (!sameDay) return false;
+      if (!needle) return true;
+      return c.email.toLowerCase().includes(needle) || c.title.toLowerCase().includes(needle);
     });
-  }, [selectedDay, calendar, heatmap]);
+  }, [selectedDay, calendar, heatmap, dayEmailFilter]);
 
   const onCreateTemplate = async () => {
     if (!newTpl.title.trim()) return;
@@ -151,25 +163,53 @@ export const AdminObligationsTab = ({ users }: Props) => {
     await load();
   };
 
-  const onDeleteRisk = async (risk: ObligationRiskDetailed) => {
-    const label = risk.kind === 'block' ? 'кредитный блок' : 'обязательство';
-    if (!window.confirm(`Удалить ${label} «${risk.title}» у ${risk.email}? История будет очищена.`)) {
-      return;
-    }
-    try {
-      if (risk.kind === 'block' && risk.block_id) {
-        await adminService.deleteObligationBlock(risk.block_id);
-      } else if (risk.kind === 'simple' && risk.obligation_id) {
-        await adminService.deleteSimpleObligation(risk.obligation_id);
-      } else {
-        toast.error('Не удалось определить запись для удаления');
-        return;
-      }
-      toast.success('Удалено');
-      await load();
-    } catch {
-      // interceptor
-    }
+  const onDismissRisk = (risk: ObligationRiskDetailed) => {
+    setConfirmDialog({
+      title: 'Скрыть из эскалации',
+      message: `Убрать «${risk.title}» (${risk.email}) из списка эскалации? Обязательство пользователя не удаляется — только скрывается напоминание для админа.`,
+      confirmText: 'Скрыть',
+      confirmButtonClass: 'btn-primary',
+      onConfirm: () => {
+        void (async () => {
+          try {
+            await adminService.dismissObligationRisk({
+              user_id: risk.user_id,
+              kind: risk.kind,
+              block_id: risk.block_id,
+              obligation_id: risk.obligation_id,
+            });
+            toast.success('Скрыто из эскалации');
+            await load();
+          } catch {
+            // interceptor
+          } finally {
+            setConfirmDialog(null);
+          }
+        })();
+      },
+    });
+  };
+
+  const onDeleteSummaryBlock = (item: ObligationSummaryItem) => {
+    setConfirmDialog({
+      title: 'Удалить обязательство пользователя',
+      message: `ВНИМАНИЕ: будет безвозвратно удалён кредитный блок «${item.title}» у ${item.email} вместе с графиком платежей. Это действие нельзя отменить.`,
+      confirmText: 'Удалить навсегда',
+      confirmButtonClass: 'btn-danger',
+      onConfirm: () => {
+        void (async () => {
+          try {
+            await adminService.deleteObligationBlock(item.block_id);
+            toast.success('Обязательство удалено');
+            await load();
+          } catch {
+            // interceptor
+          } finally {
+            setConfirmDialog(null);
+          }
+        })();
+      },
+    });
   };
 
   if (loading) return <AdminLoading />;
@@ -201,6 +241,10 @@ export const AdminObligationsTab = ({ users }: Props) => {
 
       {risksDetailed.length > 0 && (
         <AdminSection title={`Эскалация рисков (${risksDetailed.length})`}>
+          <AdminHelpHint>
+            Кнопка «Скрыть» убирает запись только из списка эскалации для админа. Обязательство пользователя не удаляется.
+            Чтобы удалить кредит полностью — используйте корзину в таблице обязательств ниже.
+          </AdminHelpHint>
           <AdminTableWrap maxHeight="240px">
             <AdminTableHead>
               <tr>
@@ -209,7 +253,7 @@ export const AdminObligationsTab = ({ users }: Props) => {
                 <th>Обязательство</th>
                 <th className="hidden sm:table-cell">Сумма</th>
                 <th>Срок</th>
-                <th className="w-10" />
+                <th className="w-24">Действие</th>
               </tr>
             </AdminTableHead>
             <AdminTableBody>
@@ -233,7 +277,13 @@ export const AdminObligationsTab = ({ users }: Props) => {
                     )}
                   </td>
                   <td>
-                    <AdminDeleteBtn onClick={() => void onDeleteRisk(r)} />
+                    <button
+                      type="button"
+                      className="text-xs text-primary-600 dark:text-primary-400 hover:underline min-h-[44px] px-2"
+                      onClick={() => onDismissRisk(r)}
+                    >
+                      Скрыть
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -267,12 +317,13 @@ export const AdminObligationsTab = ({ users }: Props) => {
             <th className="hidden md:table-cell">Остаток</th>
             <th className="hidden lg:table-cell">След. платёж</th>
             <th>Статус</th>
+            <th className="w-10" />
           </tr>
         </AdminTableHead>
         <AdminTableBody>
           {summary.length === 0 ? (
             <tr>
-              <td colSpan={6} className="admin-table-empty">Нет обязательств</td>
+              <td colSpan={7} className="admin-table-empty">Нет обязательств</td>
             </tr>
           ) : (
             summary.map((s) => (
@@ -290,6 +341,9 @@ export const AdminObligationsTab = ({ users }: Props) => {
                   {s.next_payment ? format(new Date(s.next_payment), 'dd.MM.yyyy') : '—'}
                 </td>
                 <td>{s.status}</td>
+                <td>
+                  <AdminDeleteBtn onClick={() => onDeleteSummaryBlock(s)} />
+                </td>
               </tr>
             ))
           )}
@@ -335,7 +389,10 @@ export const AdminObligationsTab = ({ users }: Props) => {
                   key={cell.day}
                   type="button"
                   disabled={!clickable}
-                  onClick={() => setSelectedDay(cell.day)}
+                  onClick={() => {
+                    setDayEmailFilter('');
+                    setSelectedDay(cell.day);
+                  }}
                   title={`${cell.day} ${heatmap.month}.${heatmap.year}: ${cell.payment_count} плат., ${cell.total_amount.toLocaleString('ru-RU')} ₽`}
                   className={`admin-heatmap-day ${clickable ? 'admin-heatmap-day-clickable' : ''}`}
                   style={{
@@ -367,6 +424,7 @@ export const AdminObligationsTab = ({ users }: Props) => {
                 onClick={() => {
                   const d = new Date(c.date);
                   setMonthYear(monthYearValue(d.getFullYear(), d.getMonth() + 1));
+                  setDayEmailFilter('');
                   setSelectedDay(d.getDate());
                 }}
                 className="flex flex-col sm:flex-row sm:justify-between gap-0.5 bg-gray-50 dark:bg-gray-800 rounded px-2 py-2 text-left hover:ring-2 hover:ring-primary-400 transition-shadow"
@@ -490,6 +548,15 @@ export const AdminObligationsTab = ({ users }: Props) => {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-6 py-3 space-y-3">
+              <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 pb-3">
+                <input
+                  type="search"
+                  value={dayEmailFilter}
+                  onChange={(e) => setDayEmailFilter(e.target.value)}
+                  placeholder="Фильтр по email или названию..."
+                  className={`${adminInputClass} w-full`}
+                />
+              </div>
               {dayPayments.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-8">Нет платежей в этот день</p>
               ) : (
@@ -564,6 +631,16 @@ export const AdminObligationsTab = ({ users }: Props) => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!confirmDialog}
+        title={confirmDialog?.title ?? ''}
+        message={confirmDialog?.message ?? ''}
+        confirmText={confirmDialog?.confirmText}
+        confirmButtonClass={confirmDialog?.confirmButtonClass}
+        onConfirm={() => confirmDialog?.onConfirm()}
+        onCancel={() => setConfirmDialog(null)}
+      />
     </div>
   );
 };
