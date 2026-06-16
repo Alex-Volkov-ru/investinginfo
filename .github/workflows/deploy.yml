@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install -r app/backend/requirements.txt pytest
+        run: pip install -r app/backend/requirements.txt pytest pytest-asyncio
       - name: Run pytest
         run: PYTHONPATH=. pytest app/backend/tests/ -q
 
