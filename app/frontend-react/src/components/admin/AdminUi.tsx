@@ -1,5 +1,9 @@
 import { ReactNode } from 'react';
 
+export const AdminHelpHint = ({ children }: { children: ReactNode }) => (
+  <div className="admin-help-hint">{children}</div>
+);
+
 /* ── Секция с заголовком ── */
 
 interface AdminSectionProps {

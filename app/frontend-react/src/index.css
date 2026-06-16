@@ -235,6 +235,49 @@
     @apply text-xs text-gray-500 dark:text-gray-400 mt-0.5;
   }
 
+  .admin-help-hint {
+    @apply mx-4 mt-3 mb-1 px-3 py-2.5 rounded-lg text-xs leading-relaxed
+           text-gray-600 dark:text-gray-300
+           bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40;
+  }
+
+  .admin-modal-overlay {
+    @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center
+           bg-black/50 p-0 sm:p-4;
+  }
+
+  .admin-modal-panel {
+    @apply w-full sm:max-w-3xl max-h-[92vh] sm:max-h-[85vh] flex flex-col
+           bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-xl shadow-xl
+           border border-gray-200 dark:border-gray-700;
+  }
+
+  .admin-modal-header {
+    @apply flex items-start justify-between gap-3 px-4 py-3
+           border-b border-gray-200 dark:border-gray-700 shrink-0;
+  }
+
+  .admin-modal-body {
+    @apply overflow-y-auto custom-scrollbar flex-1 p-4 space-y-4;
+  }
+
+  .admin-heatmap-weekday {
+    @apply text-center text-[10px] font-medium text-gray-400 dark:text-gray-500 py-1;
+  }
+
+  .admin-heatmap-day {
+    @apply aspect-square rounded flex flex-col items-center justify-center
+           border border-gray-200 dark:border-gray-700 text-[10px] sm:text-xs;
+  }
+
+  .admin-heatmap-day-empty {
+    @apply aspect-square;
+  }
+
+  .admin-heatmap-legend {
+    @apply flex flex-wrap gap-3 px-4 pb-3 text-[10px] text-gray-500 dark:text-gray-400;
+  }
+
   .admin-section-actions {
     @apply flex flex-wrap items-center gap-2;
   }

@@ -315,7 +315,7 @@ export const adminService = {
     const r = await apiClient.post<{ created: number }>(`/admin/budget/category-templates/apply/${userId}`);
     return r.data;
   },
-  async listTransactions(params?: { user_id?: number; q?: string; from_date?: string; to_date?: string; limit?: number }): Promise<AdminTransaction[]> {
+  async listTransactions(params?: { user_id?: number; q?: string; type?: string; from_date?: string; to_date?: string; limit?: number }): Promise<AdminTransaction[]> {
     const r = await apiClient.get<AdminTransaction[]>('/admin/budget/transactions', { params });
     return r.data;
   },

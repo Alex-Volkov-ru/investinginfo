@@ -701,7 +701,7 @@ def apply_category_templates_to_user(
     db: Session = Depends(get_db),
 ):
     u = _user_or_404(db, user_id)
-    templates = db.query(AdminCategoryTemplate).filter(AdminCategoryTemplate.apply_to_new_users == True).all()
+    templates = db.query(AdminCategoryTemplate).order_by(AdminCategoryTemplate.id).all()
     created = 0
     for t in templates:
         exists = db.query(BudgetCategory).filter(
@@ -730,6 +730,7 @@ def admin_list_transactions(
     db: Session = Depends(get_db),
     user_id: Optional[int] = Query(None),
     search: Optional[str] = Query(None, alias="q", description="Поиск по email или описанию"),
+    tx_type: Optional[str] = Query(None, alias="type", description="income или expense"),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
     limit: int = Query(100, le=500),
@@ -748,6 +749,8 @@ def admin_list_transactions(
                 BudgetTransaction.description.ilike(pattern),
             )
         )
+    if tx_type in ("income", "expense"):
+        query = query.filter(BudgetTransaction.type == tx_type)
     if from_date:
         query = query.filter(cast(BudgetTransaction.occurred_at, Date) >= date.fromisoformat(from_date))
     if to_date:

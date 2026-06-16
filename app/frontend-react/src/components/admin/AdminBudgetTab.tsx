@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import {
   adminService,
@@ -8,7 +7,6 @@ import {
   CategoryTemplate,
   MonthStatusItem,
   WhiteboardStat,
-  AdminTransaction,
   OverLimitItem,
 } from '../../services/adminService';
 import { UserListItem } from '../../services/userService';
@@ -16,6 +14,7 @@ import {
   AdminDeleteBtn,
   AdminField,
   AdminFormRow,
+  AdminHelpHint,
   AdminLoading,
   AdminSection,
   AdminStatGrid,
@@ -25,6 +24,7 @@ import {
   adminInputClass,
   adminSelectClass,
 } from './AdminUi';
+import { AdminTransactionSearchModal } from './AdminTransactionSearchModal';
 
 interface Props {
   users: UserListItem[];
@@ -44,9 +44,8 @@ export const AdminBudgetTab = ({ users }: Props) => {
   const [newTpl, setNewTpl] = useState({ kind: 'expense', name: '', monthly_limit: '', apply_to_new_users: false });
   const [txUserId, setTxUserId] = useState<number | ''>('');
   const [overLimits, setOverLimits] = useState<OverLimitItem[]>([]);
-  const [txSearch, setTxSearch] = useState('');
-  const [txResults, setTxResults] = useState<AdminTransaction[]>([]);
-  const [txLoading, setTxLoading] = useState(false);
+  const [txModalOpen, setTxModalOpen] = useState(false);
+  const [txModalUserId, setTxModalUserId] = useState<number | undefined>();
 
   const load = async () => {
     setLoading(true);
@@ -71,14 +70,9 @@ export const AdminBudgetTab = ({ users }: Props) => {
     }
   };
 
-  const searchTransactions = async () => {
-    if (!txSearch.trim()) return;
-    setTxLoading(true);
-    try {
-      setTxResults(await adminService.listTransactions({ q: txSearch.trim(), limit: 50 }));
-    } finally {
-      setTxLoading(false);
-    }
+  const openTxSearch = (userId?: number) => {
+    setTxModalUserId(userId);
+    setTxModalOpen(true);
   };
 
   useEffect(() => { void load(); }, []);
@@ -117,6 +111,9 @@ export const AdminBudgetTab = ({ users }: Props) => {
         <button type="button" className="btn btn-secondary text-xs shrink-0 self-start sm:self-center" onClick={() => void load()}>
           Обновить
         </button>
+        <button type="button" className="btn btn-primary text-xs shrink-0 self-start sm:self-center" onClick={() => openTxSearch()}>
+          Поиск транзакций
+        </button>
       </div>
 
       <AdminTableWrap>
@@ -128,6 +125,7 @@ export const AdminBudgetTab = ({ users }: Props) => {
             <th className="hidden sm:table-cell">Итого</th>
             <th className="hidden md:table-cell">Топ трата</th>
             <th className="hidden lg:table-cell">Лимиты</th>
+            <th className="w-24"> </th>
           </tr>
         </AdminTableHead>
         <AdminTableBody>
@@ -150,6 +148,15 @@ export const AdminBudgetTab = ({ users }: Props) => {
                 ) : (
                   'OK'
                 )}
+              </td>
+              <td>
+                <button
+                  type="button"
+                  className="text-primary-600 dark:text-primary-400 text-xs underline min-h-[32px]"
+                  onClick={() => openTxSearch(u.user_id)}
+                >
+                  Транзакции
+                </button>
               </td>
             </tr>
           ))}
@@ -183,45 +190,6 @@ export const AdminBudgetTab = ({ users }: Props) => {
         </AdminSection>
       )}
 
-      <AdminSection title="Поиск транзакций">
-        <div className="flex flex-col sm:flex-row gap-2 p-4 border-b border-gray-100 dark:border-gray-700">
-          <input
-            className={`${adminInputClass} admin-input-wide flex-1`}
-            placeholder="Email или описание..."
-            value={txSearch}
-            onChange={(e) => setTxSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && void searchTransactions()}
-          />
-          <button type="button" className="btn btn-secondary text-sm min-h-[44px]" disabled={txLoading} onClick={() => void searchTransactions()}>
-            {txLoading ? '...' : 'Найти'}
-          </button>
-        </div>
-        {txResults.length > 0 && (
-          <AdminTableWrap maxHeight="280px">
-            <AdminTableHead>
-              <tr>
-                <th>Дата</th>
-                <th>Email</th>
-                <th>Категория</th>
-                <th>Сумма</th>
-              </tr>
-            </AdminTableHead>
-            <AdminTableBody>
-              {txResults.map((t) => (
-                <tr key={t.id}>
-                  <td className="whitespace-nowrap admin-cell-muted">{format(new Date(t.occurred_at), 'dd.MM.yy')}</td>
-                  <td className="admin-cell-email">{t.email}</td>
-                  <td>{t.category_name || '—'}</td>
-                  <td className={t.type === 'income' ? 'admin-cell-money-pos' : 'admin-cell-money-neg'}>
-                    {t.amount.toLocaleString('ru-RU')} ₽
-                  </td>
-                </tr>
-              ))}
-            </AdminTableBody>
-          </AdminTableWrap>
-        )}
-      </AdminSection>
-
       {anomalies.length > 0 && (
         <AdminSection title={`Аномалии (${anomalies.length})`}>
           <ul className="text-xs space-y-1 max-h-32 overflow-y-auto custom-scrollbar px-4 pb-4">
@@ -235,7 +203,16 @@ export const AdminBudgetTab = ({ users }: Props) => {
         </AdminSection>
       )}
 
-      <AdminSection title="Шаблоны категорий">
+      <AdminSection
+        title="Шаблоны категорий"
+        subtitle="Заготовки категорий бюджета (расход/доход + лимит). Сами по себе пользователю не видны."
+      >
+        <AdminHelpHint>
+          <strong>Как это работает:</strong> создайте шаблон → нажмите «Скопировать пользователю».
+          У выбранного клиента появятся такие же категории в разделе «Бюджет» (дубликаты не создаются).
+          Галочка «Авто для новых» — пометка шаблонов, которые планируется выдавать при регистрации;
+          ручное «Скопировать» добавляет <em>все</em> шаблоны из списка ниже.
+        </AdminHelpHint>
         <AdminFormRow>
           <AdminField label="Тип">
             <select className={adminSelectClass} value={newTpl.kind} onChange={(e) => setNewTpl({ ...newTpl, kind: e.target.value })}>
@@ -249,9 +226,9 @@ export const AdminBudgetTab = ({ users }: Props) => {
           <AdminField label="Лимит">
             <input className={adminInputClass} placeholder="0" value={newTpl.monthly_limit} onChange={(e) => setNewTpl({ ...newTpl, monthly_limit: e.target.value })} />
           </AdminField>
-          <label className="admin-checkbox-label self-end pb-1">
+          <label className="admin-checkbox-label self-end pb-1" title="Пометка для будущей автовыдачи при регистрации">
             <input type="checkbox" checked={newTpl.apply_to_new_users} onChange={(e) => setNewTpl({ ...newTpl, apply_to_new_users: e.target.checked })} />
-            Для новых
+            Авто для новых
           </label>
           <button type="button" className="btn btn-primary text-xs min-h-[44px] self-end" onClick={() => void onCreateTemplate()}>
             Добавить
@@ -263,6 +240,7 @@ export const AdminBudgetTab = ({ users }: Props) => {
               <span className="break-words">
                 {t.kind === 'expense' ? '−' : '+'} {t.name}
                 {t.monthly_limit ? ` (лимит ${t.monthly_limit})` : ''}
+                {t.apply_to_new_users ? ' • авто для новых' : ''}
               </span>
               <AdminDeleteBtn onClick={() => void adminService.deleteCategoryTemplate(t.id).then(load)} />
             </div>
@@ -272,7 +250,7 @@ export const AdminBudgetTab = ({ users }: Props) => {
           <AdminFormRow>
             <AdminField label="Пользователь" className="flex-1">
               <select className={`${adminSelectClass} admin-select-wide`} value={txUserId} onChange={(e) => setTxUserId(e.target.value ? Number(e.target.value) : '')}>
-                <option value="">Применить шаблоны пользователю...</option>
+                <option value="">Выберите пользователя...</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>{u.email}</option>
                 ))}
@@ -287,7 +265,7 @@ export const AdminBudgetTab = ({ users }: Props) => {
                   toast.success(`Создано категорий: ${r.created}`);
                 }}
               >
-                Применить
+                Скопировать шаблоны
               </button>
             )}
           </AdminFormRow>
@@ -348,6 +326,13 @@ export const AdminBudgetTab = ({ users }: Props) => {
           </div>
         </AdminSection>
       </div>
+
+      <AdminTransactionSearchModal
+        isOpen={txModalOpen}
+        users={users}
+        initialUserId={txModalUserId}
+        onClose={() => setTxModalOpen(false)}
+      />
     </div>
   );
 };

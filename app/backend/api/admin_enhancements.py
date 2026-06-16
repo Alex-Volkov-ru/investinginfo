@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import calendar
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -281,12 +282,17 @@ def obligations_calendar_heatmap(
             elif block.next_payment <= soon:
                 upcoming += 1
 
+    _, last_day = calendar.monthrange(y, m)
     return CalendarHeatmapOut(
         year=y,
         month=m,
         days=[
-            CalendarDayStat(day=day, payment_count=v["count"], total_amount=round(v["total"], 2))
-            for day, v in sorted(day_stats.items())
+            CalendarDayStat(
+                day=day,
+                payment_count=day_stats.get(day, {}).get("count", 0),
+                total_amount=round(day_stats.get(day, {}).get("total", 0.0), 2),
+            )
+            for day in range(1, last_day + 1)
         ],
         forecast_7d=round(forecast_7d, 2),
         forecast_30d=round(forecast_30d, 2),

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
+import { useEffect, useMemo, useState } from 'react';
+import { format, getDay, getDaysInMonth } from 'date-fns';
 import toast from 'react-hot-toast';
 import {
   adminService,
@@ -15,6 +15,7 @@ import {
   AdminDeleteBtn,
   AdminField,
   AdminFormRow,
+  AdminHelpHint,
   AdminLoading,
   AdminSection,
   AdminTableBody,
@@ -64,6 +65,26 @@ export const AdminObligationsTab = ({ users }: Props) => {
 
   useEffect(() => { void load(); }, []);
 
+  const heatmapCells = useMemo(() => {
+    if (!heatmap) return [];
+    const monthStart = new Date(heatmap.year, heatmap.month - 1, 1);
+    const offset = (getDay(monthStart) + 6) % 7;
+    const daysInMonth = getDaysInMonth(monthStart);
+    const dayMap = new Map(heatmap.days.map((d) => [d.day, d]));
+    const cells: ({ kind: 'empty' } | { kind: 'day'; day: number; payment_count: number; total_amount: number })[] = [];
+    for (let i = 0; i < offset; i += 1) cells.push({ kind: 'empty' });
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const stat = dayMap.get(day);
+      cells.push({
+        kind: 'day',
+        day,
+        payment_count: stat?.payment_count ?? 0,
+        total_amount: stat?.total_amount ?? 0,
+      });
+    }
+    return cells;
+  }, [heatmap]);
+
   const onCreateTemplate = async () => {
     if (!newTpl.title.trim()) return;
     await adminService.createObligationTemplate({
@@ -102,6 +123,8 @@ export const AdminObligationsTab = ({ users }: Props) => {
   };
   const maxHeat = heatmap ? Math.max(1, ...heatmap.days.map((d) => d.payment_count)) : 1;
 
+  const weekdayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -109,37 +132,6 @@ export const AdminObligationsTab = ({ users }: Props) => {
           Обновить
         </button>
       </div>
-
-      {heatmap && (
-        <AdminSection title={`Календарь нагрузки — ${heatmap.month}.${heatmap.year}`}>
-          <div className="px-4 pt-3 pb-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-            <div>Прогноз 7д: <strong>{heatmap.forecast_7d.toLocaleString('ru-RU')} ₽</strong></div>
-            <div>Прогноз 30д: <strong>{heatmap.forecast_30d.toLocaleString('ru-RU')} ₽</strong></div>
-            <div className="text-red-600">Просрочено: <strong>{heatmap.overdue_count}</strong></div>
-            <div>Предстоит: <strong>{heatmap.upcoming_count}</strong></div>
-          </div>
-          <div className="grid grid-cols-7 gap-1 px-4 pb-4 text-[10px] sm:text-xs">
-            {heatmap.days.map((d) => {
-              const intensity = d.payment_count / maxHeat;
-              return (
-                <div
-                  key={d.day}
-                  title={`${d.day}: ${d.payment_count} плат., ${d.total_amount.toLocaleString('ru-RU')} ₽`}
-                  className="aspect-square rounded flex flex-col items-center justify-center border border-gray-200 dark:border-gray-700"
-                  style={{
-                    backgroundColor: d.payment_count
-                      ? `rgba(59, 130, 246, ${0.15 + intensity * 0.65})`
-                      : undefined,
-                  }}
-                >
-                  <span>{d.day}</span>
-                  {d.payment_count > 0 && <span className="tabular-nums opacity-80">{d.payment_count}</span>}
-                </div>
-              );
-            })}
-          </div>
-        </AdminSection>
-      )}
 
       {risksDetailed.length > 0 && (
         <AdminSection title={`Эскалация рисков (${risksDetailed.length})`}>
@@ -234,6 +226,61 @@ export const AdminObligationsTab = ({ users }: Props) => {
         </AdminTableBody>
       </AdminTableWrap>
 
+      {heatmap && (
+        <AdminSection
+          title={`Календарь платежей — ${heatmap.month}.${heatmap.year}`}
+          subtitle="Сводка по всем клиентам: когда и сколько платежей приходится на каждый день месяца"
+        >
+          <AdminHelpHint>
+            <strong>Зачем:</strong> видно «пиковые» дни — когда у многих клиентов совпадают платежи (ипотека, кредиты).
+            Синий цвет = есть платежи в этот день, цифра внизу = количество платежей, при наведении — сумма.
+            <br />
+            <strong>Прогноз 7д/30д</strong> — сумма предстоящих платежей по всем пользователям.
+            <strong> Просрочено</strong> — блоки с просроченной датой. Действие: смотрите «Эскалация рисков» и связывайтесь с клиентом.
+          </AdminHelpHint>
+          <div className="px-4 pt-2 pb-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div>Прогноз 7д: <strong>{heatmap.forecast_7d.toLocaleString('ru-RU')} ₽</strong></div>
+            <div>Прогноз 30д: <strong>{heatmap.forecast_30d.toLocaleString('ru-RU')} ₽</strong></div>
+            <div className="text-red-600">Просрочено: <strong>{heatmap.overdue_count}</strong></div>
+            <div>Скоро (3 дня): <strong>{heatmap.upcoming_count}</strong></div>
+          </div>
+          <div className="admin-heatmap-legend">
+            <span>Число в ячейке — кол-во платежей в этот день</span>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-3 h-3 rounded" style={{ backgroundColor: 'rgba(59,130,246,0.5)' }} /> есть платежи
+            </span>
+          </div>
+          <div className="grid grid-cols-7 gap-1 px-4 pb-4">
+            {weekdayLabels.map((w) => (
+              <div key={w} className="admin-heatmap-weekday">{w}</div>
+            ))}
+            {heatmapCells.map((cell, i) => {
+              if (cell.kind === 'empty') {
+                return <div key={`e-${i}`} className="admin-heatmap-day-empty" />;
+              }
+              const intensity = cell.payment_count / maxHeat;
+              return (
+                <div
+                  key={cell.day}
+                  title={`${cell.day} ${heatmap.month}.${heatmap.year}: ${cell.payment_count} плат., ${cell.total_amount.toLocaleString('ru-RU')} ₽`}
+                  className="admin-heatmap-day"
+                  style={{
+                    backgroundColor: cell.payment_count
+                      ? `rgba(59, 130, 246, ${0.15 + intensity * 0.65})`
+                      : undefined,
+                  }}
+                >
+                  <span>{cell.day}</span>
+                  {cell.payment_count > 0 && (
+                    <span className="tabular-nums opacity-80 font-medium">{cell.payment_count}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </AdminSection>
+      )}
+
       <AdminSection title="Календарь платежей">
         {calendar.length === 0 ? (
           <div className="text-xs text-gray-500 px-4 pb-4">Нет платежей в этом месяце</div>
@@ -251,7 +298,15 @@ export const AdminObligationsTab = ({ users }: Props) => {
         )}
       </AdminSection>
 
-      <AdminSection title="Шаблоны обязательств">
+      <AdminSection
+        title="Шаблоны обязательств"
+        subtitle="Заготовки кредитов/ипотеки — сами по себе клиенту не попадают"
+      >
+        <AdminHelpHint>
+          <strong>Как применить:</strong> создайте шаблон (название, сумма, платёж/мес, день платежа) →
+          внизу выберите шаблон и пользователя → «Создать обязательство».
+          У клиента появится блок в его разделе «Обязательства» с этими параметрами — как если бы он сам его добавил.
+        </AdminHelpHint>
         <AdminFormRow>
           <AdminField label="Название" className="flex-1 min-w-[120px]">
             <input className={`${adminInputClass} admin-input-wide`} placeholder="Название" value={newTpl.title} onChange={(e) => setNewTpl({ ...newTpl, title: e.target.value })} />
@@ -272,7 +327,11 @@ export const AdminObligationsTab = ({ users }: Props) => {
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {templates.map((t) => (
             <div key={t.id} className="flex flex-col sm:flex-row sm:justify-between gap-1 text-xs px-4 py-2">
-              <span>{t.title} — {t.monthly.toLocaleString('ru-RU')} ₽/мес</span>
+              <span>
+                {t.title} — {t.monthly.toLocaleString('ru-RU')} ₽/мес
+                {t.total ? `, всего ${t.total.toLocaleString('ru-RU')} ₽` : ''}
+                {t.due_day ? `, ${t.due_day}-е число` : ''}
+              </span>
               <AdminDeleteBtn onClick={() => void adminService.deleteObligationTemplate(t.id).then(load)} />
             </div>
           ))}
@@ -296,7 +355,7 @@ export const AdminObligationsTab = ({ users }: Props) => {
               </select>
             </AdminField>
             <button type="button" className="btn btn-secondary text-xs min-h-[44px] self-end" onClick={() => void onApplyTemplate()}>
-              Применить
+              Создать обязательство
             </button>
           </AdminFormRow>
         )}
