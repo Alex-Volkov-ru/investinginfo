@@ -87,6 +87,17 @@ class BackupRestoreResponse(BaseModel):
     message: str
 
 
+class DbStatsOut(BaseModel):
+    """Текущая статистика БД для preview восстановления."""
+    users: int
+    transactions: int
+    positions: int
+    portfolios: int
+    obligation_blocks: int
+    whiteboards: int
+    categories: int
+
+
 # ===== Helpers =====
 
 def _check_admin_access(user: User) -> None:
@@ -412,3 +423,24 @@ async def rotate_backups(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Не удалось запустить ротацию: {str(e)}"
         )
+
+
+@router.get("/stats/current", response_model=DbStatsOut)
+def current_db_stats(
+    user: User = Depends(get_staff_user),
+    db: Session = Depends(get_db),
+):
+    """Статистика текущей БД — для preview перед восстановлением."""
+    from app.backend.models.portfolio import Portfolio, Position
+    from app.backend.models.budget import BudgetTransaction, BudgetCategory, ObligationBlock
+    from app.backend.models.whiteboard import Whiteboard
+
+    return DbStatsOut(
+        users=db.query(User).count(),
+        transactions=db.query(BudgetTransaction).count(),
+        positions=db.query(Position).count(),
+        portfolios=db.query(Portfolio).count(),
+        obligation_blocks=db.query(ObligationBlock).count(),
+        whiteboards=db.query(Whiteboard).count(),
+        categories=db.query(BudgetCategory).count(),
+    )

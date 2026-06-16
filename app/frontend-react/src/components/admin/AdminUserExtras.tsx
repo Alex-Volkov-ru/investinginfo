@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { adminService, AuditLogItem, UserDetail } from '../../services/adminService';
+import { adminService, AuditLogItem, UserDetail, UserActivity } from '../../services/adminService';
 import { UserListItem } from '../../services/userService';
 import { authService } from '../../lib/auth';
 import { BootstrapIcon } from '../BootstrapIcon';
@@ -16,20 +16,27 @@ import {
 interface Props {
   user: UserListItem;
   currentUserId?: number;
+  isOnline?: boolean;
   onClose: () => void;
   onImpersonated?: () => void;
   onRequestDelete?: () => void;
 }
 
-export const AdminUserDrawer = ({ user, currentUserId, onClose, onImpersonated, onRequestDelete }: Props) => {
+export const AdminUserDrawer = ({ user, currentUserId, isOnline, onClose, onImpersonated, onRequestDelete }: Props) => {
   const [detail, setDetail] = useState<UserDetail | null>(null);
+  const [activity, setActivity] = useState<UserActivity | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void (async () => {
       setLoading(true);
       try {
-        setDetail(await adminService.getUserDetail(user.id));
+        const [d, a] = await Promise.all([
+          adminService.getUserDetail(user.id),
+          adminService.getUserActivity(user.id),
+        ]);
+        setDetail(d);
+        setActivity(a);
       } finally {
         setLoading(false);
       }
@@ -93,6 +100,28 @@ export const AdminUserDrawer = ({ user, currentUserId, onClose, onImpersonated, 
                 { label: 'Категории', value: String(detail.categories_count), tone: 'default' },
               ]}
             />
+
+            {activity && (
+              <AdminSection title="Активность">
+                <AdminTableWrap>
+                  <AdminTableBody>
+                    {[
+                      ['Статус', isOnline ? '🟢 Онлайн' : '⚪ Офлайн'],
+                      ['Регистрация', format(new Date(activity.registered_at), 'dd.MM.yyyy HH:mm')],
+                      ['Последний вход', activity.last_login_at ? format(new Date(activity.last_login_at), 'dd.MM.yyyy HH:mm') : 'никогда'],
+                      ['Последняя транзакция', activity.last_transaction_at ? format(new Date(activity.last_transaction_at), 'dd.MM.yyyy HH:mm') : '—'],
+                      ['Портфель обновлён', activity.last_position_update ? format(new Date(activity.last_position_update), 'dd.MM.yyyy HH:mm') : '—'],
+                      ['Доска обновлена', activity.last_whiteboard_update ? format(new Date(activity.last_whiteboard_update), 'dd.MM.yyyy HH:mm') : '—'],
+                    ].map(([label, value]) => (
+                      <tr key={String(label)}>
+                        <td className="admin-cell-muted w-36">{label}</td>
+                        <td className="text-sm">{value}</td>
+                      </tr>
+                    ))}
+                  </AdminTableBody>
+                </AdminTableWrap>
+              </AdminSection>
+            )}
 
             <button type="button" className="btn btn-primary w-full text-sm min-h-[44px]" onClick={() => void onImpersonate()}>
               <BootstrapIcon name="box-arrow-in-right" className="mr-2 inline" size={14} />

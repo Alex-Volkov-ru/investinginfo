@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import {
   adminService,
@@ -7,6 +8,8 @@ import {
   CategoryTemplate,
   MonthStatusItem,
   WhiteboardStat,
+  AdminTransaction,
+  OverLimitItem,
 } from '../../services/adminService';
 import { UserListItem } from '../../services/userService';
 import {
@@ -40,16 +43,21 @@ export const AdminBudgetTab = ({ users }: Props) => {
   const [compareResult, setCompareResult] = useState<{ user_a: Record<string, unknown>; user_b: Record<string, unknown> } | null>(null);
   const [newTpl, setNewTpl] = useState({ kind: 'expense', name: '', monthly_limit: '', apply_to_new_users: false });
   const [txUserId, setTxUserId] = useState<number | ''>('');
+  const [overLimits, setOverLimits] = useState<OverLimitItem[]>([]);
+  const [txSearch, setTxSearch] = useState('');
+  const [txResults, setTxResults] = useState<AdminTransaction[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [dash, anom, tpl, wb, ms] = await Promise.all([
+      const [dash, anom, tpl, wb, ms, ol] = await Promise.all([
         adminService.getBudgetDashboard(),
         adminService.getBudgetAnomalies(),
         adminService.listCategoryTemplates(),
         adminService.getWhiteboardStats(),
         adminService.getMonthStatus(),
+        adminService.getOverLimits(),
       ]);
       setDashboard(dash.users);
       setTotals(dash.totals);
@@ -57,8 +65,19 @@ export const AdminBudgetTab = ({ users }: Props) => {
       setTemplates(tpl);
       setWhiteboards(wb);
       setMonthStatus(ms);
+      setOverLimits(ol);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const searchTransactions = async () => {
+    if (!txSearch.trim()) return;
+    setTxLoading(true);
+    try {
+      setTxResults(await adminService.listTransactions({ q: txSearch.trim(), limit: 50 }));
+    } finally {
+      setTxLoading(false);
     }
   };
 
@@ -136,6 +155,72 @@ export const AdminBudgetTab = ({ users }: Props) => {
           ))}
         </AdminTableBody>
       </AdminTableWrap>
+
+      {overLimits.length > 0 && (
+        <AdminSection title={`Превышения лимитов (${overLimits.length})`}>
+          <AdminTableWrap maxHeight="240px">
+            <AdminTableHead>
+              <tr>
+                <th>Email</th>
+                <th>Категория</th>
+                <th>Лимит</th>
+                <th>Факт</th>
+                <th>+</th>
+              </tr>
+            </AdminTableHead>
+            <AdminTableBody>
+              {overLimits.map((o, i) => (
+                <tr key={`${o.user_id}-${o.category_name}-${i}`}>
+                  <td className="admin-cell-email">{o.email}</td>
+                  <td>{o.category_name}</td>
+                  <td className="tabular-nums">{o.monthly_limit.toLocaleString('ru-RU')}</td>
+                  <td className="admin-cell-money-neg tabular-nums">{o.spent.toLocaleString('ru-RU')}</td>
+                  <td className="text-red-600 tabular-nums">+{o.over_pct}%</td>
+                </tr>
+              ))}
+            </AdminTableBody>
+          </AdminTableWrap>
+        </AdminSection>
+      )}
+
+      <AdminSection title="Поиск транзакций">
+        <div className="flex flex-col sm:flex-row gap-2 p-4 border-b border-gray-100 dark:border-gray-700">
+          <input
+            className={`${adminInputClass} admin-input-wide flex-1`}
+            placeholder="Email или описание..."
+            value={txSearch}
+            onChange={(e) => setTxSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void searchTransactions()}
+          />
+          <button type="button" className="btn btn-secondary text-sm min-h-[44px]" disabled={txLoading} onClick={() => void searchTransactions()}>
+            {txLoading ? '...' : 'Найти'}
+          </button>
+        </div>
+        {txResults.length > 0 && (
+          <AdminTableWrap maxHeight="280px">
+            <AdminTableHead>
+              <tr>
+                <th>Дата</th>
+                <th>Email</th>
+                <th>Категория</th>
+                <th>Сумма</th>
+              </tr>
+            </AdminTableHead>
+            <AdminTableBody>
+              {txResults.map((t) => (
+                <tr key={t.id}>
+                  <td className="whitespace-nowrap admin-cell-muted">{format(new Date(t.occurred_at), 'dd.MM.yy')}</td>
+                  <td className="admin-cell-email">{t.email}</td>
+                  <td>{t.category_name || '—'}</td>
+                  <td className={t.type === 'income' ? 'admin-cell-money-pos' : 'admin-cell-money-neg'}>
+                    {t.amount.toLocaleString('ru-RU')} ₽
+                  </td>
+                </tr>
+              ))}
+            </AdminTableBody>
+          </AdminTableWrap>
+        )}
+      </AdminSection>
 
       {anomalies.length > 0 && (
         <AdminSection title={`Аномалии (${anomalies.length})`}>

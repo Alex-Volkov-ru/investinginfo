@@ -729,22 +729,31 @@ def admin_list_transactions(
     admin: User = Depends(get_staff_user),
     db: Session = Depends(get_db),
     user_id: Optional[int] = Query(None),
+    search: Optional[str] = Query(None, alias="q", description="Поиск по email или описанию"),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
     limit: int = Query(100, le=500),
 ):
-    q = db.query(BudgetTransaction, BudgetCategory, User).join(
+    query = db.query(BudgetTransaction, BudgetCategory, User).join(
         User, User.id == BudgetTransaction.user_id
     ).outerjoin(BudgetCategory, BudgetCategory.id == BudgetTransaction.category_id)
 
     if user_id:
-        q = q.filter(BudgetTransaction.user_id == user_id)
+        query = query.filter(BudgetTransaction.user_id == user_id)
+    if search and search.strip():
+        pattern = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                User.email.ilike(pattern),
+                BudgetTransaction.description.ilike(pattern),
+            )
+        )
     if from_date:
-        q = q.filter(cast(BudgetTransaction.occurred_at, Date) >= date.fromisoformat(from_date))
+        query = query.filter(cast(BudgetTransaction.occurred_at, Date) >= date.fromisoformat(from_date))
     if to_date:
-        q = q.filter(cast(BudgetTransaction.occurred_at, Date) <= date.fromisoformat(to_date))
+        query = query.filter(cast(BudgetTransaction.occurred_at, Date) <= date.fromisoformat(to_date))
 
-    rows = q.order_by(BudgetTransaction.occurred_at.desc()).limit(limit).all()
+    rows = query.order_by(BudgetTransaction.occurred_at.desc()).limit(limit).all()
     return [
         AdminTransactionOut(
             id=tx.id,

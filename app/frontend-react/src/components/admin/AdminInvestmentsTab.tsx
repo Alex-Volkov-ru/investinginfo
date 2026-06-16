@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { adminService, AssetClassSlice, PortfolioUserSummary, ProblemPosition, TinkoffStatusItem } from '../../services/adminService';
+import { adminService, AssetClassSlice, PortfolioUserSummary, ProblemPosition, TinkoffStatusItem, PortfolioMarketRow, InvestmentAlert } from '../../services/adminService';
 import { BootstrapIcon } from '../BootstrapIcon';
-import { AdminLoading, AdminStatGrid, AdminTableBody, AdminTableHead, AdminTableWrap } from './AdminUi';
+import { AdminLoading, AdminSection, AdminStatGrid, AdminTableBody, AdminTableHead, AdminTableWrap } from './AdminUi';
 
 const ISSUE_LABELS: Record<string, string> = {
   instrument_not_found: 'Инструмент не найден',
@@ -19,21 +19,29 @@ export const AdminInvestmentsTab = () => {
   const [problems, setProblems] = useState<ProblemPosition[]>([]);
   const [assetClasses, setAssetClasses] = useState<AssetClassSlice[]>([]);
   const [checkingId, setCheckingId] = useState<number | null>(null);
+  const [marketRows, setMarketRows] = useState<PortfolioMarketRow[]>([]);
+  const [marketNote, setMarketNote] = useState<string | undefined>();
+  const [alerts, setAlerts] = useState<InvestmentAlert[]>([]);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [ov, tk, pr, ac] = await Promise.all([
+      const [ov, tk, pr, ac, market, alertList] = await Promise.all([
         adminService.getInvestmentsOverview(),
         adminService.getTinkoffStatus(),
         adminService.getProblemPositions(),
         adminService.getAssetClasses(),
+        adminService.getMarketOverview(),
+        adminService.getInvestmentAlerts(),
       ]);
       setOverview(ov.users);
       setTotals({ total_value: ov.total_value, total_positions: ov.total_positions });
       setTinkoff(tk);
       setProblems(pr);
       setAssetClasses(ac);
+      setMarketRows(market.rows);
+      setMarketNote(market.tinkoff_available ? undefined : market.message);
+      setAlerts(alertList);
     } finally {
       setLoading(false);
     }
@@ -79,6 +87,59 @@ export const AdminInvestmentsTab = () => {
             tone: 'default' as const,
           }))}
         />
+      )}
+
+      {alerts.length > 0 && (
+        <AdminSection title={`Алерты (${alerts.length})`}>
+          <ul className="text-xs divide-y divide-gray-100 dark:divide-gray-800 px-4 pb-3">
+            {alerts.map((a, i) => (
+              <li key={`${a.user_id}-${a.kind}-${i}`} className="py-2 flex gap-2">
+                <BootstrapIcon
+                  name={a.severity === 'warn' ? 'exclamation-triangle' : 'info-circle'}
+                  size={14}
+                  className={a.severity === 'warn' ? 'text-amber-500 shrink-0 mt-0.5' : 'text-blue-500 shrink-0 mt-0.5'}
+                />
+                <span>
+                  <strong>{a.email}</strong> — {a.message}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </AdminSection>
+      )}
+
+      {marketRows.length > 0 && (
+        <AdminSection title="Средняя vs рынок">
+          {marketNote && (
+            <div className="text-xs text-amber-600 dark:text-amber-400 px-4 pt-3">{marketNote}</div>
+          )}
+          <AdminTableWrap>
+            <AdminTableHead>
+              <tr>
+                <th>Email</th>
+                <th className="hidden sm:table-cell">Поз.</th>
+                <th>Средняя</th>
+                <th>Рынок</th>
+                <th>Δ</th>
+              </tr>
+            </AdminTableHead>
+            <AdminTableBody>
+              {marketRows.map((m) => (
+                <tr key={m.user_id}>
+                  <td className="admin-cell-email">{m.email}</td>
+                  <td className="hidden sm:table-cell tabular-nums">{m.positions_count}</td>
+                  <td className="tabular-nums">{m.avg_value.toLocaleString('ru-RU')} ₽</td>
+                  <td className="tabular-nums">
+                    {m.market_value != null ? `${m.market_value.toLocaleString('ru-RU')} ₽` : '—'}
+                  </td>
+                  <td className={`tabular-nums ${m.delta_pct != null && m.delta_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {m.delta_pct != null ? `${m.delta_pct > 0 ? '+' : ''}${m.delta_pct}%` : '—'}
+                  </td>
+                </tr>
+              ))}
+            </AdminTableBody>
+          </AdminTableWrap>
+        </AdminSection>
       )}
 
       <AdminTableWrap>

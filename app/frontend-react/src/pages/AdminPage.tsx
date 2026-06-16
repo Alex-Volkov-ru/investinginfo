@@ -30,6 +30,7 @@ const AdminPage = () => {
   const [usersLoading, setUsersLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStaff, setFilterStaff] = useState<'all' | 'staff' | 'regular'>('all');
+  const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline' | 'inactive'>('all');
   const [sortField, setSortField] = useState<'created_at' | 'last_login_at' | 'email'>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [editingUser, setEditingUser] = useState<UserListItem | null>(null);
@@ -109,11 +110,18 @@ const AdminPage = () => {
     }
   };
 
-  const onRestore = (filename: string) => {
+  const onRestore = async (filename: string) => {
+    let statsText = '';
+    try {
+      const stats = await backupService.getCurrentStats();
+      statsText = `\n\nТекущая БД: ${stats.users} пользов., ${stats.transactions} транз., ${stats.positions} поз., ${stats.portfolios} портф.`;
+    } catch {
+      // ignore
+    }
     setConfirm({
       isOpen: true,
       title: 'Восстановление бэкапа',
-      message: `Восстановить БД из ${filename}? Это перезапишет данные в базе.`,
+      message: `Восстановить БД из ${filename}? Это перезапишет все данные в базе.${statsText}`,
       confirmText: 'Восстановить',
       confirmButtonClass: 'btn-danger',
       onConfirm: async () => {
@@ -220,6 +228,18 @@ const AdminPage = () => {
       filtered = filtered.filter((u) => (filterStaff === 'staff') === u.is_staff);
     }
 
+    const inactiveMs = 30 * 24 * 60 * 60 * 1000;
+    const isInactive = (u: UserListItem) =>
+      !u.last_login_at || Date.now() - new Date(u.last_login_at).getTime() > inactiveMs;
+
+    if (presenceFilter === 'online') {
+      filtered = filtered.filter((u) => isUserOnline(u.id));
+    } else if (presenceFilter === 'offline') {
+      filtered = filtered.filter((u) => !isUserOnline(u.id));
+    } else if (presenceFilter === 'inactive') {
+      filtered = filtered.filter(isInactive);
+    }
+
     const sorted = [...filtered].sort((a, b) => {
       let aVal: string | number | undefined;
       let bVal: string | number | undefined;
@@ -242,7 +262,7 @@ const AdminPage = () => {
     });
 
     return sorted;
-  }, [users, searchQuery, filterStaff, sortField, sortDirection]);
+  }, [users, searchQuery, filterStaff, presenceFilter, sortField, sortDirection, isUserOnline]);
 
   if (!canShow) {
     return (
@@ -487,9 +507,19 @@ const AdminPage = () => {
                 value={filterStaff}
                 onChange={(e) => setFilterStaff(e.target.value as 'all' | 'staff' | 'regular')}
               >
-                <option value="all">Все</option>
+                <option value="all">Все роли</option>
                 <option value="staff">Администраторы</option>
                 <option value="regular">Обычные</option>
+              </select>
+              <select
+                className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={presenceFilter}
+                onChange={(e) => setPresenceFilter(e.target.value as 'all' | 'online' | 'offline' | 'inactive')}
+              >
+                <option value="all">Все статусы</option>
+                <option value="online">Онлайн</option>
+                <option value="offline">Офлайн</option>
+                <option value="inactive">Неактивные 30+ дн.</option>
               </select>
             </div>
           </div>
@@ -751,6 +781,7 @@ const AdminPage = () => {
         <AdminUserDrawer
           user={selectedUser}
           currentUserId={user?.id}
+          isOnline={isUserOnline(selectedUser.id)}
           onClose={() => setSelectedUser(null)}
           onRequestDelete={() => {
             setDeleteTarget(selectedUser);

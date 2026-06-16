@@ -34,6 +34,16 @@ export interface BackupRestoreResponse {
   message: string;
 }
 
+export interface DbStats {
+  users: number;
+  transactions: number;
+  positions: number;
+  portfolios: number;
+  obligation_blocks: number;
+  whiteboards: number;
+  categories: number;
+}
+
 export const backupService = {
   async list(): Promise<BackupListResponse> {
     const res = await apiClient.get<BackupListResponse>('/backups/list');
@@ -63,6 +73,11 @@ export const backupService = {
   downloadUrl(filename: string): string {
     const base = (import.meta as any).env?.VITE_API_URL || '/api';
     return `${base}/backups/download/${encodeURIComponent(filename)}`;
+  },
+
+  async getCurrentStats(): Promise<DbStats> {
+    const res = await apiClient.get<DbStats>('/backups/stats/current');
+    return res.data;
   },
 };
 

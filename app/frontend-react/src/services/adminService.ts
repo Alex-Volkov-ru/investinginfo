@@ -174,6 +174,70 @@ export interface AuditLogItem {
   created_at: string;
 }
 
+export interface UserActivity {
+  user_id: number;
+  registered_at: string;
+  last_login_at?: string;
+  last_transaction_at?: string;
+  last_position_update?: string;
+  last_whiteboard_update?: string;
+}
+
+export interface OverLimitItem {
+  user_id: number;
+  email: string;
+  category_name: string;
+  monthly_limit: number;
+  spent: number;
+  over_by: number;
+  over_pct: number;
+}
+
+export interface CalendarHeatmap {
+  year: number;
+  month: number;
+  days: { day: number; payment_count: number; total_amount: number }[];
+  forecast_7d: number;
+  forecast_30d: number;
+  overdue_count: number;
+  upcoming_count: number;
+}
+
+export interface ObligationRiskDetailed {
+  user_id: number;
+  email: string;
+  kind: string;
+  severity: 'overdue' | 'today' | 'soon' | 'upcoming';
+  title: string;
+  message: string;
+  amount: number;
+  due_date?: string;
+  days_until?: number;
+}
+
+export interface PortfolioMarketRow {
+  user_id: number;
+  email: string;
+  avg_value: number;
+  market_value?: number;
+  delta_pct?: number;
+  positions_count: number;
+}
+
+export interface PortfolioMarketOut {
+  rows: PortfolioMarketRow[];
+  tinkoff_available: boolean;
+  message?: string;
+}
+
+export interface InvestmentAlert {
+  user_id: number;
+  email: string;
+  kind: string;
+  message: string;
+  severity: 'warn' | 'info';
+}
+
 export interface ImpersonateResponse {
   access_token: string;
   token_type: string;
@@ -218,6 +282,14 @@ export const adminService = {
     const r = await apiClient.get('/admin/investments/export', { responseType: 'blob' });
     downloadBlob(r.data, 'portfolios_export.csv');
   },
+  async getMarketOverview(): Promise<PortfolioMarketOut> {
+    const r = await apiClient.get<PortfolioMarketOut>('/admin/investments/market-overview');
+    return r.data;
+  },
+  async getInvestmentAlerts(): Promise<InvestmentAlert[]> {
+    const r = await apiClient.get<InvestmentAlert[]>('/admin/investments/alerts');
+    return r.data;
+  },
 
   // Budget
   async getBudgetDashboard(year?: number, month?: number): Promise<BudgetDashboard> {
@@ -243,8 +315,12 @@ export const adminService = {
     const r = await apiClient.post<{ created: number }>(`/admin/budget/category-templates/apply/${userId}`);
     return r.data;
   },
-  async listTransactions(params?: { user_id?: number; from_date?: string; to_date?: string; limit?: number }): Promise<AdminTransaction[]> {
+  async listTransactions(params?: { user_id?: number; q?: string; from_date?: string; to_date?: string; limit?: number }): Promise<AdminTransaction[]> {
     const r = await apiClient.get<AdminTransaction[]>('/admin/budget/transactions', { params });
+    return r.data;
+  },
+  async getOverLimits(year?: number, month?: number): Promise<OverLimitItem[]> {
+    const r = await apiClient.get<OverLimitItem[]>('/admin/budget/over-limits', { params: { year, month } });
     return r.data;
   },
   async compareBudget(userAId: number, userBId: number, year?: number, month?: number) {
@@ -271,6 +347,14 @@ export const adminService = {
     const r = await apiClient.get<CalendarPayment[]>('/admin/obligations/calendar', { params: { year, month } });
     return r.data;
   },
+  async getObligationsHeatmap(year?: number, month?: number): Promise<CalendarHeatmap> {
+    const r = await apiClient.get<CalendarHeatmap>('/admin/obligations/calendar-heatmap', { params: { year, month } });
+    return r.data;
+  },
+  async getObligationsRisksDetailed(): Promise<ObligationRiskDetailed[]> {
+    const r = await apiClient.get<ObligationRiskDetailed[]>('/admin/obligations/risks-detailed');
+    return r.data;
+  },
   async getObligationsRisks(): Promise<ObligationRisk[]> {
     const r = await apiClient.get<ObligationRisk[]>('/admin/obligations/risks');
     return r.data;
@@ -294,6 +378,10 @@ export const adminService = {
   // Users
   async getUserDetail(userId: number): Promise<UserDetail> {
     const r = await apiClient.get<UserDetail>(`/admin/users/${userId}/detail`);
+    return r.data;
+  },
+  async getUserActivity(userId: number): Promise<UserActivity> {
+    const r = await apiClient.get<UserActivity>(`/admin/users/${userId}/activity`);
     return r.data;
   },
   async impersonate(userId: number): Promise<ImpersonateResponse> {

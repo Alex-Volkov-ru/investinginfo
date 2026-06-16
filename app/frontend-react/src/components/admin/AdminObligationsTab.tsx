@@ -7,6 +7,8 @@ import {
   ObligationRisk,
   ObligationSummaryItem,
   ObligationTemplate,
+  CalendarHeatmap,
+  ObligationRiskDetailed,
 } from '../../services/adminService';
 import { UserListItem } from '../../services/userService';
 import {
@@ -35,20 +37,26 @@ export const AdminObligationsTab = ({ users }: Props) => {
   const [newTpl, setNewTpl] = useState({ title: '', total: '', monthly: '', rate: '', due_day: '1' });
   const [applyTpl, setApplyTpl] = useState<number>(0);
   const [applyUser, setApplyUser] = useState<number>(0);
+  const [heatmap, setHeatmap] = useState<CalendarHeatmap | null>(null);
+  const [risksDetailed, setRisksDetailed] = useState<ObligationRiskDetailed[]>([]);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [s, c, r, t] = await Promise.all([
+      const [s, c, r, t, hm, rd] = await Promise.all([
         adminService.getObligationsSummary(),
         adminService.getObligationsCalendar(),
         adminService.getObligationsRisks(),
         adminService.listObligationTemplates(),
+        adminService.getObligationsHeatmap(),
+        adminService.getObligationsRisksDetailed(),
       ]);
       setSummary(s);
       setCalendar(c);
       setRisks(r);
       setTemplates(t);
+      setHeatmap(hm);
+      setRisksDetailed(rd);
     } finally {
       setLoading(false);
     }
@@ -80,6 +88,20 @@ export const AdminObligationsTab = ({ users }: Props) => {
 
   if (loading) return <AdminLoading />;
 
+  const severityLabel: Record<ObligationRiskDetailed['severity'], string> = {
+    overdue: 'Просрочено',
+    today: 'Сегодня',
+    soon: 'Скоро',
+    upcoming: 'Предстоит',
+  };
+  const severityClass: Record<ObligationRiskDetailed['severity'], string> = {
+    overdue: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+    today: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+    soon: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
+    upcoming: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  };
+  const maxHeat = heatmap ? Math.max(1, ...heatmap.days.map((d) => d.payment_count)) : 1;
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -87,6 +109,76 @@ export const AdminObligationsTab = ({ users }: Props) => {
           Обновить
         </button>
       </div>
+
+      {heatmap && (
+        <AdminSection title={`Календарь нагрузки — ${heatmap.month}.${heatmap.year}`}>
+          <div className="px-4 pt-3 pb-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div>Прогноз 7д: <strong>{heatmap.forecast_7d.toLocaleString('ru-RU')} ₽</strong></div>
+            <div>Прогноз 30д: <strong>{heatmap.forecast_30d.toLocaleString('ru-RU')} ₽</strong></div>
+            <div className="text-red-600">Просрочено: <strong>{heatmap.overdue_count}</strong></div>
+            <div>Предстоит: <strong>{heatmap.upcoming_count}</strong></div>
+          </div>
+          <div className="grid grid-cols-7 gap-1 px-4 pb-4 text-[10px] sm:text-xs">
+            {heatmap.days.map((d) => {
+              const intensity = d.payment_count / maxHeat;
+              return (
+                <div
+                  key={d.day}
+                  title={`${d.day}: ${d.payment_count} плат., ${d.total_amount.toLocaleString('ru-RU')} ₽`}
+                  className="aspect-square rounded flex flex-col items-center justify-center border border-gray-200 dark:border-gray-700"
+                  style={{
+                    backgroundColor: d.payment_count
+                      ? `rgba(59, 130, 246, ${0.15 + intensity * 0.65})`
+                      : undefined,
+                  }}
+                >
+                  <span>{d.day}</span>
+                  {d.payment_count > 0 && <span className="tabular-nums opacity-80">{d.payment_count}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </AdminSection>
+      )}
+
+      {risksDetailed.length > 0 && (
+        <AdminSection title={`Эскалация рисков (${risksDetailed.length})`}>
+          <AdminTableWrap maxHeight="240px">
+            <AdminTableHead>
+              <tr>
+                <th>Email</th>
+                <th>Уровень</th>
+                <th>Обязательство</th>
+                <th className="hidden sm:table-cell">Сумма</th>
+                <th>Срок</th>
+              </tr>
+            </AdminTableHead>
+            <AdminTableBody>
+              {risksDetailed.map((r, i) => (
+                <tr key={`${r.user_id}-${r.kind}-${i}`}>
+                  <td className="admin-cell-email">{r.email}</td>
+                  <td>
+                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${severityClass[r.severity]}`}>
+                      {severityLabel[r.severity]}
+                    </span>
+                  </td>
+                  <td>
+                    <div>{r.title}</div>
+                    <div className="text-xs admin-cell-muted">{r.message}</div>
+                  </td>
+                  <td className="hidden sm:table-cell tabular-nums">{r.amount.toLocaleString('ru-RU')} ₽</td>
+                  <td className="whitespace-nowrap text-xs">
+                    {r.due_date ? format(new Date(r.due_date), 'dd.MM.yy') : '—'}
+                    {r.days_until != null && r.severity !== 'overdue' && (
+                      <span className="admin-cell-muted"> ({r.days_until}д)</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </AdminTableBody>
+          </AdminTableWrap>
+        </AdminSection>
+      )}
 
       {risks.length > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">

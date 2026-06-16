@@ -32,6 +32,7 @@ from app.backend.api.backups import router as backups_router
 from app.backend.api.monthly_review import router as monthly_review_router
 from app.backend.api.whiteboard import router as whiteboard_router
 from app.backend.api.admin import router as admin_router
+from app.backend.api.admin_enhancements import router as admin_enhancements_router
 from app.backend.api.presence import router as presence_router
 from app.backend.services.presence import presence_service
 
@@ -82,6 +83,7 @@ def create_app() -> FastAPI:
     app.include_router(monthly_review_router)
     app.include_router(whiteboard_router)
     app.include_router(admin_router)
+    app.include_router(admin_enhancements_router)
     app.include_router(presence_router)
 
     return app
