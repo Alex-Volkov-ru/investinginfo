@@ -15,8 +15,8 @@ export default function MonthlyReportPage() {
     );
   }
 
-  if (!user?.is_staff) {
-    return <Navigate to={isMobileRoute ? '/mobile' : '/'} replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
   return (
