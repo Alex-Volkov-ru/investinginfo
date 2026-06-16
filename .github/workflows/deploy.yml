@@ -153,6 +153,7 @@ jobs:
 
           $COMPOSE pull
           $COMPOSE up -d --remove-orphans
+          docker restart bigs-nginx >/dev/null 2>&1 || true
 
           echo "Ждём healthy db и backend..."
           for i in $(seq 1 40); do
@@ -225,7 +226,18 @@ jobs:
             exit 1
           fi
 
-          curl -fsS https://avolkovshop.ru/api/health/ping | grep -q '"status":"ok"'
+          for i in $(seq 1 20); do
+            if curl -fsS https://avolkovshop.ru/api/health/ping | grep -q '"status":"ok"'; then
+              break
+            fi
+            if [ "$i" -eq 20 ]; then
+              echo "Public API health check failed after retries"
+              docker logs bigs-nginx --tail 80 2>&1 || true
+              docker logs bigs-backend --tail 80 2>&1 || true
+              exit 1
+            fi
+            sleep 3
+          done
           curl -fsS -o /dev/null https://avolkovshop.ru/
           df -h /
           EOF
