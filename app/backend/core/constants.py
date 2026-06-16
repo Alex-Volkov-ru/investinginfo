@@ -118,6 +118,7 @@ ERROR_INVALID_TOKEN = "Недействительный токен"
 ERROR_USER_NOT_FOUND = "Пользователь не найден"
 ERROR_INVALID_CREDENTIALS = "Неверный email или пароль"
 ERROR_USER_EXISTS = "Пользователь с таким email уже существует"
+ERROR_SERVICE_LOGIN_EXISTS = "Логин сервиса уже занят"
 ERROR_ACCESS_DENIED = "Доступ запрещен. Требуются административные права"
 
 # Валидация
