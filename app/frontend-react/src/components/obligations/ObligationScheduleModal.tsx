@@ -52,8 +52,6 @@ export function ObligationScheduleModal({
     setDraft(JSON.parse(JSON.stringify(base)));
   }, [isOpen, block.payments, storedPayments]);
 
-  if (!isOpen) return null;
-
   const isEdit = mode === 'edit';
   const rows = isEdit ? draft : storedPayments;
   const baselineDraft = useMemo(
@@ -171,6 +169,8 @@ export function ObligationScheduleModal({
     setDraft(JSON.parse(JSON.stringify(storedPayments.length ? storedPayments : block.payments || [])));
     onModeChange('edit');
   };
+
+  if (!isOpen) return null;
 
   return (
     <div
