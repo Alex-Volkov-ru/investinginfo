@@ -9,6 +9,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { userService } from '../services/userService';
 import { authService } from '../lib/auth';
+import { triggerAuthTransition } from '../lib/authTransition';
 
 export const Layout: React.FC = () => {
   const { user, logout, updateUser } = useAuth();
@@ -168,7 +169,8 @@ export const Layout: React.FC = () => {
                       className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                       onClick={() => {
                         setProfileOpen(false);
-                        logout();
+                        triggerAuthTransition();
+                        setTimeout(() => logout(), 140);
                       }}
                     >
                       <BootstrapIcon name="box-arrow-right" className="mr-2" size={16} />
@@ -234,7 +236,8 @@ export const Layout: React.FC = () => {
                 <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{user?.full_name || 'Гость'}</div>
                 <button
                   onClick={() => {
-                    logout();
+                    triggerAuthTransition();
+                    setTimeout(() => logout(), 140);
                     setMobileMenuOpen(false);
                   }}
                   className="flex items-center w-full px-3 py-2 text-base text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"

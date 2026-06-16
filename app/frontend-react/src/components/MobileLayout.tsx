@@ -9,6 +9,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { userService } from '../services/userService';
 import { authService } from '../lib/auth';
+import { triggerAuthTransition } from '../lib/authTransition';
 
 export const MobileLayout: React.FC = () => {
   const { user, logout, updateUser } = useAuth();
@@ -201,7 +202,8 @@ export const MobileLayout: React.FC = () => {
                 className="w-full text-left px-4 py-3 text-sm text-red-600 dark:text-red-400 active:bg-gray-100 dark:active:bg-gray-700 rounded-lg flex items-center"
                 onClick={() => {
                   setProfileOpen(false);
-                  logout();
+                  triggerAuthTransition();
+                  setTimeout(() => logout(), 140);
                 }}
               >
                 <BootstrapIcon name="box-arrow-right" className="mr-3" size={18} />

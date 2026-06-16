@@ -71,7 +71,7 @@ const ObligationsPageMobile = () => {
     today.setHours(0, 0, 0, 0);
     
     // Ищем первый неоплаченный платеж
-    const unpaid = block.payments
+    const unpaid = (block.payments || [])
       .filter(p => !p.ok && p.date)
       .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime());
     

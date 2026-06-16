@@ -8,6 +8,16 @@
   }
 }
 
+@keyframes authFadeSwap {
+  0% { opacity: 1; transform: translateY(0); filter: blur(0); }
+  45% { opacity: 0.14; transform: translateY(6px); filter: blur(1px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+body.auth-transitioning #root {
+  animation: authFadeSwap 260ms ease;
+}
+
 @layer components {
   .btn {
     @apply px-4 py-2 rounded-lg font-medium transition-colors;

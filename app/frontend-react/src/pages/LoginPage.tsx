@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { consumeReturnUrl } from '../lib/authReturn';
 import { Wallet, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useTour } from '../contexts/TourContext';
+import { triggerAuthTransition } from '../lib/authTransition';
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -185,6 +186,7 @@ const LoginPage = () => {
           tinkoffToken?.trim() || undefined
         );
       }
+      triggerAuthTransition();
       // Навигация произойдет автоматически через useEffect при изменении isAuthenticated
     } catch (error: any) {
       const parsed = parseApiError(error);
