@@ -1,0 +1,80 @@
+90811f3 | Alex Volkov | feat: add polished budget Excel exports for users and admins.
+715e5a3 | Alex Volkov | fix: restore safe admin escalation and obligation UX.
+d61a98a | Alex Volkov | feat: whiteboard rename, admin obligations calendar and risk cleanup.
+1cad2a1 | Alex Volkov | fix: resolve obligations schedule modal blank screen.
+1ff9ae8 | Alex Volkov | fix: prevent obligations blank screen and add auth transitions.
+db07370 | Alex Volkov | fix: harden deploy verify against transient nginx 502.
+d0eef37 | Alex Volkov | featech: новая фича
+fe5967f | Alex Volkov | fix: normalize email to lowercase in validator.
+49a58de | Alex Volkov | fix: add missing auth constant for CI import.
+3bb901e | Alex Volkov | fix: switch auth profile to full name without lockouts.
+dedf342 | Alex Volkov | ci: pytest-asyncio для async-тестов в GitHub Actions.
+4034f1f | Alex Volkov | fix: сводка месяца для всех пользователей, расширенные тесты.
+21f3d43 | Alex Volkov | fix: security hardening, onboarding UX и backend tests.
+ab1950e | Alex Volkov | fix: понятнее админка — подсказки, календарь обязательств и поиск транзакций.
+0faa490 | Alex Volkov | feat: расширения админ-панели по вкладкам пользователей, бюджета, обязательств и инвестиций.
+c46c502 | Alex Volkov | feat: онлайн-присутствие пользователей через WebSocket
+58e765c | Alex Volkov | fix: котировки в админке без 500 и удобная доска на телефоне
+e6e46e6 | Alex Volkov | fix: адаптация админ-панели и мобильной вёрстки под iPhone и малые экраны
+c7ac368 | Alex Volkov | fix: добавить AdminUi.tsx для сборки фронтенда в CI
+079a10c | Alex Volkov | feat: удаление пользователей админом с подтверждением email
+cccc3ee | Alex Volkov | feat: полная админ-панель — инвестиции, бюджет, обязательства и пользователи
+758f646 | Alex Volkov | fix: зоны скрыты по умолчанию и snap карточек на доске
+382b6f4 | Alex Volkov | test: capacity-тест k6 по уровням VU для поиска лимита сервера
+6715754 | Alex Volkov | perf: 2 gunicorn workers и тюнинг postgres/nginx для VPS 1GB
+5f33660 | Alex Volkov | test: k6 нагрузочные сценарии для BIGS
+56f9d59 | Alex Volkov | fix: LF в shell-скриптах для cron на Linux-сервере
+8754c7b | Alex Volkov | feat: алерт диска >80% и еженедельная очистка на сервере
+4f622c6 | Alex Volkov | fix: конфликт контейнеров при деплое docker compose
+c5e3260 | Alex Volkov | chore: запрет co-author Cursor в коммитах
+66a4248 | Alex Volkov | fix: деплой при нехватке места на диске сервера
+0d60ac6 | Alex Volkov | fix: закрытие тура, тёмная тема и отдельный тур шапки
+1b7dd81 | Alex Volkov | feat: цвета маркеров, редактируемые зоны и умное размещение на доске
+e4e4bbd | Alex Volkov | feat: сохранение URL при перезагрузке и guided tour по всему приложению
+a644d16 | Alex Volkov | fix: лимиты размера карточек и тихое автосохранение доски
+abb37bf | Alex Volkov | fix: центрирование и сумма на карточках доски при ресайзе
+90e30d0 | Alex Volkov | fix: миграции whiteboard V9/V10 и фичи доски
+e370faa | Alex Volkov | feature: новый модуль доска, для описывание фин потребностей
+6c4b7a7 | Alex Volkov | Сбережения: снятие через перевод, кнопки Снять/Пополнить без текста на мобильной и десктопе
+2ed4820 | Alex Volkov | Итоги месяца: баннер, навигация по месяцам, страница для админа, мобильная версия
+25fecd0 | Alex Volkov | feach: дмин панель пользователи
+52a5d97 | Alex Volkov | feach: дмин панель пользователи
+e147c73 | Alex Volkov | feach: Добавлена панель редактирования профиля
+dfd86ba | Alex Volkov | feach: добавлена админ панель в мобилку
+67b1a62 | Alex Volkov | feath: aded admin panel
+24ff105 | Alex Volkov | fix: мобильная версия дата обязательств появилась
+1786ce2 | Alex Volkov | feat: Add user staff role system and async backup operations
+b468b4c | Alex Volkov | Fix backup directory permissions in deploy workflow
+75a604d | Alex Volkov | Add backup system: API endpoints, cron script, and Makefile updates
+4baa2ad | Alex Volkov | fix readmy
+0c95f07 | Alex Volkov | feat: добавлены напоминания о платежах в обязательствах
+8867c11 | Alex Volkov | Исправлено отображение информации о лимитах в мобильной версии транзакций - информация теперь показывается прямо в карточке
+392efa7 | Alex Volkov | Добавлена пагинация транзакций и прогресс-бары лимитов категорий в десктопной и мобильной версиях
+0812864 | Alex Volkov | Переименование приложения с BIGS на WealthTracker и обновление документации
+26c6c1c | Alex Volkov | featch: логин фикс и разметка
+b40aebf | Alex Volkov | fix: detected front color budjet
+1a73f10 | Alex Volkov | fix: detected front color budjet
+2f8ddb7 | Alex Volkov | fix: detected front color budjet
+8edaad5 | Alex Volkov | fix: detected front color budjet
+29d37cd | Alex Volkov | feat: Добавлен тестовый модуль мобильной версии
+4125758 | Alex Volkov | feat: Добавлен тестовый модуль мобильной версии
+7f3d622 | Alex Volkov | feat: Добавлен тестовый модуль мобильной версии
+24f2b8e | Alex Volkov | feat: добавлен rate limiting для auth endpoints и улучшены CORS настройки для безопасности
+892a2e1 | Alex Volkov | fix: удален дубликат миграции V2
+6c971fb | Alex Volkov | feat: добавлено шифрование сумм транзакций для защиты данных клиентов
+ff8f83e | Alex Volkov | fix: исправлены пути к Dockerfile для frontend, добавлен Dockerfile.dev для локальной разработки
+1ab9403 | Alex Volkov | fix: оптимизировано отображение графиков доходов и расходов
+5de139f | Alex Volkov | fix: добавлены файлы lib в git и исправлен Dockerfile
+18b0240 | Alex Volkov | feat: подготовка production deployment для фронтенда
+e971235 | Alex Volkov | fix tinkof api
+059051f | Alex Volkov | testing front budget ears
+023eb10 | Alex Volkov | testing front budget ears
+37e687f | Alex Volkov | testing front budget ears
+5f5ccf6 | Alex Volkov | testing front budget ears
+1155673 | Alex Volkov | fix: обновлен импорт Tinkoff API SDK на t_tech.invest и добавлен пакет t-tech-investments
+617b0fd | AlexVolkov | Update README.md
+3560ff8 | Alex Volkov | fix readmy
+2cff842 | Alex Volkov | fix obligations graphts
+9e51a7b | Alex Volkov | fix cateroies uniq and modal window delete transaticons
+6b170cd | Alex Volkov | fix cateroies uniq and modal window delete transaticons
+016f6a1 | Alex Volkov | added icon
