@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from io import BytesIO
 from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from sqlalchemy import select, func, case
@@ -26,6 +28,7 @@ from app.backend.models.budget import (
     BudgetAccount,
     BudgetCategory,
 )
+from app.backend.services.budget_excel import build_budget_excel_bytes
 
 router = APIRouter(prefix="/budget/summary", tags=["budget: summary"])
 
@@ -351,4 +354,21 @@ def year_summary(
         income_by_category=[{"name": n, "amount": float(v)} for (n, v) in income_by_cat_sorted],
         expense_by_category=[{"name": n, "amount": float(v)} for (n, v) in expense_by_cat_sorted],
         monthly_data=monthly_data,
+    )
+
+
+@router.get("/export/xlsx")
+def export_budget_xlsx(
+    date_from: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    d1, d2 = _dates(date_from, date_to)
+    content = build_budget_excel_bytes(db=db, user=user, d1=d1, d2=d2)
+    filename = f"budget_{user.id}_{d1.isoformat()}_{d2.isoformat()}.xlsx"
+    return StreamingResponse(
+        BytesIO(content),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

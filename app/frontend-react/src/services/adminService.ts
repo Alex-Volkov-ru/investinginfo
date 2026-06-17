@@ -411,6 +411,13 @@ export const adminService = {
     const r = await apiClient.get<UserActivity>(`/admin/users/${userId}/activity`);
     return r.data;
   },
+  async exportUserBudgetExcel(userId: number, dateFrom?: string, dateTo?: string): Promise<void> {
+    const r = await apiClient.get(`/admin/users/${userId}/budget-export-xlsx`, {
+      params: { date_from: dateFrom, date_to: dateTo },
+      responseType: 'blob',
+    });
+    downloadBlob(r.data, `budget_user_${userId}.xlsx`);
+  },
   async impersonate(userId: number): Promise<ImpersonateResponse> {
     const r = await apiClient.post<ImpersonateResponse>(`/admin/users/${userId}/impersonate`);
     return r.data;

@@ -11,6 +11,15 @@ import {
   UpcomingPayment,
 } from '../types';
 
+function downloadBlob(data: Blob, filename: string) {
+  const url = URL.createObjectURL(data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export const budgetService = {
   // Accounts
   async getAccounts(): Promise<BudgetAccount[]> {
@@ -104,6 +113,15 @@ export const budgetService = {
       params: { year },
     });
     return response.data;
+  },
+
+  async exportBudgetExcel(dateFrom?: string, dateTo?: string, monthLabel?: string): Promise<void> {
+    const response = await apiClient.get('/budget/summary/export/xlsx', {
+      params: { date_from: dateFrom, date_to: dateTo },
+      responseType: 'blob',
+    });
+    const suffix = monthLabel ? `_${monthLabel}` : '';
+    downloadBlob(response.data, `budget_report${suffix}.xlsx`);
   },
 
   // Obligations

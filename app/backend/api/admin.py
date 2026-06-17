@@ -42,6 +42,7 @@ from app.backend.models.budget import (
 from app.backend.models.whiteboard import Whiteboard
 from app.backend.models.admin import AdminAuditLog, AdminCategoryTemplate, AdminObligationTemplate
 from app.backend.services.admin_audit import log_admin_action
+from app.backend.services.budget_excel import build_budget_excel_bytes
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 settings = get_settings()
@@ -61,6 +62,19 @@ def _month_range(year: int, month: int) -> tuple[date, date]:
         d2 = date(year + 1, 1, 1) - timedelta(days=1)
     else:
         d2 = date(year, month + 1, 1) - timedelta(days=1)
+    return d1, d2
+
+
+def _month_bounds_from_dates(date_from: Optional[str], date_to: Optional[str]) -> tuple[date, date]:
+    if date_from:
+        d1 = date.fromisoformat(date_from)
+    else:
+        today = date.today()
+        d1 = today.replace(day=1)
+    if date_to:
+        d2 = date.fromisoformat(date_to)
+    else:
+        d2 = (d1.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
     return d1, d2
 
 
@@ -1318,4 +1332,30 @@ def bulk_export_users(
         iter([output.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=users_export.csv"},
+    )
+
+
+@router.get("/users/{user_id}/budget-export-xlsx")
+def export_user_budget_xlsx(
+    user_id: int,
+    date_from: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    admin: User = Depends(get_staff_user),
+    db: Session = Depends(get_db),
+):
+    target = _user_or_404(db, user_id)
+    d1, d2 = _month_bounds_from_dates(date_from, date_to)
+    content = build_budget_excel_bytes(db=db, user=target, d1=d1, d2=d2)
+    log_admin_action(
+        db,
+        admin,
+        "export_user_budget_xlsx",
+        target.id,
+        {"date_from": d1.isoformat(), "date_to": d2.isoformat()},
+    )
+    filename = f"budget_user_{target.id}_{d1.isoformat()}_{d2.isoformat()}.xlsx"
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

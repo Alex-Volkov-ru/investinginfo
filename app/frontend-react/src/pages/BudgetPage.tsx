@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, Trash2, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, Trash2, Edit2, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { budgetService } from '../services/budgetService';
 import {
@@ -312,6 +312,19 @@ const BudgetPage = () => {
       return acc;
     }, {} as Record<number, number>);
 
+  const handleExportExcel = async () => {
+    try {
+      const [year, month] = selectedMonth.split('-');
+      const dateFrom = `${year}-${month}-01`;
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+      const dateTo = `${year}-${month}-${lastDay}`;
+      await budgetService.exportBudgetExcel(dateFrom, dateTo, selectedMonth);
+      toast.success('Excel-отчёт выгружен');
+    } catch (error) {
+      // Ошибка обработана в interceptor
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -346,6 +359,14 @@ const BudgetPage = () => {
             >
               <Plus className="h-5 w-5 mr-2" />
               Транзакция
+            </button>
+            <button
+              onClick={() => void handleExportExcel()}
+              className="btn btn-secondary flex items-center"
+              title="Экспорт доходов и расходов в Excel"
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Excel
             </button>
           </div>
         </div>

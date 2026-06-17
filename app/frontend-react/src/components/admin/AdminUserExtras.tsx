@@ -51,6 +51,15 @@ export const AdminUserDrawer = ({ user, currentUserId, isOnline, onClose, onImpe
     window.location.href = '/';
   };
 
+  const onExportBudget = async () => {
+    try {
+      await adminService.exportUserBudgetExcel(user.id);
+      toast.success('Excel-отчёт пользователя выгружен');
+    } catch (error) {
+      // Ошибка обработана в interceptor
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col sm:flex-row sm:justify-end bg-black/40" onClick={onClose}>
       <div
@@ -126,6 +135,11 @@ export const AdminUserDrawer = ({ user, currentUserId, isOnline, onClose, onImpe
             <button type="button" className="btn btn-primary w-full text-sm min-h-[44px]" onClick={() => void onImpersonate()}>
               <BootstrapIcon name="box-arrow-in-right" className="mr-2 inline" size={14} />
               Войти как пользователь
+            </button>
+
+            <button type="button" className="btn btn-secondary w-full text-sm min-h-[44px]" onClick={() => void onExportBudget()}>
+              <BootstrapIcon name="file-earmark-excel" className="mr-2 inline" size={14} />
+              Экспорт бюджета в Excel
             </button>
 
             {currentUserId !== user.id && onRequestDelete && (
