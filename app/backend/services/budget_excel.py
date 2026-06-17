@@ -304,7 +304,7 @@ def _sheet_main(
         share_cell.border = THIN_BORDER
         row += 1
 
-    section_row = max(9, row + 2)
+    section_row = 5
     data_row = section_row + 2
 
     for col_start, title_text, total, header_fill, columns in (
