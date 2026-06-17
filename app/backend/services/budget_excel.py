@@ -1,25 +1,62 @@
 from __future__ import annotations
 
-from datetime import date
+from collections import defaultdict
+from datetime import date, timedelta
 from decimal import Decimal
 from io import BytesIO
-from typing import Iterable
 
 from openpyxl import Workbook
+from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.backend.core.constants import (
+    TRANSACTION_TYPE_EXPENSE,
+    TRANSACTION_TYPE_INCOME,
+    TRANSACTION_TYPE_TRANSFER,
+)
 from app.backend.core.security import decrypt_amount
-from app.backend.models.budget import BudgetCategory, BudgetTransaction
+from app.backend.models.budget import BudgetAccount, BudgetCategory, BudgetTransaction
 from app.backend.models.user import User
 
-TYPE_LABELS = {
-    "income": "Доход",
-    "expense": "Расход",
-    "transfer": "Перевод",
-}
+MONTHS_RU = (
+    "",
+    "Январь",
+    "Февраль",
+    "Март",
+    "Апрель",
+    "Май",
+    "Июнь",
+    "Июль",
+    "Август",
+    "Сентябрь",
+    "Октябрь",
+    "Ноябрь",
+    "Декабрь",
+)
+
+# Layout: A-D summary | E gap | F-I incomes | J gap | K-N expenses
+COL_SUMMARY = 1
+COL_INCOME = 6
+COL_EXPENSE = 11
+INCOME_SUM_COL = COL_INCOME + 3
+EXPENSE_SUM_COL = COL_EXPENSE + 3
+
+FILL_SUMMARY_HEADER = PatternFill(start_color="D6E4F0", end_color="D6E4F0", fill_type="solid")
+FILL_SUMMARY_ALT = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+FILL_INCOME_HEADER = PatternFill(start_color="70AD47", end_color="70AD47", fill_type="solid")
+FILL_EXPENSE_HEADER = PatternFill(start_color="7F7F7F", end_color="7F7F7F", fill_type="solid")
+FILL_INCOME_AMOUNT = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+FILL_EXPENSE_AMOUNT = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
+
+THIN_BORDER = Border(
+    left=Side(style="thin", color="000000"),
+    right=Side(style="thin", color="000000"),
+    top=Side(style="thin", color="000000"),
+    bottom=Side(style="thin", color="000000"),
+)
 
 
 def _tx_amount(tx: BudgetTransaction) -> Decimal:
@@ -28,45 +65,64 @@ def _tx_amount(tx: BudgetTransaction) -> Decimal:
     return Decimal(str(tx.amount or 0))
 
 
-def _autosize_columns(ws, widths: dict[int, int] | None = None) -> None:
-    widths = widths or {}
-    for idx, col in enumerate(ws.columns, start=1):
-        if idx in widths:
-            ws.column_dimensions[get_column_letter(idx)].width = widths[idx]
-            continue
-        max_len = 0
-        for cell in col:
-            value = "" if cell.value is None else str(cell.value)
-            max_len = max(max_len, len(value))
-        ws.column_dimensions[get_column_letter(idx)].width = min(max(max_len + 2, 12), 42)
+def _tx_date(tx: BudgetTransaction) -> date:
+    occurred = tx.occurred_at
+    if hasattr(occurred, "date"):
+        return occurred.date()
+    return occurred
 
 
-def _apply_table_header(ws, row: int, columns: Iterable[str]) -> None:
-    fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
-    font = Font(color="FFFFFF", bold=True)
-    border = Border(
-        left=Side(style="thin", color="D9D9D9"),
-        right=Side(style="thin", color="D9D9D9"),
-        top=Side(style="thin", color="D9D9D9"),
-        bottom=Side(style="thin", color="D9D9D9"),
-    )
-    for idx, title in enumerate(columns, start=1):
-        cell = ws.cell(row=row, column=idx, value=title)
+def _fmt_rub(value: Decimal | float) -> str:
+    amount = float(value)
+    sign = "-" if amount < 0 else ""
+    whole = f"{abs(int(round(amount))):,}".replace(",", " ")
+    return f"р.{sign}{whole}"
+
+
+def _period_title(d1: date, d2: date) -> str:
+    if d1.year == d2.year and d1.month == d2.month and d1.day == 1:
+        last_day = (d2.replace(day=28) + timedelta(days=4)).replace(day=1)
+        month_end = last_day - timedelta(days=1)
+        if d2 == month_end:
+            return MONTHS_RU[d1.month]
+    return f"{d1.strftime('%d.%m.%Y')} — {d2.strftime('%d.%m.%Y')}"
+
+
+def _apply_tx_to_balances(balances: dict[int, Decimal], tx: BudgetTransaction, amount: Decimal) -> None:
+    if tx.type == TRANSACTION_TYPE_INCOME:
+        if tx.account_id:
+            balances[tx.account_id] += amount
+    elif tx.type == TRANSACTION_TYPE_EXPENSE:
+        if tx.account_id:
+            balances[tx.account_id] -= amount
+    elif tx.type == TRANSACTION_TYPE_TRANSFER:
+        if tx.account_id:
+            balances[tx.account_id] -= amount
+        if tx.contra_account_id:
+            balances[tx.contra_account_id] += amount
+
+
+def _split_balance_totals(accounts: list[BudgetAccount], balances: dict[int, Decimal]) -> tuple[Decimal, Decimal]:
+    regular = Decimal("0")
+    savings = Decimal("0")
+    for acc in accounts:
+        value = balances.get(acc.id, Decimal("0"))
+        if acc.is_savings:
+            savings += value
+        else:
+            regular += value
+    return regular, savings
+
+
+def _write_money_cell(ws, row: int, col: int, value: Decimal, *, fill: PatternFill | None = None, bold: bool = False) -> None:
+    cell = ws.cell(row=row, column=col, value=float(value))
+    cell.number_format = '#,##0" ₽"'
+    cell.alignment = Alignment(horizontal="right", vertical="center")
+    if fill:
         cell.fill = fill
-        cell.font = font
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        cell.border = border
-
-
-def _apply_row_borders(ws, row: int, columns_count: int) -> None:
-    border = Border(
-        left=Side(style="thin", color="E5E7EB"),
-        right=Side(style="thin", color="E5E7EB"),
-        top=Side(style="thin", color="E5E7EB"),
-        bottom=Side(style="thin", color="E5E7EB"),
-    )
-    for col in range(1, columns_count + 1):
-        ws.cell(row=row, column=col).border = border
+    if bold:
+        cell.font = Font(bold=True)
+    cell.border = THIN_BORDER
 
 
 def build_budget_excel_bytes(
@@ -76,109 +132,239 @@ def build_budget_excel_bytes(
     d2: date,
 ) -> bytes:
     wb = Workbook()
-    ws_summary = wb.active
-    ws_summary.title = "Сводка"
-    ws_tx = wb.create_sheet("Операции")
-    ws_cat = wb.create_sheet("Категории")
+    ws = wb.active
+    ws.title = "Бюджет"
 
-    txs = db.scalars(
-        select(BudgetTransaction).where(
-            BudgetTransaction.user_id == user.id,
-            BudgetTransaction.occurred_at >= d1,
-            BudgetTransaction.occurred_at <= d2,
-        ).order_by(BudgetTransaction.occurred_at.asc(), BudgetTransaction.id.asc())
-    ).all()
+    accounts = list(
+        db.scalars(select(BudgetAccount).where(BudgetAccount.user_id == user.id).order_by(BudgetAccount.id.asc())).all()
+    )
+    category_map = {
+        c.id: c for c in db.scalars(select(BudgetCategory).where(BudgetCategory.user_id == user.id)).all()
+    }
 
-    category_map = {c.id: c for c in db.scalars(select(BudgetCategory).where(BudgetCategory.user_id == user.id)).all()}
+    period_txs = list(
+        db.scalars(
+            select(BudgetTransaction)
+            .where(
+                BudgetTransaction.user_id == user.id,
+                BudgetTransaction.occurred_at >= d1,
+                BudgetTransaction.occurred_at <= d2,
+            )
+            .order_by(BudgetTransaction.occurred_at.asc(), BudgetTransaction.id.asc())
+        ).all()
+    )
 
-    income_total = Decimal("0")
-    expense_total = Decimal("0")
-    transfer_total = Decimal("0")
-    by_category: dict[tuple[str, str], Decimal] = {}
+    history_txs = list(
+        db.scalars(
+            select(BudgetTransaction)
+            .where(
+                BudgetTransaction.user_id == user.id,
+                BudgetTransaction.occurred_at <= d2,
+            )
+            .order_by(BudgetTransaction.occurred_at.asc(), BudgetTransaction.id.asc())
+        ).all()
+    )
 
-    # Sheet 1: Summary
-    ws_summary["A1"] = "Отчет по бюджету"
-    ws_summary["A1"].font = Font(size=16, bold=True, color="1F2937")
-    ws_summary["A2"] = f"Пользователь: {user.full_name or user.tg_username or user.email}"
-    ws_summary["A3"] = f"Email: {user.email}"
-    ws_summary["A4"] = f"Период: {d1.strftime('%d.%m.%Y')} - {d2.strftime('%d.%m.%Y')}"
+    start_balances: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
+    end_balances: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
+    for tx in history_txs:
+        amount = _tx_amount(tx)
+        tx_day = _tx_date(tx)
+        _apply_tx_to_balances(end_balances, tx, amount)
+        if tx_day < d1:
+            _apply_tx_to_balances(start_balances, tx, amount)
 
-    _apply_table_header(ws_summary, 6, ["Показатель", "Значение"])
+    start_regular, start_savings = _split_balance_totals(accounts, start_balances)
+    end_regular, end_savings = _split_balance_totals(accounts, end_balances)
+
+    income_txs = [tx for tx in period_txs if tx.type == TRANSACTION_TYPE_INCOME]
+    expense_txs = [tx for tx in period_txs if tx.type == TRANSACTION_TYPE_EXPENSE]
+
+    income_total = sum((_tx_amount(tx) for tx in income_txs), Decimal("0"))
+    expense_total = sum((_tx_amount(tx) for tx in expense_txs), Decimal("0"))
+    savings_delta = Decimal("0")
+    for tx in period_txs:
+        amount = _tx_amount(tx)
+        if tx.type == TRANSACTION_TYPE_INCOME:
+            acc = db.get(BudgetAccount, tx.account_id) if tx.account_id else None
+            if acc and acc.is_savings:
+                savings_delta += amount
+        elif tx.type == TRANSACTION_TYPE_EXPENSE:
+            acc = db.get(BudgetAccount, tx.account_id) if tx.account_id else None
+            if acc and acc.is_savings:
+                savings_delta -= amount
+        elif tx.type == TRANSACTION_TYPE_TRANSFER:
+            acc_to = db.get(BudgetAccount, tx.contra_account_id) if tx.contra_account_id else None
+            acc_from = db.get(BudgetAccount, tx.account_id) if tx.account_id else None
+            if acc_to and acc_to.is_savings:
+                savings_delta += amount
+            elif acc_from and acc_from.is_savings:
+                savings_delta -= amount
+
+    ws.column_dimensions["A"].width = 28
+    ws.column_dimensions["B"].width = 14
+    ws.column_dimensions["C"].width = 14
+    ws.column_dimensions["D"].width = 14
+    ws.column_dimensions["E"].width = 2
+    for col in (COL_INCOME, COL_INCOME + 1, COL_INCOME + 2, INCOME_SUM_COL):
+        ws.column_dimensions[get_column_letter(col)].width = 16
+    ws.column_dimensions["J"].width = 2
+    for col in (COL_EXPENSE, COL_EXPENSE + 1, COL_EXPENSE + 2, EXPENSE_SUM_COL):
+        ws.column_dimensions[get_column_letter(col)].width = 16
+
+    title = _period_title(d1, d2)
+    ws.merge_cells(start_row=1, start_column=COL_SUMMARY, end_row=1, end_column=COL_SUMMARY + 3)
+    title_cell = ws.cell(row=1, column=COL_SUMMARY, value=title)
+    title_cell.font = Font(size=20, bold=True, color="1F4E78")
+    title_cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    ws.merge_cells(start_row=2, start_column=COL_SUMMARY, end_row=2, end_column=COL_SUMMARY + 3)
+    subtitle = ws.cell(row=2, column=COL_SUMMARY, value=f"{d1.strftime('%d.%m.%Y')} — {d2.strftime('%d.%m.%Y')}")
+    subtitle.font = Font(size=10, color="6B7280")
+    subtitle.alignment = Alignment(horizontal="left", vertical="center")
+
+    summary_header_row = 4
+    for idx, label in enumerate(("", "Счета", "Сбережения", "Итого"), start=COL_SUMMARY):
+        cell = ws.cell(row=summary_header_row, column=idx, value=label)
+        cell.fill = FILL_SUMMARY_HEADER
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = THIN_BORDER
+
     summary_rows = [
-        ("Доходы", income_total),
-        ("Расходы", expense_total),
-        ("Переводы", transfer_total),
-        ("Итог (доходы - расходы)", income_total - expense_total),
+        ("Остаток на начало периода", start_regular, start_savings),
+        ("Остаток на конец периода", end_regular, end_savings),
+        ("Сбережения (изменение)", None, savings_delta),
+        ("Доходов за период", income_total, None),
+        ("Расходов за период", expense_total, None),
+        ("Разница", income_total - expense_total, None),
     ]
 
-    # Sheet 2: Transactions
-    tx_columns = ["Дата", "Тип", "Сумма", "Валюта", "Счет", "Категория", "Описание"]
-    _apply_table_header(ws_tx, 1, tx_columns)
-    tx_row = 2
+    for offset, row_data in enumerate(summary_rows, start=1):
+        row = summary_header_row + offset
+        label, col_b, col_c = row_data
+        label_cell = ws.cell(row=row, column=COL_SUMMARY, value=label)
+        label_cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        label_cell.border = THIN_BORDER
+        if offset % 2 == 0:
+            label_cell.fill = FILL_SUMMARY_ALT
 
-    for tx in txs:
-        amount = _tx_amount(tx)
-        if tx.type == "income":
-            income_total += amount
-        elif tx.type == "expense":
-            expense_total += amount
-        elif tx.type == "transfer":
-            transfer_total += amount
+        if col_b is not None and col_c is not None:
+            _write_money_cell(ws, row, COL_SUMMARY + 1, col_b)
+            _write_money_cell(ws, row, COL_SUMMARY + 2, col_c)
+            _write_money_cell(ws, row, COL_SUMMARY + 3, col_b + col_c, bold=label == "Разница")
+        elif col_b is not None:
+            ws.cell(row=row, column=COL_SUMMARY + 1).border = THIN_BORDER
+            ws.cell(row=row, column=COL_SUMMARY + 2).border = THIN_BORDER
+            _write_money_cell(ws, row, COL_SUMMARY + 3, col_b, bold=label == "Разница")
+        else:
+            ws.cell(row=row, column=COL_SUMMARY + 1).border = THIN_BORDER
+            _write_money_cell(ws, row, COL_SUMMARY + 2, col_c)
+            ws.cell(row=row, column=COL_SUMMARY + 3).border = THIN_BORDER
 
-        category_name = "-"
-        if tx.category_id and tx.category_id in category_map:
-            category_name = category_map[tx.category_id].name
-            key = (tx.type, category_name)
-            by_category[key] = by_category.get(key, Decimal("0")) + amount
+    section_row = 7
+    data_row = 9
 
-        ws_tx.cell(row=tx_row, column=1, value=tx.occurred_at.strftime("%d.%m.%Y"))
-        ws_tx.cell(row=tx_row, column=2, value=TYPE_LABELS.get(tx.type, tx.type))
-        amount_cell = ws_tx.cell(row=tx_row, column=3, value=float(amount))
-        amount_cell.number_format = "#,##0.00"
-        ws_tx.cell(row=tx_row, column=4, value=tx.currency)
-        ws_tx.cell(row=tx_row, column=5, value=tx.account.title if tx.account else "-")
-        ws_tx.cell(row=tx_row, column=6, value=category_name)
-        ws_tx.cell(row=tx_row, column=7, value=tx.description or "-")
-        _apply_row_borders(ws_tx, tx_row, len(tx_columns))
-        tx_row += 1
+    for col_start, title_text, total, header_fill, columns in (
+        (
+            COL_INCOME,
+            "Доходы",
+            income_total,
+            FILL_INCOME_HEADER,
+            ("Дата", "Источник", "Категория", "Сумма"),
+        ),
+        (
+            COL_EXPENSE,
+            "Расходы",
+            expense_total,
+            FILL_EXPENSE_HEADER,
+            ("Дата", "Назначение", "Категория", "Сумма"),
+        ),
+    ):
+        for col in range(col_start, col_start + 3):
+            cell = ws.cell(row=section_row, column=col)
+            cell.fill = header_fill
+            cell.border = THIN_BORDER
+        title_cell = ws.cell(row=section_row, column=col_start, value=title_text)
+        title_cell.fill = header_fill
+        title_cell.font = Font(bold=True, color="FFFFFF", size=12)
+        title_cell.alignment = Alignment(horizontal="left", vertical="center")
+        title_cell.border = THIN_BORDER
 
-    # Fill summary values after totals calculated
-    for idx, (label, value) in enumerate(summary_rows, start=7):
-        if label == "Доходы":
-            value = income_total
-        elif label == "Расходы":
-            value = expense_total
-        elif label == "Переводы":
-            value = transfer_total
-        elif label == "Итог (доходы - расходы)":
-            value = income_total - expense_total
-        ws_summary.cell(row=idx, column=1, value=label)
-        v_cell = ws_summary.cell(row=idx, column=2, value=float(value))
-        v_cell.number_format = "#,##0.00"
-        _apply_row_borders(ws_summary, idx, 2)
+        total_cell = ws.cell(row=section_row, column=col_start + 3, value=f"Итого: {_fmt_rub(total)}")
+        total_cell.fill = header_fill
+        total_cell.font = Font(bold=True, color="FFFFFF", size=11)
+        total_cell.alignment = Alignment(horizontal="right", vertical="center")
+        total_cell.border = THIN_BORDER
 
-    # Sheet 3: Category aggregates
-    cat_columns = ["Тип", "Категория", "Сумма"]
-    _apply_table_header(ws_cat, 1, cat_columns)
-    cat_row = 2
-    for (kind, name), value in sorted(by_category.items(), key=lambda item: (item[0][0], item[0][1])):
-        ws_cat.cell(row=cat_row, column=1, value=TYPE_LABELS.get(kind, kind))
-        ws_cat.cell(row=cat_row, column=2, value=name)
-        c = ws_cat.cell(row=cat_row, column=3, value=float(value))
-        c.number_format = "#,##0.00"
-        _apply_row_borders(ws_cat, cat_row, 3)
-        cat_row += 1
+        header_row = section_row + 1
+        for idx, column_title in enumerate(columns):
+            cell = ws.cell(row=header_row, column=col_start + idx, value=column_title)
+            cell.fill = header_fill
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = THIN_BORDER
 
-    if cat_row == 2:
-        ws_cat.cell(row=2, column=1, value="Нет данных за период")
+    income_row = data_row
+    for tx in income_txs:
+        category_name = category_map[tx.category_id].name if tx.category_id and tx.category_id in category_map else "—"
+        ws.cell(row=income_row, column=COL_INCOME, value=_tx_date(tx).strftime("%d.%m.%Y")).border = THIN_BORDER
+        ws.cell(row=income_row, column=COL_INCOME + 1, value=tx.description or "—").border = THIN_BORDER
+        ws.cell(row=income_row, column=COL_INCOME + 2, value=category_name).border = THIN_BORDER
+        _write_money_cell(ws, income_row, INCOME_SUM_COL, _tx_amount(tx), fill=FILL_INCOME_AMOUNT)
+        income_row += 1
 
-    # Common formatting
-    for ws in (ws_summary, ws_tx, ws_cat):
-        ws.freeze_panes = "A2"
+    expense_row = data_row
+    for tx in expense_txs:
+        category_name = category_map[tx.category_id].name if tx.category_id and tx.category_id in category_map else "—"
+        ws.cell(row=expense_row, column=COL_EXPENSE, value=_tx_date(tx).strftime("%d.%m.%Y")).border = THIN_BORDER
+        ws.cell(row=expense_row, column=COL_EXPENSE + 1, value=tx.description or "—").border = THIN_BORDER
+        ws.cell(row=expense_row, column=COL_EXPENSE + 2, value=category_name).border = THIN_BORDER
+        _write_money_cell(ws, expense_row, EXPENSE_SUM_COL, _tx_amount(tx), fill=FILL_EXPENSE_AMOUNT)
+        expense_row += 1
 
-    _autosize_columns(ws_summary, {1: 40, 2: 24})
-    _autosize_columns(ws_tx, {1: 14, 2: 12, 3: 16, 4: 10, 5: 24, 6: 24, 7: 44})
-    _autosize_columns(ws_cat, {1: 12, 2: 28, 3: 16})
+    if income_row > data_row:
+        income_range = (
+            f"{get_column_letter(INCOME_SUM_COL)}{data_row}:"
+            f"{get_column_letter(INCOME_SUM_COL)}{income_row - 1}"
+        )
+        ws.conditional_formatting.add(
+            income_range,
+            ColorScaleRule(
+                start_type="min",
+                start_color="FFFFFF",
+                end_type="max",
+                end_color="63BE7B",
+            ),
+        )
+
+    if expense_row > data_row:
+        expense_range = (
+            f"{get_column_letter(EXPENSE_SUM_COL)}{data_row}:"
+            f"{get_column_letter(EXPENSE_SUM_COL)}{expense_row - 1}"
+        )
+        ws.conditional_formatting.add(
+            expense_range,
+            ColorScaleRule(
+                start_type="min",
+                start_color="63BE7B",
+                mid_type="percentile",
+                mid_value=50,
+                mid_color="FFEB84",
+                end_type="max",
+                end_color="F8696B",
+            ),
+        )
+
+    if income_row == data_row:
+        ws.cell(row=data_row, column=COL_INCOME, value="Нет доходов за период")
+        ws.merge_cells(start_row=data_row, start_column=COL_INCOME, end_row=data_row, end_column=INCOME_SUM_COL)
+    if expense_row == data_row:
+        ws.cell(row=data_row, column=COL_EXPENSE, value="Нет расходов за период")
+        ws.merge_cells(start_row=data_row, start_column=COL_EXPENSE, end_row=data_row, end_column=EXPENSE_SUM_COL)
+
+    ws.freeze_panes = f"{get_column_letter(COL_INCOME)}{data_row}"
+    ws.sheet_view.showGridLines = True
 
     stream = BytesIO()
     wb.save(stream)

@@ -12,6 +12,7 @@ import {
   AdminTableHead,
   AdminTableWrap,
 } from './AdminUi';
+import { BudgetExportModal } from '../budget/BudgetExportModal';
 
 interface Props {
   user: UserListItem;
@@ -26,6 +27,7 @@ export const AdminUserDrawer = ({ user, currentUserId, isOnline, onClose, onImpe
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [activity, setActivity] = useState<UserActivity | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -51,13 +53,9 @@ export const AdminUserDrawer = ({ user, currentUserId, isOnline, onClose, onImpe
     window.location.href = '/';
   };
 
-  const onExportBudget = async () => {
-    try {
-      await adminService.exportUserBudgetExcel(user.id);
-      toast.success('Excel-отчёт пользователя выгружен');
-    } catch (error) {
-      // Ошибка обработана в interceptor
-    }
+  const onExportBudget = async (dateFrom: string, dateTo: string) => {
+    await adminService.exportUserBudgetExcel(user.id, dateFrom, dateTo);
+    toast.success('Excel-отчёт пользователя выгружен');
   };
 
   return (
@@ -137,7 +135,7 @@ export const AdminUserDrawer = ({ user, currentUserId, isOnline, onClose, onImpe
               Войти как пользователь
             </button>
 
-            <button type="button" className="btn btn-secondary w-full text-sm min-h-[44px]" onClick={() => void onExportBudget()}>
+            <button type="button" className="btn btn-secondary w-full text-sm min-h-[44px]" onClick={() => setShowExportModal(true)}>
               <BootstrapIcon name="file-earmark-excel" className="mr-2 inline" size={14} />
               Экспорт бюджета в Excel
             </button>
@@ -151,6 +149,12 @@ export const AdminUserDrawer = ({ user, currentUserId, isOnline, onClose, onImpe
           </div>
         )}
       </div>
+      <BudgetExportModal
+        isOpen={showExportModal}
+        defaultMonth={format(new Date(), 'yyyy-MM')}
+        onClose={() => setShowExportModal(false)}
+        onExport={onExportBudget}
+      />
     </div>
   );
 };

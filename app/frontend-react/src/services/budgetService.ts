@@ -115,12 +115,12 @@ export const budgetService = {
     return response.data;
   },
 
-  async exportBudgetExcel(dateFrom?: string, dateTo?: string, monthLabel?: string): Promise<void> {
+  async exportBudgetExcel(dateFrom?: string, dateTo?: string): Promise<void> {
     const response = await apiClient.get('/budget/summary/export/xlsx', {
       params: { date_from: dateFrom, date_to: dateTo },
       responseType: 'blob',
     });
-    const suffix = monthLabel ? `_${monthLabel}` : '';
+    const suffix = dateFrom && dateTo ? `_${dateFrom}_${dateTo}` : '';
     downloadBlob(response.data, `budget_report${suffix}.xlsx`);
   },
 

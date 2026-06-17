@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { IncomeExpenseCharts } from '../components/Charts';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MonthYearPicker } from '../components/MonthYearPicker';
+import { BudgetExportModal } from '../components/budget/BudgetExportModal';
 import { DatePicker } from '../components/DatePicker';
 import { YearPicker } from '../components/YearPicker';
 import { YearDashboard } from '../components/YearDashboard';
@@ -36,6 +37,7 @@ const BudgetPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -312,17 +314,9 @@ const BudgetPage = () => {
       return acc;
     }, {} as Record<number, number>);
 
-  const handleExportExcel = async () => {
-    try {
-      const [year, month] = selectedMonth.split('-');
-      const dateFrom = `${year}-${month}-01`;
-      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-      const dateTo = `${year}-${month}-${lastDay}`;
-      await budgetService.exportBudgetExcel(dateFrom, dateTo, selectedMonth);
-      toast.success('Excel-отчёт выгружен');
-    } catch (error) {
-      // Ошибка обработана в interceptor
-    }
+  const handleExportExcel = async (dateFrom: string, dateTo: string) => {
+    await budgetService.exportBudgetExcel(dateFrom, dateTo);
+    toast.success('Excel-отчёт выгружен');
   };
 
   return (
@@ -361,7 +355,7 @@ const BudgetPage = () => {
               Транзакция
             </button>
             <button
-              onClick={() => void handleExportExcel()}
+              onClick={() => setShowExportModal(true)}
               className="btn btn-secondary flex items-center"
               title="Экспорт доходов и расходов в Excel"
             >
@@ -1501,6 +1495,12 @@ const BudgetPage = () => {
       )}
 
       {/* Confirm Dialog */}
+      <BudgetExportModal
+        isOpen={showExportModal}
+        defaultMonth={selectedMonth}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportExcel}
+      />
       {confirmDialog && (
         <ConfirmDialog
           isOpen={confirmDialog.isOpen}
