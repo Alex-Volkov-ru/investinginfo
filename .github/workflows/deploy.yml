@@ -100,27 +100,28 @@ jobs:
 
       - name: Copy files & restart services
         run: |
+          SSH_OPTS="-o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=6"
           echo "Копируем файлы на сервер"
-          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml \
+          scp $SSH_OPTS -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} docker-compose.production.yml \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/docker-compose.production.yml
-          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} Makefile \
+          scp $SSH_OPTS -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} Makefile \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/Makefile
-          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} nginx.conf \
+          scp $SSH_OPTS -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} nginx.conf \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/nginx.conf
-          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/nginx.conf \
+          scp $SSH_OPTS -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/nginx.conf \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/frontend/nginx.conf
-          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/local.conf \
+          scp $SSH_OPTS -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/frontend/local.conf \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/frontend/local.conf
-          scp -r -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/pgsql/ \
+          scp -r $SSH_OPTS -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} env/pgsql/ \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/env/"
-          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} scripts/create_backup_cron.sh \
+          scp $SSH_OPTS -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} scripts/create_backup_cron.sh \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/scripts/create_backup_cron.sh"
-          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} scripts/server_disk_cleanup.sh \
+          scp $SSH_OPTS -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} scripts/server_disk_cleanup.sh \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/scripts/server_disk_cleanup.sh"
-          scp -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} scripts/install_cleanup_cron.sh \
+          scp $SSH_OPTS -i ~/.ssh/id_rsa -P ${{ secrets.SSH_PORT }} scripts/install_cleanup_cron.sh \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_DIR }}/scripts/install_cleanup_cron.sh"
 
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
+          ssh $SSH_OPTS -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
           set -e
           cat > '${{ secrets.PROJECT_DIR }}/.telegram-cleanup.env' << 'ENVEOF'
@@ -129,18 +130,14 @@ jobs:
           ENVEOF
           chmod 600 '${{ secrets.PROJECT_DIR }}/.telegram-cleanup.env'
           bash '${{ secrets.PROJECT_DIR }}/scripts/install_cleanup_cron.sh'
-          EOF
 
           echo "Перезапускаем стек контейнеров"
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-          set -e
           cd ${{ secrets.PROJECT_DIR }}
           COMPOSE="docker compose -p bigs -f docker-compose.production.yml"
 
           df -h /
-          DISK_USE=$(df / | tail -1 | awk '{print $5}' | tr -d '%')
-          if [ "$DISK_USE" -gt 85 ]; then
+          DISK_USE=\$(df / | tail -1 | awk '{print \$5}' | tr -d '%')
+          if [ "\$DISK_USE" -gt 85 ]; then
             docker image prune -af
             docker builder prune -af 2>/dev/null || true
             find /var/lib/docker/containers -name '*-json.log' -size +5M -exec truncate -s 2M {} \; 2>/dev/null || true
@@ -148,20 +145,19 @@ jobs:
             docker image prune -f
           fi
 
-          # Зависшие контейнеры от прерванного recreate (hash_bigs-*)
           docker ps -a --format '{{.Names}}' | grep -E '^[0-9a-f]+_bigs-' | xargs -r docker rm -f || true
 
-          $COMPOSE pull
-          $COMPOSE up -d --remove-orphans
+          \$COMPOSE pull
+          \$COMPOSE up -d --remove-orphans
           docker restart bigs-nginx >/dev/null 2>&1 || true
 
           echo "Ждём healthy db и backend..."
-          for i in $(seq 1 40); do
-            db=$(docker inspect -f '{{.State.Health.Status}}' bigs-db 2>/dev/null || echo missing)
-            backend=$(docker inspect -f '{{.State.Health.Status}}' bigs-backend 2>/dev/null || echo missing)
-            if [ "$db" = "healthy" ] && [ "$backend" = "healthy" ]; then break; fi
-            if [ "$i" -eq 40 ]; then
-              $COMPOSE ps
+          for i in \$(seq 1 40); do
+            db=\$(docker inspect -f '{{.State.Health.Status}}' bigs-db 2>/dev/null || echo missing)
+            backend=\$(docker inspect -f '{{.State.Health.Status}}' bigs-backend 2>/dev/null || echo missing)
+            if [ "\$db" = "healthy" ] && [ "\$backend" = "healthy" ]; then break; fi
+            if [ "\$i" -eq 40 ]; then
+              \$COMPOSE ps
               docker logs bigs-db --tail 20 2>&1 || true
               docker logs bigs-backend --tail 20 2>&1 || true
               df -h /
