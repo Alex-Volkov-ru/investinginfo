@@ -11,6 +11,7 @@ import { PortfolioCharts } from '../components/PortfolioCharts';
 import { usePortfolioQuotes } from '../hooks/usePortfolioQuotes';
 import {
   countMissingQuotes,
+  missingQuoteLabels,
   hasLiveQuote,
   positionCurrentPrice,
   positionMarketValue,
@@ -21,7 +22,7 @@ const PortfolioPageMobile = () => {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(null);
   const [positions, setPositions] = useState<PositionFull[]>([]);
-  const { quotes, quotesLoading, quotesError, quotesUpdatedAt, refreshQuotes } = usePortfolioQuotes(positions);
+  const { quotes, quotesLoading, quotesError, quotesTokenInvalid, quotesUpdatedAt, refreshQuotes } = usePortfolioQuotes(positions);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPortfolioTitle, setNewPortfolioTitle] = useState('');
@@ -301,6 +302,7 @@ const PortfolioPageMobile = () => {
     group.reduce((sum, pos) => sum + positionMarketValue(pos, quotes[pos.figi]), 0);
 
   const missingQuotes = countMissingQuotes(positions, quotes);
+  const missingTickers = missingQuoteLabels(positions, quotes);
 
   const sharesValue = calculateGroupValue(groupedPositions.shares);
   const bondsValue = calculateGroupValue(groupedPositions.bonds);
@@ -370,10 +372,21 @@ const PortfolioPageMobile = () => {
       )}
 
       {positions.length > 0 && hasTinkoffToken && (quotesError || missingQuotes > 0) && !quotesLoading && (
-        <div className="mx-3 mb-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
-          {quotesError
-            ? 'Котировки недоступны — показана средняя цена (*).'
-            : `Нет котировок для ${missingQuotes} поз. — средняя цена (*).`}
+        <div className="mx-3 mb-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-900 dark:text-amber-100 space-y-1">
+          {quotesError ? (
+            <p>
+              {quotesTokenInvalid
+                ? 'Токен Tinkoff недействителен. Обновите в настройках — пока средняя цена (*).'
+                : 'Котировки недоступны — показана средняя цена (*).'}
+            </p>
+          ) : (
+            <>
+              <p>Нет котировки для {missingQuotes} поз. — средняя цена (*).</p>
+              {missingTickers.length > 0 && (
+                <p><strong>{missingTickers.join(', ')}</strong></p>
+              )}
+            </>
+          )}
         </div>
       )}
 

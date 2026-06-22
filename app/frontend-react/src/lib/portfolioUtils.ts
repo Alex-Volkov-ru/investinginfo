@@ -35,5 +35,15 @@ export function quotesMapFromResults(results: Quote[]): Record<string, Quote> {
 }
 
 export function countMissingQuotes(positions: PositionFull[], quotes: Record<string, Quote>): number {
-  return positions.filter((p) => !hasLiveQuote(quotes[p.figi])).length;
+  return positionsMissingQuotes(positions, quotes).length;
+}
+
+export function positionsMissingQuotes(positions: PositionFull[], quotes: Record<string, Quote>): PositionFull[] {
+  return positions.filter((p) => !hasLiveQuote(quotes[p.figi]));
+}
+
+export function missingQuoteLabels(positions: PositionFull[], quotes: Record<string, Quote>): string[] {
+  return positionsMissingQuotes(positions, quotes).map(
+    (p) => p.instrument?.ticker || p.instrument?.name || p.figi
+  );
 }

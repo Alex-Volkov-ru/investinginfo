@@ -7,14 +7,15 @@ export function usePortfolioQuotes(positions: PositionFull[]) {
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [quotesError, setQuotesError] = useState(false);
+  const [quotesTokenInvalid, setQuotesTokenInvalid] = useState(false);
   const [quotesUpdatedAt, setQuotesUpdatedAt] = useState<Date | null>(null);
-  const tickers = useMemo(
-    () => [...new Set(positions.map((p) => p.instrument?.ticker).filter((t): t is string => !!t))],
+  const figis = useMemo(
+    () => [...new Set(positions.map((p) => p.figi).filter((f): f is string => !!f))],
     [positions]
   );
 
   const refreshQuotes = useCallback(() => {
-    if (tickers.length === 0) {
+    if (figis.length === 0) {
       setQuotes({});
       setQuotesError(false);
       setQuotesLoading(false);
@@ -25,9 +26,10 @@ export function usePortfolioQuotes(positions: PositionFull[]) {
     let cancelled = false;
     setQuotesLoading(true);
     setQuotesError(false);
+    setQuotesTokenInvalid(false);
 
     portfolioService
-      .getQuotesByTickers(tickers)
+      .getQuotesByFigis(figis)
       .then((response) => {
         if (cancelled) return;
         const map = quotesMapFromResults(response.results);
@@ -35,8 +37,14 @@ export function usePortfolioQuotes(positions: PositionFull[]) {
         setQuotesError(response.results.length === 0);
         setQuotesUpdatedAt(new Date());
       })
-      .catch(() => {
-        if (!cancelled) setQuotesError(true);
+      .catch((error) => {
+        if (!cancelled) {
+          setQuotesError(true);
+          const detail = error?.response?.data?.detail;
+          if (typeof detail === 'string' && detail.toLowerCase().includes('tinkoff')) {
+            setQuotesTokenInvalid(true);
+          }
+        }
       })
       .finally(() => {
         if (!cancelled) setQuotesLoading(false);
@@ -45,12 +53,12 @@ export function usePortfolioQuotes(positions: PositionFull[]) {
     return () => {
       cancelled = true;
     };
-  }, [tickers]);
+  }, [figis]);
 
   useEffect(() => {
     const cleanup = refreshQuotes();
     return cleanup;
   }, [refreshQuotes]);
 
-  return { quotes, quotesLoading, quotesError, quotesUpdatedAt, refreshQuotes };
+  return { quotes, quotesLoading, quotesError, quotesTokenInvalid, quotesUpdatedAt, refreshQuotes };
 }

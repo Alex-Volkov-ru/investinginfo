@@ -69,10 +69,20 @@ export const portfolioService = {
   },
 
   async getQuotesByTickers(tickers: string[], classHint?: string): Promise<{ results: Quote[] }> {
-    const response = await apiClient.post<{ results: Quote[] }>('/quotes_by_tickers', {
-      tickers,
-      class_hint: classHint,
-    });
+    const response = await apiClient.post<{ results: Quote[] }>(
+      '/quotes_by_tickers',
+      { tickers, class_hint: classHint },
+      { headers: { 'X-Silent-Error': '1' } },
+    );
+    return response.data;
+  },
+
+  async getQuotesByFigis(figis: string[]): Promise<{ results: Quote[] }> {
+    const response = await apiClient.post<{ results: Quote[] }>(
+      '/quotes_by_figis',
+      { figis },
+      { headers: { 'X-Silent-Error': '1' } },
+    );
     return response.data;
   },
 };

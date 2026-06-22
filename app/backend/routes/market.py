@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field, ConfigDict
 from starlette.concurrency import run_in_threadpool
 from tinkoff.invest import Client
+from tinkoff.invest.exceptions import RequestError, UnauthenticatedError
 from tinkoff.invest.schemas import CandleInterval
 
 from app.backend.core.config import get_settings
@@ -31,6 +32,7 @@ from app.backend.core.constants import (
     ERROR_FIGI_NOT_FOUND_TEMPLATE,
     ERROR_NO_DATA_TEMPLATE,
     ERROR_NO_TINKOFF_TOKEN,
+    ERROR_TINKOFF_TOKEN_INVALID,
     HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
     HTTP_503_SERVICE_UNAVAILABLE,
@@ -138,21 +140,47 @@ def _token_from_user(user: User) -> str:
         raise HTTPException(HTTP_400_BAD_REQUEST, ERROR_NO_TINKOFF_TOKEN)
     return token
 
+
+def _reraise_tinkoff_error(exc: Exception) -> None:
+    if isinstance(exc, UnauthenticatedError):
+        raise HTTPException(HTTP_400_BAD_REQUEST, ERROR_TINKOFF_TOKEN_INVALID) from exc
+    if isinstance(exc, RequestError):
+        raise HTTPException(HTTP_503_SERVICE_UNAVAILABLE, "Tinkoff API временно недоступен") from exc
+    raise exc
+
+
 def _get_last_price_blocking(figi: str, token: str) -> float:
-    with Client(token) as client:
-        lp = client.market_data.get_last_prices(figi=[figi])
-        if not lp.last_prices:
-            raise HTTPException(HTTP_404_NOT_FOUND, ERROR_NO_DATA_TEMPLATE.format(figi=figi))
-        return q2f(lp.last_prices[0].price)
+    try:
+        with Client(token) as client:
+            lp = client.market_data.get_last_prices(figi=[figi])
+            if not lp.last_prices:
+                raise HTTPException(HTTP_404_NOT_FOUND, ERROR_NO_DATA_TEMPLATE.format(figi=figi))
+            return q2f(lp.last_prices[0].price)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _reraise_tinkoff_error(exc)
+
 
 def _get_last_prices_blocking(figis: List[str], token: str) -> Dict[str, float]:
-    with Client(token) as client:
-        lp = client.market_data.get_last_prices(figi=figis)
-        return {it.figi: q2f(it.price) for it in lp.last_prices}
+    try:
+        with Client(token) as client:
+            lp = client.market_data.get_last_prices(figi=figis)
+            return {it.figi: q2f(it.price) for it in lp.last_prices}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _reraise_tinkoff_error(exc)
+
 
 def _get_candles_blocking(figi: str, from_dt: datetime, to_dt: datetime, interval: CandleInterval, token: str):
-    with Client(token) as client:
-        return client.market_data.get_candles(figi=figi, from_=from_dt, to=to_dt, interval=interval).candles
+    try:
+        with Client(token) as client:
+            return client.market_data.get_candles(figi=figi, from_=from_dt, to=to_dt, interval=interval).candles
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _reraise_tinkoff_error(exc)
 
 def _pick_figi_for_ticker(ticker: str, class_hint: str | None = None) -> dict:
     t = ticker.strip().upper()
@@ -253,6 +281,9 @@ class BatchTickersIn(BaseModel):
     tickers: list[str]
     class_hint: str | None = None
 
+class BatchFigisIn(BaseModel):
+    figis: list[str]
+
 class BatchQuotesOut(BaseModel):
     results: list[QuoteOut]
 
@@ -294,5 +325,35 @@ async def quotes_by_tickers(payload: BatchTickersIn, user: User = Depends(get_cu
         return {"results": out}
 
     # Кэшируем на заданное время - обновляем котировки периодически
+    data = await cached_json(cache_key, ttl_sec=BATCH_QUOTES_CACHE_TTL_SEC, loader=_load)
+    return BatchQuotesOut(**data)
+
+
+@router.post("/quotes_by_figis", response_model=BatchQuotesOut)
+async def quotes_by_figis(payload: BatchFigisIn, user: User = Depends(get_current_user)):
+    """Котировки по FIGI позиций (точнее, чем повторный resolve по тикеру)."""
+    if not payload.figis:
+        return BatchQuotesOut(results=[])
+
+    if not INSTR_CACHE:
+        token = _token_from_user(user)
+        await run_in_threadpool(refresh_instruments_cache, token)
+
+    figis = list(dict.fromkeys(f.strip() for f in payload.figis if f and f.strip()))
+    cache_key = f"quotes_figis:{':'.join(sorted(figis))}"
+
+    async def _load():
+        token = _token_from_user(user)
+        prices_map = await run_in_threadpool(_get_last_prices_blocking, figis, token)
+
+        out: list[dict] = []
+        for figi in figis:
+            raw = prices_map.get(figi)
+            if raw is None:
+                continue
+            qo = _normalize_quote(figi, raw)
+            out.append(qo.model_dump())
+        return {"results": out}
+
     data = await cached_json(cache_key, ttl_sec=BATCH_QUOTES_CACHE_TTL_SEC, loader=_load)
     return BatchQuotesOut(**data)

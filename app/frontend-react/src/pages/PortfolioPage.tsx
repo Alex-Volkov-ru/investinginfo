@@ -12,6 +12,7 @@ import { usePortfolioQuotes } from '../hooks/usePortfolioQuotes';
 import {
   countMissingQuotes,
   hasLiveQuote,
+  missingQuoteLabels,
   positionCurrentPrice,
   positionMarketValue,
   positionPnL,
@@ -21,7 +22,7 @@ const PortfolioPage = () => {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(null);
   const [positions, setPositions] = useState<PositionFull[]>([]);
-  const { quotes, quotesLoading, quotesError, quotesUpdatedAt, refreshQuotes } = usePortfolioQuotes(positions);
+  const { quotes, quotesLoading, quotesError, quotesTokenInvalid, quotesUpdatedAt, refreshQuotes } = usePortfolioQuotes(positions);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPortfolioTitle, setNewPortfolioTitle] = useState('');
@@ -317,6 +318,7 @@ const PortfolioPage = () => {
   };
 
   const missingQuotes = countMissingQuotes(positions, quotes);
+  const missingTickers = missingQuoteLabels(positions, quotes);
 
   return (
     <div className="space-y-6">
@@ -390,10 +392,28 @@ const PortfolioPage = () => {
       )}
 
       {positions.length > 0 && hasTinkoffToken && (quotesError || missingQuotes > 0) && !quotesLoading && (
-        <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-          {quotesError
-            ? 'Не удалось загрузить котировки. Показаны средние цены покупки (*).'
-            : `Котировки недоступны для ${missingQuotes} из ${positions.length} позиций — показана средняя цена (*).`}
+        <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100 space-y-1">
+          {quotesError ? (
+            <p>
+              {quotesTokenInvalid
+                ? 'Токен Tinkoff недействителен или отозван. Обновите его через кнопку «Токен» — пока используются средние цены (*).'
+                : 'Не удалось загрузить котировки. Показаны средние цены покупки (*).'}
+            </p>
+          ) : (
+            <>
+              <p>
+                Для {missingQuotes === 1 ? 'позиции' : `${missingQuotes} позиций`} нет котировки Tinkoff — используется средняя цена покупки (*).
+              </p>
+              {missingTickers.length > 0 && (
+                <p className="text-xs opacity-90">
+                  Без котировки: <strong>{missingTickers.join(', ')}</strong>
+                </p>
+              )}
+              <p className="text-xs opacity-90">
+                Это не ошибка токена. Обычно так бывает у инструментов вне биржи Tinkoff или с нестандартным тикером.
+              </p>
+            </>
+          )}
         </div>
       )}
 
